@@ -68,6 +68,17 @@ local RemoteEvents = {
 	UpdateHealthBar = createRemoteEvent("UpdateHealthBar"),
 	UpdateStamina = createRemoteEvent("UpdateStamina"),
 	ShowNotification = createRemoteEvent("ShowNotification"),
+
+	-- Shop System
+	OpenShop = createRemoteEvent("OpenShop"),
+	PurchaseItem = createRemoteEvent("PurchaseItem"),
+	UpdateShopData = createRemoteEvent("UpdateShopData"),
+
+	-- Building System
+	StartBuildingMode = createRemoteEvent("StartBuildingMode"),
+	ActivateBuildingTool = createRemoteEvent("ActivateBuildingTool"),
+	PlaceBuilding = createRemoteEvent("PlaceBuilding"),
+	CancelBuildingMode = createRemoteEvent("CancelBuildingMode"),
 }
 
 -- Export RemoteFunctions

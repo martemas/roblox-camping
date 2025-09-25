@@ -113,6 +113,17 @@ local GameConfig = {
 		campRadius = 50, -- Radius around camp center for building
 		resourceSpawnRadius = 400, -- Max distance from center for resources
 	},
+
+	-- Shop Settings
+	shop = {
+		WoodenWall = {
+			name = "Wooden Wall",
+			description = "A sturdy wooden wall for defense",
+			cost = { Wood = 0, Stone = 0, Metal = 0 },
+			category = "Building",
+			toolType = "WoodenWall", -- Will be the tool name
+		},
+	},
 }
 
 return GameConfig

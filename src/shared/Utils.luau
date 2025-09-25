@@ -10,14 +10,16 @@ function Utils.findGroundLevel(position: Vector3): Vector3
 	local raycastParams = RaycastParams.new()
 	raycastParams.FilterType = Enum.RaycastFilterType.Exclude
 	raycastParams.FilterDescendantsInstances = {} -- Empty exclude list means ray all parts
+	raycastParams.RespectCanCollide = true
 
 	-- Cast ray from high above the position down to find ground
-	local rayOrigin = Vector3.new(position.X, 1000, position.Z) -- Start high above
-	local rayDirection = Vector3.new(0, -2000, 0) -- Cast downward for 2000 studs
+	local rayOrigin = Vector3.new(position.X, 2000, position.Z) -- Start high above
+	local rayDirection = Vector3.new(0, -5000, 0) -- Cast downward for 5000 studs
 
 	local raycastResult = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
 
 	if raycastResult then
+		print(`Ground found at position: {raycastResult.Position.Y}`) -- DEBUG
 		-- Found ground, place slightly above it
 		return raycastResult.Position + Vector3.new(0, 1, 0)
 	else

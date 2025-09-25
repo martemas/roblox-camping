@@ -25,6 +25,8 @@ local phaseTimerFrame: Frame
 local healthFrame: Frame
 local staminaFrame: Frame
 local notificationFrame: Frame
+local shopButton: TextButton
+local shopFrame: Frame
 
 -- Create the main UI structure
 local function createMainUI()
@@ -271,6 +273,69 @@ local function createMainUI()
 	notificationText.TextWrapped = true
 	notificationText.Parent = notificationFrame
 
+	-- Shop Button (Top Right)
+	shopButton = Instance.new("TextButton")
+	shopButton.Name = "ShopButton"
+	shopButton.Size = UDim2.new(0, 80, 0, 40)
+	shopButton.Position = UDim2.new(1, -100, 0, 20)
+	shopButton.BackgroundColor3 = Color3.fromRGB(100, 150, 100)
+	shopButton.BorderSizePixel = 2
+	shopButton.BorderColor3 = Color3.fromRGB(150, 200, 150)
+	shopButton.Text = "SHOP"
+	shopButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	shopButton.TextScaled = true
+	shopButton.Font = Enum.Font.PermanentMarker
+	shopButton.Parent = mainGui
+
+	-- Shop Frame (Initially Hidden)
+	shopFrame = Instance.new("Frame")
+	shopFrame.Name = "ShopFrame"
+	shopFrame.Size = UDim2.new(0, 500, 0, 400)
+	shopFrame.Position = UDim2.new(0.5, -250, 0.5, -200)
+	shopFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+	shopFrame.BorderSizePixel = 3
+	shopFrame.BorderColor3 = Color3.fromRGB(100, 100, 100)
+	shopFrame.Visible = false
+	shopFrame.Parent = mainGui
+
+	-- Shop Title
+	local shopTitle = Instance.new("TextLabel")
+	shopTitle.Name = "ShopTitle"
+	shopTitle.Size = UDim2.new(1, 0, 0, 40)
+	shopTitle.Position = UDim2.new(0, 0, 0, 0)
+	shopTitle.BackgroundTransparency = 1
+	shopTitle.Text = "SHOP"
+	shopTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+	shopTitle.TextScaled = true
+	shopTitle.Font = Enum.Font.PermanentMarker
+	shopTitle.Parent = shopFrame
+
+	-- Shop Close Button
+	local closeButton = Instance.new("TextButton")
+	closeButton.Name = "CloseButton"
+	closeButton.Size = UDim2.new(0, 30, 0, 30)
+	closeButton.Position = UDim2.new(1, -35, 0, 5)
+	closeButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+	closeButton.BorderSizePixel = 1
+	closeButton.BorderColor3 = Color3.fromRGB(255, 100, 100)
+	closeButton.Text = "X"
+	closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	closeButton.TextScaled = true
+	closeButton.Font = Enum.Font.PermanentMarker
+	closeButton.Parent = shopFrame
+
+	-- Shop Content Frame
+	local contentFrame = Instance.new("ScrollingFrame")
+	contentFrame.Name = "ContentFrame"
+	contentFrame.Size = UDim2.new(1, -20, 1, -60)
+	contentFrame.Position = UDim2.new(0, 10, 0, 50)
+	contentFrame.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+	contentFrame.BorderSizePixel = 1
+	contentFrame.BorderColor3 = Color3.fromRGB(100, 100, 100)
+	contentFrame.ScrollBarThickness = 8
+	contentFrame.CanvasSize = UDim2.new(0, 0, 0, 0) -- Will be set dynamically
+	contentFrame.Parent = shopFrame
+
 	print("Game UI created")
 end
 
@@ -408,6 +473,134 @@ local function updateStaminaUI(currentStamina: number, maxStamina: number)
 	end
 end
 
+-- Open shop
+local function openShop()
+	shopFrame.Visible = true
+	RemoteEvents.Events.OpenShop:FireServer()
+end
+
+-- Close shop
+local function closeShop()
+	shopFrame.Visible = false
+end
+
+-- Create shop item display
+local function createShopItem(itemId: string, itemData: any, teamResources: any, yPosition: number)
+	local contentFrame = shopFrame:FindFirstChild("ContentFrame") :: ScrollingFrame
+
+	local itemFrame = Instance.new("Frame")
+	itemFrame.Name = itemId
+	itemFrame.Size = UDim2.new(1, -10, 0, 80)
+	itemFrame.Position = UDim2.new(0, 5, 0, yPosition)
+	itemFrame.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+	itemFrame.BorderSizePixel = 2
+	itemFrame.BorderColor3 = Color3.fromRGB(120, 120, 120)
+	itemFrame.Parent = contentFrame
+
+	-- Item Name
+	local nameLabel = Instance.new("TextLabel")
+	nameLabel.Name = "NameLabel"
+	nameLabel.Size = UDim2.new(0.4, 0, 0.5, 0)
+	nameLabel.Position = UDim2.new(0, 10, 0, 5)
+	nameLabel.BackgroundTransparency = 1
+	nameLabel.Text = itemData.name
+	nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	nameLabel.TextScaled = true
+	nameLabel.Font = Enum.Font.PermanentMarker
+	nameLabel.Parent = itemFrame
+
+	-- Item Description
+	local descLabel = Instance.new("TextLabel")
+	descLabel.Name = "DescLabel"
+	descLabel.Size = UDim2.new(0.4, 0, 0.5, 0)
+	descLabel.Position = UDim2.new(0, 10, 0.5, 0)
+	descLabel.BackgroundTransparency = 1
+	descLabel.Text = itemData.description
+	descLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+	descLabel.TextScaled = true
+	descLabel.Font = Enum.Font.SourceSans
+	descLabel.Parent = itemFrame
+
+	-- Cost Display
+	local costText = {}
+	for resourceType, cost in pairs(itemData.cost) do
+		if cost > 0 then
+			local hasEnough = (teamResources[resourceType] or 0) >= cost
+			local color = hasEnough and "green" or "red"
+			table.insert(costText, `<font color="{color}">{cost} {resourceType}</font>`)
+		end
+	end
+
+	local costLabel = Instance.new("TextLabel")
+	costLabel.Name = "CostLabel"
+	costLabel.Size = UDim2.new(0.35, 0, 1, 0)
+	costLabel.Position = UDim2.new(0.4, 0, 0, 0)
+	costLabel.BackgroundTransparency = 1
+	costLabel.Text = table.concat(costText, "\n")
+	costLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	costLabel.TextScaled = true
+	costLabel.Font = Enum.Font.SourceSans
+	costLabel.RichText = true
+	costLabel.Parent = itemFrame
+
+	-- Purchase Button
+	local purchaseButton = Instance.new("TextButton")
+	purchaseButton.Name = "PurchaseButton"
+	purchaseButton.Size = UDim2.new(0.2, -10, 0.6, 0)
+	purchaseButton.Position = UDim2.new(0.8, 0, 0.2, 0)
+	purchaseButton.BackgroundColor3 = Color3.fromRGB(100, 200, 100)
+	purchaseButton.BorderSizePixel = 1
+	purchaseButton.BorderColor3 = Color3.fromRGB(150, 255, 150)
+	purchaseButton.Text = "BUY"
+	purchaseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	purchaseButton.TextScaled = true
+	purchaseButton.Font = Enum.Font.PermanentMarker
+
+	-- Check if can afford
+	local canAfford = true
+	for resourceType, cost in pairs(itemData.cost) do
+		if cost > 0 and (teamResources[resourceType] or 0) < cost then
+			canAfford = false
+			break
+		end
+	end
+
+	if not canAfford then
+		purchaseButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+		purchaseButton.BorderColor3 = Color3.fromRGB(120, 120, 120)
+		purchaseButton.TextColor3 = Color3.fromRGB(150, 150, 150)
+	else
+		purchaseButton.Activated:Connect(function()
+			RemoteEvents.Events.PurchaseItem:FireServer(itemId)
+			closeShop() -- Close shop after purchase
+		end)
+	end
+
+	purchaseButton.Parent = itemFrame
+end
+
+-- Update shop display
+local function updateShopUI(shopData: any, teamResources: any)
+	local contentFrame = shopFrame:FindFirstChild("ContentFrame") :: ScrollingFrame
+
+	-- Clear existing items
+	for _, child in pairs(contentFrame:GetChildren()) do
+		if child:IsA("Frame") then
+			child:Destroy()
+		end
+	end
+
+	-- Create shop items
+	local yPosition = 5
+	for itemId, itemData in pairs(shopData) do
+		createShopItem(itemId, itemData, teamResources, yPosition)
+		yPosition += 90
+	end
+
+	-- Update canvas size
+	contentFrame.CanvasSize = UDim2.new(0, 0, 0, yPosition + 10)
+end
+
 -- Show notification
 local function showNotification(message: string)
 	local notificationText = notificationFrame:FindFirstChild("NotificationText") :: TextLabel
@@ -433,10 +626,16 @@ end
 
 -- Connect remote events
 local function connectEvents()
+	-- Connect shop button clicks
+	shopButton.Activated:Connect(openShop)
+	local closeButton = shopFrame:FindFirstChild("CloseButton") :: TextButton
+	closeButton.Activated:Connect(closeShop)
+
 	RemoteEvents.Events.UpdateInventory.OnClientEvent:Connect(updateInventoryUI)
 	RemoteEvents.Events.UpdateTeamResources.OnClientEvent:Connect(updateTeamResourcesUI)
 	RemoteEvents.Events.UpdatePhaseTimer.OnClientEvent:Connect(updatePhaseTimerUI)
 	RemoteEvents.Events.ShowNotification.OnClientEvent:Connect(showNotification)
+	RemoteEvents.Events.UpdateShopData.OnClientEvent:Connect(updateShopUI)
 
 	-- Handle phase changes
 	RemoteEvents.Events.PhaseChanged.OnClientEvent:Connect(function(phase: GamePhase)

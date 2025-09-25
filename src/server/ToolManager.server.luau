@@ -7,6 +7,7 @@ local Players = game:GetService("Players")
 local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("GameConfig"))
 local Types = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Types"))
 local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RemoteEvents"))
+local Utils = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Utils"))
 
 type ToolType = Types.ToolType
 
@@ -239,6 +240,93 @@ local function enableToolHitDetection(player: Player, toolType: ToolType)
 	end)
 end
 
+-- Building tools are now handled by ShopManager via tool.Equipped
+-- This function is no longer used
+local function onBuildingToolActivated(player: Player, tool: Tool)
+	-- Building mode is now started when tool is equipped, not activated
+	warn("onBuildingToolActivated should not be called - building tools start on equip")
+end
+
+-- Handle building placement from client
+local function onPlaceBuilding(player: Player, buildingItemId: string, placementCFrame: CFrame)
+	local position = placementCFrame.Position
+	print(`{player.Name} placing {buildingItemId} at {position}`) -- DEBUG
+
+	-- Validate the building item exists
+	local modelsFolder = ReplicatedStorage:FindFirstChild("Models")
+	if not modelsFolder then
+		RemoteEvents.Events.ShowNotification:FireClient(player, "Models folder not found")
+		return
+	end
+
+	local shopItemsFolder = modelsFolder:FindFirstChild("ShopItems")
+	if not shopItemsFolder then
+		RemoteEvents.Events.ShowNotification:FireClient(player, "ShopItems folder not found")
+		return
+	end
+
+	local itemTemplate = shopItemsFolder:FindFirstChild(buildingItemId)
+	if not itemTemplate then
+		RemoteEvents.Events.ShowNotification:FireClient(player, `{buildingItemId} template not found`)
+		return
+	end
+
+	-- Use ground detection to ensure proper placement
+	local groundPosition = Utils.findGroundLevel(Vector3.new(position.X, 0, position.Z))
+	
+	-- Create final placement CFrame with ground position but preserve rotation
+	local finalCFrame = placementCFrame - placementCFrame.Position + groundPosition
+
+	-- Clone and place the building
+	local building = itemTemplate:Clone()
+	building.Parent = workspace
+	building.Name = buildingItemId .. "_" .. tostring(tick()) -- Unique name
+
+	-- Calculate height offset to position bottom of building on ground
+	local heightOffset = 0
+	if building:IsA("Model") then
+		if building.PrimaryPart then
+			heightOffset = building.PrimaryPart.Size.Y / 2
+		else
+			local firstPart = building:FindFirstChildOfClass("BasePart")
+			if firstPart then
+				heightOffset = firstPart.Size.Y / 2
+			end
+		end
+	elseif building:IsA("BasePart") then
+		heightOffset = building.Size.Y / 2
+	end
+
+	-- Adjust final CFrame to position building properly on ground
+	local adjustedCFrame = finalCFrame + Vector3.new(0, heightOffset, 0)
+
+	-- Position and rotate the building
+	if building:IsA("Model") then
+		if building.PrimaryPart then
+			building.PrimaryPart.CFrame = adjustedCFrame
+		else
+			-- Use MoveTo for Models without PrimaryPart, then rotate first part
+			building:MoveTo(groundPosition + Vector3.new(0, heightOffset, 0))
+			local firstPart = building:FindFirstChildOfClass("BasePart")
+			if firstPart then
+				firstPart.CFrame = adjustedCFrame
+			end
+		end
+	elseif building:IsA("BasePart") then
+		-- Handle single part case - include rotation and height adjustment
+		building.CFrame = adjustedCFrame
+	else
+		-- Fallback: find first BasePart and position/rotate it
+		local firstPart = building:FindFirstChildOfClass("BasePart")
+		if firstPart then
+			firstPart.CFrame = adjustedCFrame
+		end
+	end
+
+	print(`Placed {buildingItemId} at {groundPosition}`) -- DEBUG
+	RemoteEvents.Events.ShowNotification:FireClient(player, `Placed {buildingItemId}!`)
+end
+
 -- Handle tool swing animation and effects
 local function onToolSwing(player: Player, toolType: ToolType)
 	print('Swinging tool...')
@@ -451,6 +539,10 @@ function ToolManager.IsOnCooldown(player: Player): boolean
 	return isOnCooldown(player, "swing")
 end
 
+function ToolManager.HandleBuildingToolActivation(player: Player, tool: Tool)
+	onBuildingToolActivated(player, tool)
+end
+
 -- Initialize the tool manager
 local function initialize()
 	-- Connect player events
@@ -465,6 +557,7 @@ local function initialize()
 	-- Connect remote events
 	RemoteEvents.Events.EquipTool.OnServerEvent:Connect(onToolEquip)
 	RemoteEvents.Events.SwingTool.OnServerEvent:Connect(onToolSwing)
+	RemoteEvents.Events.PlaceBuilding.OnServerEvent:Connect(onPlaceBuilding)
 
 	print("ToolManager initialized")
 end
