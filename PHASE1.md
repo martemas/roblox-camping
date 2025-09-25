@@ -112,7 +112,7 @@ MVP Phase 1 Implementation Plan
   8. Game Configuration (src/shared/GameConfig.luau)
 
   Contains:
-  - Resource spawn locations (Vector3 positions)
+  - Resource spawn locations (vector positions)
   - Enemy spawn points
   - Campsite center location
   - Recipe definitions

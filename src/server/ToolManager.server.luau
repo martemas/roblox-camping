@@ -272,7 +272,7 @@ local function onPlaceBuilding(player: Player, buildingItemId: string, placement
 	end
 
 	-- Use ground detection to ensure proper placement
-	local groundPosition = Utils.findGroundLevel(Vector3.new(position.X, 0, position.Z))
+	local groundPosition = Utils.findGroundLevel(vector.create(position.X, 0, position.Z))
 	
 	-- Create final placement CFrame with ground position but preserve rotation
 	local finalCFrame = placementCFrame - placementCFrame.Position + groundPosition
@@ -298,7 +298,7 @@ local function onPlaceBuilding(player: Player, buildingItemId: string, placement
 	end
 
 	-- Adjust final CFrame to position building properly on ground
-	local adjustedCFrame = finalCFrame + Vector3.new(0, heightOffset, 0)
+	local adjustedCFrame = finalCFrame + vector.create(0, heightOffset, 0)
 
 	-- Position and rotate the building
 	if building:IsA("Model") then
@@ -306,7 +306,7 @@ local function onPlaceBuilding(player: Player, buildingItemId: string, placement
 			building.PrimaryPart.CFrame = adjustedCFrame
 		else
 			-- Use MoveTo for Models without PrimaryPart, then rotate first part
-			building:MoveTo(groundPosition + Vector3.new(0, heightOffset, 0))
+			building:MoveTo(groundPosition + vector.create(0, heightOffset, 0))
 			local firstPart = building:FindFirstChildOfClass("BasePart")
 			if firstPart then
 				firstPart.CFrame = adjustedCFrame

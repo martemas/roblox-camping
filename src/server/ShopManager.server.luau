@@ -29,7 +29,7 @@ local function canAffordItem(itemId: string): boolean
 	local teamResources = WarehouseManager.GetTeamResources()
 
 	-- Check each required resource
-	for resourceType, requiredAmount in pairs(itemConfig.cost) do
+	for resourceType, requiredAmount in itemConfig.cost do
 		if requiredAmount > 0 and (teamResources[resourceType] or 0) < requiredAmount then
 			return false
 		end
@@ -46,7 +46,7 @@ local function deductResources(itemId: string): boolean
 	end
 
 	-- Deduct each resource cost
-	for resourceType, cost in pairs(itemConfig.cost) do
+	for resourceType, cost in itemConfig.cost do
 		if cost > 0 then
 			local success = WarehouseManager.ConsumeResources(resourceType, cost)
 			if not success then
@@ -68,7 +68,7 @@ local function makeTransparent(obj: Instance)
 		obj.Massless = true
 		obj.BrickColor = BrickColor.new("Bright green") -- Green for valid placement
 	end
-	for _, child in pairs(obj:GetChildren()) do
+	for _, child in obj:GetChildren() do
 		makeTransparent(child)
 	end
 end
@@ -102,7 +102,7 @@ local function createBuildingTool(player: Player, itemId: string): Tool?
 	-- Create a visible handle for the tool - not necessary but helps with debugging
 	local handle = Instance.new("Part")
 	handle.Name = "Handle"
-	handle.Size = Vector3.new(0.1, 0.1, 0.1) -- Larger size so it's visible
+	handle.Size = vector.create(0.1, 0.1, 0.1) -- Larger size so it's visible
 	handle.Material = Enum.Material.Neon
 	handle.BrickColor = BrickColor.new("Bright blue")
 	handle.CanCollide = false

@@ -21,6 +21,7 @@ local placementConnection: RBXScriptConnection? = nil
 local inputConnection: RBXScriptConnection? = nil
 local previewModel: Model? = nil
 local currentRotation = 0 -- Track preview rotation in degrees
+local instructionGui: ScreenGui? = nil
 
 
 
@@ -54,13 +55,50 @@ local function createPreviewModel(itemId: string): Model?
 			obj.Massless = true
 			obj.BrickColor = BrickColor.new("Bright green") -- Green for valid placement
 		end
-		for _, child in pairs(obj:GetChildren()) do
+		for _, child in obj:GetChildren() do
 			makeTransparent(child)
 		end
 	end
 
 	makeTransparent(preview)
 	return preview
+end
+
+-- Create instruction GUI for building mode
+local function createInstructionGui(): ScreenGui
+	local screenGui = Instance.new("ScreenGui")
+	screenGui.Name = "BuildingInstructions"
+	screenGui.Parent = player:WaitForChild("PlayerGui")
+
+	-- Create frame for the instruction
+	local frame = Instance.new("Frame")
+	frame.Name = "InstructionFrame"
+	frame.Size = UDim2.new(0, 250, 0, 60)
+	frame.Position = UDim2.new(1, -270, 1, -80) -- Bottom right corner with margin
+	frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+	frame.BackgroundTransparency = 0.3
+	frame.BorderSizePixel = 0
+	frame.Parent = screenGui
+
+	-- Add rounded corners
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 8)
+	corner.Parent = frame
+
+	-- Create text label
+	local textLabel = Instance.new("TextLabel")
+	textLabel.Name = "InstructionText"
+	textLabel.Size = UDim2.new(1, 0, 1, 0)
+	textLabel.Position = UDim2.new(0, 0, 0, 0)
+	textLabel.BackgroundTransparency = 1
+	textLabel.Text = "Press R to rotate\nEsc/Q to cancel"
+	textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	textLabel.TextScaled = true
+	textLabel.TextWrapped = true
+	textLabel.Font = Enum.Font.SourceSans
+	textLabel.Parent = frame
+
+	return screenGui
 end
 
 -- Update preview position and rotation
@@ -97,7 +135,7 @@ local function updatePreviewPosition()
 		heightOffset = previewModel.Size.Y / 2
 	end
 
-	local finalPosition = Vector3.new(targetPosition.X, groundLevel.Y + heightOffset, targetPosition.Z)
+	local finalPosition = vector.create(targetPosition.X, groundLevel.Y + heightOffset, targetPosition.Z)
 
 	-- Create rotation based on player facing + current rotation
 	local playerRotation = math.atan2(-rootPart.CFrame.LookVector.X, -rootPart.CFrame.LookVector.Z)
@@ -141,11 +179,14 @@ local function startBuildingMode(itemId: string)
 		return
 	end
 
+	-- Create instruction GUI
+	instructionGui = createInstructionGui()
+
 	-- Start updating preview position (runs every 10 frames for performance)
 	local frameCounter = 0
 	placementConnection = RunService.Heartbeat:Connect(function()
 		frameCounter = frameCounter + 1
-		if frameCounter % 10 ~= 0 then return end -- Run every 10 frames
+		if frameCounter % 1 ~= 0 then return end -- Run every 10 frames
 
 		updatePreviewPosition()
 	end)
@@ -225,12 +266,12 @@ function BuildingController.PlaceBuilding()
 	-- Send placement request to server with position and rotation
 	RemoteEvents.Events.PlaceBuilding:FireServer(currentBuildingItem, placementCFrame)
 
-	-- Clean up building mode after successful placement
-	BuildingController.CancelBuilding()
+	-- Clean up building mode after successful placement (destroy tool since it was used)
+	BuildingController.CancelBuilding(false)
 end
 
--- Cancel building mode
-function BuildingController.CancelBuilding()
+-- Cancel building mode without destroying the tool
+function BuildingController.CancelBuilding(preserveTool: boolean?)
 	-- Only cancel if we're actually in building mode
 	if not buildingMode then
 		print("Not in building mode - ignoring cancel request")
@@ -270,13 +311,30 @@ function BuildingController.CancelBuilding()
 		print("Destroyed preview model") -- DEBUG
 	end
 
-	-- Destroy the building tool
+	-- Clean up instruction GUI
+	if instructionGui then
+		instructionGui:Destroy()
+		instructionGui = nil
+		print("Destroyed instruction GUI") -- DEBUG
+	end
+
+	-- Unequip the tool but don't destroy it (unless preserveTool is false)
 	local character = player.Character
 	if character and buildingItemId then
 		local tool = character:FindFirstChild(buildingItemId)
 		if tool and tool:IsA("Tool") and tool:GetAttribute("BuildingItem") == buildingItemId then
-			tool:Destroy()
-			print("Destroyed building tool") -- DEBUG
+			if preserveTool == false then
+				-- Only destroy tool if explicitly requested (like after successful placement)
+				tool:Destroy()
+				print("Destroyed building tool") -- DEBUG
+			else
+				-- Move tool back to backpack
+				local backpack = player:FindFirstChild("Backpack")
+				if backpack then
+					tool.Parent = backpack
+					print("Moved building tool back to backpack") -- DEBUG
+				end
+			end
 		end
 	end
 

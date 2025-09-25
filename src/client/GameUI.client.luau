@@ -506,7 +506,7 @@ local function createShopItem(itemId: string, itemData: any, teamResources: any,
 	nameLabel.Text = itemData.name
 	nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 	nameLabel.TextScaled = true
-	nameLabel.Font = Enum.Font.PermanentMarker
+	nameLabel.Font = Enum.Font.SourceSansBold
 	nameLabel.Parent = itemFrame
 
 	-- Item Description
@@ -526,7 +526,7 @@ local function createShopItem(itemId: string, itemData: any, teamResources: any,
 	for resourceType, cost in pairs(itemData.cost) do
 		if cost > 0 then
 			local hasEnough = (teamResources[resourceType] or 0) >= cost
-			local color = hasEnough and "green" or "red"
+			local color = hasEnough and "rgb(0,255,0)" or "rgb(255,0,0)"
 			table.insert(costText, `<font color="{color}">{cost} {resourceType}</font>`)
 		end
 	end
@@ -536,11 +536,14 @@ local function createShopItem(itemId: string, itemData: any, teamResources: any,
 	costLabel.Size = UDim2.new(0.35, 0, 1, 0)
 	costLabel.Position = UDim2.new(0.4, 0, 0, 0)
 	costLabel.BackgroundTransparency = 1
+	costLabel.RichText = true
 	costLabel.Text = table.concat(costText, "\n")
 	costLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-	costLabel.TextScaled = true
+	costLabel.TextScaled = false
+	costLabel.TextSize = 32
+	costLabel.TextXAlignment = Enum.TextXAlignment.Center
+	costLabel.TextYAlignment = Enum.TextYAlignment.Center
 	costLabel.Font = Enum.Font.SourceSans
-	costLabel.RichText = true
 	costLabel.Parent = itemFrame
 
 	-- Purchase Button

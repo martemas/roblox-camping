@@ -48,7 +48,7 @@ local function onEnemyDied(enemy: EnemyEntity)
 end
 
 -- Create an enemy entity
-local function createEnemy(enemyType: EnemyType, position: Vector3): EnemyEntity?
+local function createEnemy(enemyType: EnemyType, position: vector): EnemyEntity?
 	local modelsFolder = ReplicatedStorage:FindFirstChild("Models")
 	if not modelsFolder then
 		warn("Models folder not found in ReplicatedStorage")
@@ -118,7 +118,7 @@ local function createEnemy(enemyType: EnemyType, position: Vector3): EnemyEntity
 end
 
 -- Find nearest player to a position
-local function findNearestPlayer(position: Vector3, maxDistance: number?): Player?
+local function findNearestPlayer(position: vector, maxDistance: number?): Player?
 	local nearestPlayer: Player? = nil
 	local nearestDistance = maxDistance or math.huge
 
@@ -137,7 +137,7 @@ local function findNearestPlayer(position: Vector3, maxDistance: number?): Playe
 end
 
 -- Create pathfinding path to target
-local function createPathToTarget(enemy: EnemyEntity, targetPosition: Vector3)
+local function createPathToTarget(enemy: EnemyEntity, targetPosition: vector)
 	if not enemy.model.PrimaryPart then
 		return
 	end
@@ -179,7 +179,7 @@ local function _updateEnemyAI(enemy: EnemyEntity)
 	-- Check for nearby players first (higher priority than warehouse)
 	local nearestPlayer = findNearestPlayer(position, 20) -- 20 stud detection range
 
-	local targetPosition: Vector3?
+	local targetPosition: vector?
 	local attackTarget: any = nil
 
 	if nearestPlayer and nearestPlayer.Character and nearestPlayer.Character.PrimaryPart then
@@ -220,7 +220,7 @@ local function _updateEnemyAI(enemy: EnemyEntity)
 end
 
 -- Get spawn position around map perimeter
-local function getRandomSpawnPosition(): Vector3
+local function getRandomSpawnPosition(): vector
 	local mapSize = GameConfig.map.size
 	local spawnDistance = mapSize / 2 - 50 -- Spawn 50 studs inside map edge
 
@@ -229,7 +229,7 @@ local function getRandomSpawnPosition(): Vector3
 	local z = math.sin(angle) * spawnDistance
 	local y = 10 -- TODO: Use raycast to find ground level when terrain is ready
 
-	return Vector3.new(x, y, z)
+	return vector.create(x, y, z)
 end
 
 -- Calculate enemies to spawn based on current night

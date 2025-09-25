@@ -122,10 +122,10 @@ local function setupWarehouse()
 		warehouse = newWarehouse
 
 		-- Position at map center (camp location) using ground detection
-		local groundPosition = Vector3.new(0, 0, 0)
+		local groundPosition = vector.create(0, 0, 0)
 		-- local groundPosition = Utils.findGroundLevel(centerPosition)
 		-- Raise warehouse slightly higher than default for visibility
-		groundPosition = groundPosition + Vector3.new(0, 0, 0)
+		groundPosition = groundPosition + vector.create(0, 0, 0)
 
 		print(`Positioning warehouse at: {groundPosition}`) -- DEBUG
 

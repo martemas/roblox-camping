@@ -61,7 +61,7 @@ local GameConfig = {
 
 	-- Time Settings
 	time = {
-		dayDuration = 300, -- 5 minutes
+		dayDuration = 180, -- 5 minutes
 		nightDuration = 180, -- 3 minutes
 		transitionTime = 5, -- Seconds for dawn/dusk transition
 	},

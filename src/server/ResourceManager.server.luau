@@ -72,7 +72,7 @@ local function hasRequiredTool(player: Player, resourceType: ResourceType): bool
 end
 
 -- Create a resource node
-local function createResourceNode(resourceType: ResourceType, position: Vector3): ResourceNode?
+local function createResourceNode(resourceType: ResourceType, position: vector): ResourceNode?
 	local modelsFolder = ReplicatedStorage:FindFirstChild("Models")
 	if not modelsFolder then
 		warn("Models folder not found in ReplicatedStorage")
@@ -223,7 +223,7 @@ end
 local function spawnResourceNodes()
 	local mapSize = GameConfig.map.size
 	local spawnRadius = GameConfig.map.resourceSpawnRadius
-	local centerPosition = Vector3.new(0, 0, 0) -- Map center
+	local centerPosition = vector.create(0, 0, 0) -- Map center
 
 	for resourceType, config in pairs(GameConfig.resources) do
 		for i = 1, config.nodesCount do

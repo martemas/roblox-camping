@@ -44,7 +44,7 @@ local function onWildlifeDied(wildlife: WildlifeEntity)
 end
 
 -- Create a wildlife entity
-local function createWildlife(wildlifeType: WildlifeType, position: Vector3): WildlifeEntity?
+local function createWildlife(wildlifeType: WildlifeType, position: vector): WildlifeEntity?
 	local modelsFolder = ReplicatedStorage:FindFirstChild("Models")
 	if not modelsFolder then
 		warn("Models folder not found in ReplicatedStorage")
@@ -114,7 +114,7 @@ local function createWildlife(wildlifeType: WildlifeType, position: Vector3): Wi
 end
 
 -- Find nearest player to a position
-local function findNearestPlayer(position: Vector3, maxDistance: number?): Player?
+local function findNearestPlayer(position: vector, maxDistance: number?): Player?
 	local nearestPlayer: Player? = nil
 	local nearestDistance = maxDistance or math.huge
 
@@ -192,7 +192,7 @@ local function _updateWildlifeAI(wildlife: WildlifeEntity)
 			local wanderRange = 50
 			local randomX = position.X + math.random(-wanderRange, wanderRange)
 			local randomZ = position.Z + math.random(-wanderRange, wanderRange)
-			local wanderTarget = Vector3.new(randomX, position.Y, randomZ)
+			local wanderTarget = vector.create(randomX, position.Y, randomZ)
 
 			wildlife.humanoid:MoveTo(wanderTarget)
 		end
@@ -202,7 +202,7 @@ end
 -- Spawn wildlife at a random location
 function spawnWildlifeAtRandomLocation(wildlifeType: WildlifeType)
 	local mapSize = GameConfig.map.size
-	local centerPosition = Vector3.new(0, 0, 0)
+	local centerPosition = vector.create(0, 0, 0)
 
 	-- Generate random position away from camp center
 	local minDistance = 100 -- Minimum distance from camp
