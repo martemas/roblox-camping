@@ -105,10 +105,22 @@ local function createWildlife(wildlifeType: WildlifeType, position: vector): Wil
 
 	activeWildlife[wildlifeModel] = wildlifeEntity
 
-	-- Attach HandleToolHit function directly to the model for external access
-	wildlifeModel:SetAttribute("MaxHealth", config.health)
-	wildlifeModel:SetAttribute("CurrentHealth", config.health)
-	wildlifeModel:SetAttribute("WildlifeType", wildlifeType)
+	-- Set generic entity attributes for tool interaction system
+	local entityConfig = GameConfig.entities[wildlifeType]
+	if entityConfig then
+		wildlifeModel:SetAttribute("EntityType", wildlifeType)
+		wildlifeModel:SetAttribute("EntityCategory", entityConfig.category)
+		wildlifeModel:SetAttribute("CanTakeDamage", entityConfig.canTakeDamage)
+		wildlifeModel:SetAttribute("MaxHealth", entityConfig.health)
+		wildlifeModel:SetAttribute("CurrentHealth", entityConfig.health)
+		print(`DEBUG: Set entity attributes for {wildlifeType}`) -- DEBUG
+	else
+		warn(`No entity configuration found for {wildlifeType}`)
+		-- Fallback to old system
+		wildlifeModel:SetAttribute("MaxHealth", config.health)
+		wildlifeModel:SetAttribute("CurrentHealth", config.health)
+		wildlifeModel:SetAttribute("WildlifeType", wildlifeType)
+	end
 
 	return wildlifeEntity
 end

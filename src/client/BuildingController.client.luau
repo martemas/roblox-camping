@@ -22,6 +22,7 @@ local inputConnection: RBXScriptConnection? = nil
 local previewModel: Model? = nil
 local currentRotation = 0 -- Track preview rotation in degrees
 local instructionGui: ScreenGui? = nil
+local mobileControlsGui: ScreenGui? = nil
 
 
 
@@ -97,6 +98,107 @@ local function createInstructionGui(): ScreenGui
 	textLabel.TextWrapped = true
 	textLabel.Font = Enum.Font.SourceSans
 	textLabel.Parent = frame
+
+	return screenGui
+end
+
+-- Create mobile control buttons for building mode
+local function createMobileControls(): ScreenGui
+	local screenGui = Instance.new("ScreenGui")
+	screenGui.Name = "MobileBuildingControls"
+	screenGui.Parent = player:WaitForChild("PlayerGui")
+
+	-- Container frame positioned above mobile controls (right side)
+	local containerFrame = Instance.new("Frame")
+	containerFrame.Name = "MobileControlsContainer"
+	containerFrame.Size = UDim2.new(0, 120, 0, 160)
+	containerFrame.Position = UDim2.new(1, -140, 1, -200) -- Right side, above mobile controls
+	containerFrame.BackgroundTransparency = 1
+	containerFrame.Parent = screenGui
+
+	-- Rotate button
+	local rotateButton = Instance.new("TextButton")
+	rotateButton.Name = "RotateButton"
+	rotateButton.Size = UDim2.new(0, 100, 0, 50)
+	rotateButton.Position = UDim2.new(0, 10, 0, 0)
+	rotateButton.BackgroundColor3 = Color3.fromRGB(0, 162, 255)
+	rotateButton.BorderSizePixel = 2
+	rotateButton.BorderColor3 = Color3.fromRGB(255, 255, 255)
+	rotateButton.Text = "🔄 Rotate"
+	rotateButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	rotateButton.TextSize = 16
+	rotateButton.Font = Enum.Font.SourceSansBold
+	rotateButton.Parent = containerFrame
+
+	-- Add rounded corners to rotate button
+	local rotateCorner = Instance.new("UICorner")
+	rotateCorner.CornerRadius = UDim.new(0, 8)
+	rotateCorner.Parent = rotateButton
+
+	-- Place button
+	local placeButton = Instance.new("TextButton")
+	placeButton.Name = "PlaceButton"
+	placeButton.Size = UDim2.new(0, 100, 0, 50)
+	placeButton.Position = UDim2.new(0, 10, 0, 60)
+	placeButton.BackgroundColor3 = Color3.fromRGB(76, 175, 80)
+	placeButton.BorderSizePixel = 2
+	placeButton.BorderColor3 = Color3.fromRGB(255, 255, 255)
+	placeButton.Text = "✓ Place"
+	placeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	placeButton.TextSize = 16
+	placeButton.Font = Enum.Font.SourceSansBold
+	placeButton.Parent = containerFrame
+
+	-- Add rounded corners to place button
+	local placeCorner = Instance.new("UICorner")
+	placeCorner.CornerRadius = UDim.new(0, 8)
+	placeCorner.Parent = placeButton
+
+	-- Cancel button
+	local cancelButton = Instance.new("TextButton")
+	cancelButton.Name = "CancelButton"
+	cancelButton.Size = UDim2.new(0, 100, 0, 40)
+	cancelButton.Position = UDim2.new(0, 10, 0, 120)
+	cancelButton.BackgroundColor3 = Color3.fromRGB(244, 67, 54)
+	cancelButton.BorderSizePixel = 2
+	cancelButton.BorderColor3 = Color3.fromRGB(255, 255, 255)
+	cancelButton.Text = "✕ Cancel"
+	cancelButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	cancelButton.TextSize = 14
+	cancelButton.Font = Enum.Font.SourceSansBold
+	cancelButton.Parent = containerFrame
+
+	-- Add rounded corners to cancel button
+	local cancelCorner = Instance.new("UICorner")
+	cancelCorner.CornerRadius = UDim.new(0, 8)
+	cancelCorner.Parent = cancelButton
+
+	-- Connect button events
+	rotateButton.Activated:Connect(function()
+		if buildingMode then
+			-- Rotate preview by 15 degrees
+			currentRotation = currentRotation + 15
+			if currentRotation >= 360 then
+				currentRotation = currentRotation - 360
+			end
+			print(`Mobile: Rotated preview to {currentRotation}°`) -- DEBUG
+			updatePreviewPosition() -- Update immediately
+		end
+	end)
+
+	placeButton.Activated:Connect(function()
+		if buildingMode then
+			print("Mobile: Place button pressed") -- DEBUG
+			BuildingController.PlaceBuilding()
+		end
+	end)
+
+	cancelButton.Activated:Connect(function()
+		if buildingMode then
+			print("Mobile: Cancel button pressed") -- DEBUG
+			BuildingController.CancelBuilding()
+		end
+	end)
 
 	return screenGui
 end
@@ -179,8 +281,16 @@ local function startBuildingMode(itemId: string)
 		return
 	end
 
-	-- Create instruction GUI
-	instructionGui = createInstructionGui()
+	-- Create instruction GUI for keyboard users
+	if UserInputService.KeyboardEnabled then
+		instructionGui = createInstructionGui()
+	end
+
+	-- Create mobile controls for touch devices
+	if UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled then
+		mobileControlsGui = createMobileControls()
+		print("Created mobile building controls for touch device") -- DEBUG
+	end
 
 	-- Start updating preview position (runs every 10 frames for performance)
 	local frameCounter = 0
@@ -316,6 +426,13 @@ function BuildingController.CancelBuilding(preserveTool: boolean?)
 		instructionGui:Destroy()
 		instructionGui = nil
 		print("Destroyed instruction GUI") -- DEBUG
+	end
+
+	-- Clean up mobile controls GUI
+	if mobileControlsGui then
+		mobileControlsGui:Destroy()
+		mobileControlsGui = nil
+		print("Destroyed mobile controls GUI") -- DEBUG
 	end
 
 	-- Unequip the tool but don't destroy it (unless preserveTool is false)

@@ -11,8 +11,8 @@ local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChi
 
 local ShopManager = {}
 
--- Reference to WarehouseManager (will be set after initialization)
-local WarehouseManager = nil
+-- Reference to TownhallManager (will be set after initialization)
+local TownhallManager = nil
 
 -- Check if team has enough resources for an item
 local function canAffordItem(itemId: string): boolean
@@ -21,12 +21,12 @@ local function canAffordItem(itemId: string): boolean
 		return false
 	end
 
-	if not WarehouseManager then
-		warn("WarehouseManager not available")
+	if not TownhallManager then
+		warn("TownhallManager not available")
 		return false
 	end
 
-	local teamResources = WarehouseManager.GetTeamResources()
+	local teamResources = TownhallManager.GetTeamResources()
 
 	-- Check each required resource
 	for resourceType, requiredAmount in itemConfig.cost do
@@ -41,14 +41,14 @@ end
 -- Deduct resources from team storage
 local function deductResources(itemId: string): boolean
 	local itemConfig = GameConfig.shop[itemId]
-	if not itemConfig or not WarehouseManager then
+	if not itemConfig or not TownhallManager then
 		return false
 	end
 
 	-- Deduct each resource cost
 	for resourceType, cost in itemConfig.cost do
 		if cost > 0 then
-			local success = WarehouseManager.ConsumeResources(resourceType, cost)
+			local success = TownhallManager.ConsumeResources(resourceType, cost)
 			if not success then
 				warn(`Failed to deduct {cost} {resourceType} for {itemId}`)
 				return false
@@ -179,7 +179,7 @@ end
 -- Send shop data to client
 local function onOpenShop(player: Player)
 	-- Get current team resources
-	local teamResources = WarehouseManager and WarehouseManager.GetTeamResources() or {Wood = 0, Stone = 0, Metal = 0}
+	local teamResources = TownhallManager and TownhallManager.GetTeamResources() or {Wood = 0, Stone = 0, Metal = 0}
 
 	-- Send shop data and current resources to client
 	RemoteEvents.Events.UpdateShopData:FireClient(player, GameConfig.shop, teamResources)
@@ -198,14 +198,14 @@ end
 
 -- Initialize shop manager
 local function initialize()
-	-- Get reference to WarehouseManager after it's loaded
+	-- Get reference to TownhallManager after it's loaded
 	task.spawn(function()
-		-- Wait for WarehouseManager to be available in global scope
-		while not _G.WarehouseManager do
+		-- Wait for TownhallManager to be available in global scope
+		while not _G.TownhallManager do
 			task.wait(0.1)
 		end
-		WarehouseManager = _G.WarehouseManager
-		print("ShopManager connected to WarehouseManager")
+		TownhallManager = _G.TownhallManager
+		print("ShopManager connected to TownhallManager")
 	end)
 
 	-- Connect remote events

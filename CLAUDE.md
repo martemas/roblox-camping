@@ -80,3 +80,8 @@ src/
 3. Use shared modules for common functionality
 4. Follow Roblox's security best practices
 5. Test thoroughly in both Studio and published games
+
+## Roblox Lua language
+
+use `vector.create` instead of `Vector3.new`
+use `vector` instead of `Vector3`

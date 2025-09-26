@@ -22,7 +22,7 @@ print("Waiting for all systems to initialize...")
 local function waitForSystems()
 	local systems = {
 		"InventoryManager",
-		"WarehouseManager",
+		"TownhallManager",
 		"DayNightCycle",
 		"EnemySpawner"
 	}
@@ -49,7 +49,7 @@ print(string.rep("=", 50))
 print("READY FOR TESTING:")
 print("- Resource mining (wood/stone/metal)")
 print("- Inventory management (5-item limit)")
-print("- Warehouse deposits")
+print("- Townhall deposits")
 print("- Day/night cycle")
 print("- Wildlife encounters")
 print("- Enemy waves during night")

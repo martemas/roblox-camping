@@ -9,6 +9,7 @@ local Debris = game:GetService("Debris")
 local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("GameConfig"))
 local Types = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Types"))
 local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RemoteEvents"))
+local Utils = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Utils"))
 
 type EnemyEntity = Types.EnemyEntity
 type EnemyType = Types.EnemyType
@@ -18,9 +19,10 @@ local activeEnemies: {[Model]: EnemyEntity} = {}
 local isNightActive: boolean = false
 local currentNight: number = 0
 local nextWaveTime: number = 0
+local lastWaveTime: number = 0
 
 -- References to other managers (will be set after initialization)
-local WarehouseManager = nil
+local TownhallManager = nil
 local DayNightCycle = nil
 
 
@@ -49,17 +51,25 @@ end
 
 -- Create an enemy entity
 local function createEnemy(enemyType: EnemyType, position: vector): EnemyEntity?
+	print(`DEBUG: Attempting to create {enemyType} at position {position}`) -- DEBUG
+
 	local modelsFolder = ReplicatedStorage:FindFirstChild("Models")
 	if not modelsFolder then
 		warn("Models folder not found in ReplicatedStorage")
 		return nil
 	end
+	print(`DEBUG: Found Models folder`) -- DEBUG
 
 	local enemyTemplate = modelsFolder:FindFirstChild(enemyType)
 	if not enemyTemplate then
 		warn(`Enemy template '{enemyType}' not found in Models folder`)
+		print(`DEBUG: Available models in folder:`) -- DEBUG
+		for _, child in pairs(modelsFolder:GetChildren()) do
+			print(`  - {child.Name}`) -- DEBUG
+		end
 		return nil
 	end
+	print(`DEBUG: Found enemy template: {enemyTemplate.Name}`) -- DEBUG
 
 	local enemyModel = enemyTemplate:Clone()
 	enemyModel.Parent = workspace
@@ -91,10 +101,23 @@ local function createEnemy(enemyType: EnemyType, position: vector): EnemyEntity?
 	humanoid.Health = config.health
 	humanoid.WalkSpeed = config.walkSpeed
 
+	-- Set generic entity attributes for tool interaction system
+	local entityConfig = GameConfig.entities[enemyType]
+	if entityConfig then
+		enemyModel:SetAttribute("EntityType", enemyType)
+		enemyModel:SetAttribute("EntityCategory", entityConfig.category)
+		enemyModel:SetAttribute("CanTakeDamage", entityConfig.canTakeDamage)
+		enemyModel:SetAttribute("MaxHealth", entityConfig.health)
+		enemyModel:SetAttribute("CurrentHealth", entityConfig.health)
+		print(`DEBUG: Set entity attributes for {enemyType}`) -- DEBUG
+	else
+		warn(`No entity configuration found for {enemyType}`)
+	end
+
 	-- Get warehouse as primary target
 	local warehouse = nil
-	if WarehouseManager then
-		warehouse = WarehouseManager.GetWarehouse()
+	if TownhallManager then
+		warehouse = TownhallManager.GetTownhall()
 	end
 	local target = warehouse and warehouse.PrimaryPart
 
@@ -223,13 +246,10 @@ end
 local function getRandomSpawnPosition(): vector
 	local mapSize = GameConfig.map.size
 	local spawnDistance = mapSize / 2 - 50 -- Spawn 50 studs inside map edge
+	local centerPosition = vector.create(0, 0, 0)
 
-	local angle = math.random() * math.pi * 2
-	local x = math.cos(angle) * spawnDistance
-	local z = math.sin(angle) * spawnDistance
-	local y = 10 -- TODO: Use raycast to find ground level when terrain is ready
-
-	return vector.create(x, y, z)
+	-- Use Utils ground detection for proper spawn positioning
+	return Utils.getRandomGroundPosition(centerPosition, spawnDistance - 20, spawnDistance)
 end
 
 -- Calculate enemies to spawn based on current night
@@ -237,20 +257,26 @@ local function calculateEnemyCount(): number
 	local baseCount = GameConfig.nightWaves.baseZombieCount
 	local increase = GameConfig.nightWaves.difficultyIncrease
 	local nightMultiplier = 1 + (currentNight - 1) * increase
+	local finalCount = math.floor(baseCount * nightMultiplier)
 
-	return math.floor(baseCount * nightMultiplier)
+	print(`DEBUG: calculateEnemyCount - Night: {currentNight}, Base: {baseCount}, Increase: {increase}, Multiplier: {nightMultiplier}, Final: {finalCount}`) -- DEBUG
+	return finalCount
 end
 
 -- Spawn a wave of enemies
 local function spawnEnemyWave()
 	local enemyCount = calculateEnemyCount()
+	print(`DEBUG: Attempting to spawn {enemyCount} zombies for night {currentNight}`) -- DEBUG
 
 	for i = 1, enemyCount do
 		local spawnPosition = getRandomSpawnPosition()
+		print(`DEBUG: Spawn position {i}: {spawnPosition}`) -- DEBUG
 		local enemy = createEnemy("Zombie", spawnPosition)
 
 		if enemy then
 			print(`Spawned Zombie {i}/{enemyCount} at night {currentNight}`)
+		else
+			print(`DEBUG: Failed to create Zombie {i}/{enemyCount}`) -- DEBUG
 		end
 
 		-- Small delay between spawns for visual effect
@@ -279,9 +305,12 @@ local function updateEnemies()
 		end
 	end
 
-	-- Check if it's time for next wave
-	if tick() >= nextWaveTime and next(activeEnemies) ~= nil then
-		print("Spawning additional enemy wave...")
+	-- Check if it's time for next wave (with debounce to prevent rapid spawning)
+	local currentTime = tick()
+	if currentTime >= nextWaveTime and currentTime > lastWaveTime + 1 then
+		print(`DEBUG: Spawning wave at time {currentTime}, was due at {nextWaveTime}`) -- DEBUG
+		print("Spawning enemy wave...")
+		lastWaveTime = currentTime
 		spawnEnemyWave()
 	end
 end
@@ -289,22 +318,17 @@ end
 -- Public API
 function EnemySpawner.StartNightWave()
 	if isNightActive then
+		print(`DEBUG: StartNightWave called but night is already active`) -- DEBUG
 		return -- Already active
 	end
 
+	print(`DEBUG: StartNightWave called - beginning night {currentNight + 1}`) -- DEBUG
 	isNightActive = true
 	currentNight += 1
-	nextWaveTime = tick() + 5 -- First wave starts 5 seconds after night begins
+	nextWaveTime = tick() + 5 -- First wave starts after 5 seconds
+	print(`DEBUG: nextWaveTime set to {nextWaveTime} (current time: {tick()})`) -- DEBUG
 
-	print(`Starting night {currentNight} - enemies will spawn soon`)
-
-	-- Spawn initial wave
-	task.spawn(function()
-		task.wait(5)
-		if isNightActive then
-			spawnEnemyWave()
-		end
-	end)
+	print(`Starting night {currentNight} - enemies will spawn in 5 seconds`)
 end
 
 function EnemySpawner.EndNight()
@@ -338,15 +362,77 @@ function EnemySpawner.GetCurrentNight(): number
 	return currentNight
 end
 
+-- Handle tool hit on enemy (called from ToolManager)
+function EnemySpawner.HandleToolHit(player: Player, enemyModel: Model, damage: number, enemyType: string)
+	print(`HandleToolHit called: {player.Name} hit {enemyType} for {damage} damage`) -- DEBUG
+
+	local humanoid = enemyModel:FindFirstChildOfClass("Humanoid")
+	if not humanoid then
+		print(`No Humanoid found in {enemyModel.Name}`) -- DEBUG
+		return
+	end
+
+	-- Try to get tracked enemy first
+	local enemy = activeEnemies[enemyModel]
+	if enemy then
+		print(`Found tracked enemy entity: {enemy.enemyType}`) -- DEBUG
+		print(`Current health: {enemy.health}/{enemy.maxHealth}`) -- DEBUG
+
+		-- Apply damage to tracked entity
+		enemy.health -= damage
+		humanoid.Health = math.max(0, enemy.health)
+
+		-- Update attributes
+		enemyModel:SetAttribute("CurrentHealth", enemy.health)
+
+		print(`After damage - Custom health: {enemy.health}, Humanoid health: {humanoid.Health}`) -- DEBUG
+	else
+		-- Handle external models using attributes
+		print(`No tracked entity found, using attribute system for external model`) -- DEBUG
+
+		local currentHealthAttr = enemyModel:GetAttribute("CurrentHealth")
+		local maxHealthAttr = enemyModel:GetAttribute("MaxHealth")
+
+		local currentHealth: number
+		local maxHealth: number
+
+		-- Initialize attributes if not present
+		if not currentHealthAttr then
+			currentHealth = humanoid.Health
+			maxHealth = humanoid.MaxHealth
+			enemyModel:SetAttribute("CurrentHealth", currentHealth)
+			enemyModel:SetAttribute("MaxHealth", maxHealth)
+			print(`Initialized attributes - Health: {currentHealth}/{maxHealth}`) -- DEBUG
+		else
+			-- Cast attribute values to numbers for type safety
+			currentHealth = tonumber(currentHealthAttr) or humanoid.Health
+			maxHealth = tonumber(maxHealthAttr) or humanoid.MaxHealth
+		end
+
+		-- Apply damage using attributes
+		currentHealth = math.max(0, currentHealth - damage)
+		enemyModel:SetAttribute("CurrentHealth", currentHealth)
+		humanoid.Health = math.max(0, currentHealth)
+
+		print(`External model damage - Health: {currentHealth}/{maxHealth}, Humanoid: {humanoid.Health}`) -- DEBUG
+
+		-- Check if died
+		if currentHealth <= 0 then
+			print(`{enemyType} (external) was killed by {player.Name}`) -- DEBUG
+			-- Humanoid death will handle cleanup
+		end
+	end
+end
+
 -- Initialize the enemy spawner
 local function initialize()
 	-- Get references to other managers
 	task.spawn(function()
 		-- Wait for other managers to be available in global scope
-		while not _G.WarehouseManager or not _G.DayNightCycle do
+		while not _G.TownhallManager or not _G.DayNightCycle do
 			task.wait(0.1)
 		end
-		WarehouseManager = _G.WarehouseManager
+		TownhallManager = _G.TownhallManager
 		DayNightCycle = _G.DayNightCycle
 		print("EnemySpawner connected to other managers")
 	end)

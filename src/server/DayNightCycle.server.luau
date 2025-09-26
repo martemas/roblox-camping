@@ -61,7 +61,7 @@ local function updateLighting(targetSettings: {[string]: any})
 	)
 
 	local tweenableSettings = {}
-	for _, property in pairs(TWEENABLE_PROPERTIES) do
+	for _, property in TWEENABLE_PROPERTIES do
 		if targetSettings[property] then
 			tweenableSettings[property] = targetSettings[property]
 		end

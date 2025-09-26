@@ -121,6 +121,20 @@ local function createResourceNode(resourceType: ResourceType, position: vector):
 		part = mainPart,
 	}
 
+	-- Set generic entity attributes for tool interaction system
+	local entityNodeName = resourceType .. "Node"
+	local entityConfig = GameConfig.entities[entityNodeName]
+	if entityConfig then
+		nodeModel:SetAttribute("EntityType", entityNodeName)
+		nodeModel:SetAttribute("EntityCategory", entityConfig.category)
+		nodeModel:SetAttribute("CanTakeDamage", entityConfig.canTakeDamage)
+		nodeModel:SetAttribute("MaxHealth", entityConfig.health)
+		nodeModel:SetAttribute("CurrentHealth", entityConfig.health)
+		print(`DEBUG: Set entity attributes for {entityNodeName}`) -- DEBUG
+	else
+		warn(`No entity configuration found for {entityNodeName}`)
+	end
+
 	-- TODO: Create HP indicator GUI when UI assets are ready
 	-- TODO: Add particle emitter when particle assets are ready
 

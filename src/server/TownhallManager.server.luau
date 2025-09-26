@@ -11,8 +11,8 @@ local Utils = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Uti
 type TeamResources = Types.TeamResources
 type PlayerInventory = Types.PlayerInventory
 
-local WarehouseManager = {}
-local warehouse: Model? = nil
+local TownhallManager = {}
+local townhall: Model? = nil
 local teamResources: TeamResources = {
 	Wood = 0,
 	Stone = 0,
@@ -28,8 +28,8 @@ local function broadcastTeamResources()
 	RemoteEvents.Events.UpdateTeamResources:FireAllClients(teamResources)
 end
 
--- Handle player touching the warehouse
-local function onWarehouseTouched(hit: BasePart, player: Player)
+-- Handle player touching the townhall
+local function onTownhallTouched(hit: BasePart, player: Player)
 	local character = player.Character
 	if not character or hit.Parent ~= character then
 		return
@@ -99,63 +99,69 @@ local function onWarehouseTouched(hit: BasePart, player: Player)
 end
 
 -- Create or find the warehouse building
-local function setupWarehouse()
+local function setupTownhall()
 	local modelsFolder = ReplicatedStorage:FindFirstChild("Models")
 	if not modelsFolder then
 		warn("Models folder not found in ReplicatedStorage")
 		return
 	end
 
-	local warehouseTemplate = modelsFolder:FindFirstChild("Warehouse")
-	if not warehouseTemplate then
-		warn("Warehouse model not found in Models folder")
+	local buildingsFolder = modelsFolder:FindFirstChild("Buildings")
+	if not buildingsFolder then
+		warn("Buildings folder not found in Models folder")
 		return
 	end
 
-	-- Check if warehouse already exists in workspace
-	local existingWarehouse = workspace:FindFirstChild("Warehouse")
-	if existingWarehouse and existingWarehouse:IsA("Model") then
-		warehouse = existingWarehouse
+	local townhallTemplate = buildingsFolder:FindFirstChild("Townhall-L1")
+	if not townhallTemplate then
+		warn("Townhall-L1 model not found in Models/Buildings folder")
+		return
+	end
+
+	-- Check if townhall already exists in workspace
+	local existingTownhall = workspace:FindFirstChild("Townhall-L1")
+	if existingTownhall and existingTownhall:IsA("Model") then
+		townhall = existingTownhall
 	else
-		local newWarehouse = warehouseTemplate:Clone()
-		newWarehouse.Parent = workspace
-		warehouse = newWarehouse
+		local newTownhall = townhallTemplate:Clone()
+		newTownhall.Parent = workspace
+		townhall = newTownhall
 
 		-- Position at map center (camp location) using ground detection
 		local groundPosition = vector.create(0, 0, 0)
 		-- local groundPosition = Utils.findGroundLevel(centerPosition)
-		-- Raise warehouse slightly higher than default for visibility
+		-- Raise townhall slightly higher than default for visibility
 		groundPosition = groundPosition + vector.create(0, 0, 0)
 
-		print(`Positioning warehouse at: {groundPosition}`) -- DEBUG
+		print(`Positioning townhall at: {groundPosition}`) -- DEBUG
 
-		-- Type assertion since we know warehouse exists at this point
-		local warehouseModel = warehouse :: Model
+		-- Type assertion since we know townhall exists at this point
+		local townhallModel = townhall :: Model
 
-		if warehouseModel.PrimaryPart then
-			warehouseModel:MoveTo(groundPosition)
+		if townhallModel.PrimaryPart then
+			townhallModel:MoveTo(groundPosition)
 			print(`Used MoveTo positioning`) -- DEBUG
 		else
 			-- Fallback: move the first BasePart found
-			local firstPart = warehouseModel:FindFirstChildOfClass("BasePart")
+			local firstPart = townhallModel:FindFirstChildOfClass("BasePart")
 			if firstPart then
 				firstPart.CFrame = CFrame.new(groundPosition)
 				print(`Used first BasePart positioning`) -- DEBUG
 			else
-				warn("No BasePart found in Warehouse model for positioning")
+				warn("No BasePart found in Townhall model for positioning")
 			end
 		end
 	end
 
-	if not warehouse then
-		warn("Failed to create or find warehouse")
+	if not townhall then
+		warn("Failed to create or find townhall")
 		return
 	end
 
 	-- Find the main part for touch detection
-	local mainPart = warehouse.PrimaryPart or warehouse:FindFirstChildOfClass("BasePart")
+	local mainPart = townhall.PrimaryPart or townhall:FindFirstChildOfClass("BasePart")
 	if not mainPart then
-		warn("No BasePart found in Warehouse model")
+		warn("No BasePart found in Townhall model")
 		return
 	end
 
@@ -174,18 +180,18 @@ local function setupWarehouse()
 			return
 		end
 
-		onWarehouseTouched(hit, player)
+		onTownhallTouched(hit, player)
 	end
 
-	-- Connect touch events to all parts of the warehouse
-	for _, part in pairs(warehouse:GetDescendants()) do
+	-- Connect touch events to all parts of the townhall
+	for _, part in pairs(townhall:GetDescendants()) do
 		if part.Name == "Hitbox" and part:IsA("BasePart") then
 			local basePart = part :: BasePart
 			connections[basePart] = basePart.Touched:Connect(onTouched)
 		end
 	end
 
-	print("Warehouse set up with touch detection")
+	print("Townhall set up with touch detection")
 end
 
 -- Handle remote function requests for team resources
@@ -195,19 +201,19 @@ end
 
 -- Handle deposit requests via RemoteEvent
 local function onDepositResources(player: Player)
-	onWarehouseTouched(player.Character and player.Character:FindFirstChildOfClass("BasePart") or Instance.new("Part"), player)
+	onTownhallTouched(player.Character and player.Character:FindFirstChildOfClass("BasePart") or Instance.new("Part"), player)
 end
 
 -- Public API
-function WarehouseManager.GetTeamResources(): TeamResources
+function TownhallManager.GetTeamResources(): TeamResources
 	return teamResources
 end
 
-function WarehouseManager.HasResources(resourceType: Types.ResourceType, amount: number): boolean
+function TownhallManager.HasResources(resourceType: Types.ResourceType, amount: number): boolean
 	return teamResources[resourceType] >= amount
 end
 
-function WarehouseManager.ConsumeResources(resourceType: Types.ResourceType, amount: number): boolean
+function TownhallManager.ConsumeResources(resourceType: Types.ResourceType, amount: number): boolean
 	if teamResources[resourceType] < amount then
 		return false
 	end
@@ -217,16 +223,16 @@ function WarehouseManager.ConsumeResources(resourceType: Types.ResourceType, amo
 	return true
 end
 
-function WarehouseManager.AddResources(resourceType: Types.ResourceType, amount: number)
+function TownhallManager.AddResources(resourceType: Types.ResourceType, amount: number)
 	teamResources[resourceType] += amount
 	broadcastTeamResources()
 end
 
-function WarehouseManager.GetWarehouse(): Model?
-	return warehouse
+function TownhallManager.GetTownhall(): Model?
+	return townhall
 end
 
--- Initialize warehouse manager
+-- Initialize townhall manager
 local function initialize()
 	-- Get reference to InventoryManager after it's loaded
 	task.spawn(function()
@@ -235,11 +241,11 @@ local function initialize()
 			task.wait(0.1)
 		end
 		InventoryManager = _G.InventoryManager
-		print("WarehouseManager connected to InventoryManager")
+		print("TownhallManager connected to InventoryManager")
 	end)
 
-	-- Set up the warehouse building
-	setupWarehouse()
+	-- Set up the townhall building
+	setupTownhall()
 
 	-- Connect remote events
 	RemoteEvents.Functions.GetTeamResources.OnServerInvoke = onGetTeamResources
@@ -260,13 +266,13 @@ local function initialize()
 		end)
 	end
 
-	print("WarehouseManager initialized")
+	print("TownhallManager initialized")
 end
 
 -- Start the system
 initialize()
 
 -- Export to global _G for other servers to access
-_G.WarehouseManager = WarehouseManager
+_G.TownhallManager = TownhallManager
 
-return WarehouseManager
+return TownhallManager

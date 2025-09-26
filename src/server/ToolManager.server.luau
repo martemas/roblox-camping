@@ -85,16 +85,16 @@ local function setCooldown(player: Player, action: string, duration: number?)
 end
 
 
--- Find wildlife model by traversing up the parent hierarchy
-local function findWildlifeModel(startPart: BasePart): (Model?, string?)
+-- Find entity model by traversing up the parent hierarchy
+local function findEntity(startPart: BasePart): (Model?, string?, string?)
 	local current = startPart.Parent
 	while current do
 		if current:IsA("Model") then
-			-- Check if this model has a wildlife type attribute
-			local wildlifeTypeAttr = current:GetAttribute("WildlifeType")
-			if wildlifeTypeAttr then
-				local wildlifeType = tostring(wildlifeTypeAttr)
-				return current, wildlifeType
+			-- Check if this model has entity attributes
+			local entityType = current:GetAttribute("EntityType")
+			local entityCategory = current:GetAttribute("EntityCategory")
+			if entityType and entityCategory then
+				return current, tostring(entityType), tostring(entityCategory)
 			end
 		end
 		current = current.Parent
@@ -103,7 +103,7 @@ local function findWildlifeModel(startPart: BasePart): (Model?, string?)
 			break
 		end
 	end
-	return nil, nil
+	return nil, nil, nil
 end
 
 -- Enable hit detection for tool swing
@@ -147,67 +147,58 @@ local function enableToolHitDetection(player: Player, toolType: ToolType)
 			swingHits[player][swingId] = true
 		end
 
-		-- First try to find wildlife model by traversing up the hierarchy
-		local wildlifeModel, wildlifeType = findWildlifeModel(hit)
+		-- First try to find entity model by traversing up the hierarchy
+		local entityModel, entityType, entityCategory = findEntity(hit)
 
-		if wildlifeModel and wildlifeType then
-			-- Handle wildlife combat
-			print(`Tool hit {wildlifeType}!`) -- DEBUG
+		if entityModel and entityType and entityCategory then
+			-- Handle entity combat using generic system
+			print(`Tool hit {entityType} ({entityCategory})!`) -- DEBUG
+
+			-- Get entity configuration
+			local entityConfig = GameConfig.entities[entityType]
+			if not entityConfig then
+				print(`No configuration found for entity: {entityType}`) -- DEBUG
+				return
+			end
+
+			-- Check if this entity can take damage
+			if not entityConfig.canTakeDamage then
+				print(`{entityType} cannot be damaged`) -- DEBUG
+				RemoteEvents.Events.ShowNotification:FireClient(player, `{entityType} cannot be damaged`)
+				return
+			end
+
+			-- Check if this tool can damage this entity
+			if not table.find(entityConfig.damageableBy, toolType) then
+				print(`{toolType} cannot damage {entityType}`) -- DEBUG
+				RemoteEvents.Events.ShowNotification:FireClient(player, `{toolType} cannot damage {entityType}`)
+				return
+			end
 
 			-- Play attack swing sound
 			playToolSound(player, toolType, "attack")
 
 			local toolConfig = GameConfig.tools[toolType]
 			local damage = toolConfig and toolConfig.damage or 0
-			print(`Dealing {damage} damage with {toolType}`) -- DEBUG
+			print(`Dealing {damage} damage to {entityType} with {toolType}`) -- DEBUG
 
-			-- Signal the WildlifeSpawner to handle damage
-			local WildlifeSpawner = _G.WildlifeSpawner
-			if WildlifeSpawner then
-				print(`Calling WildlifeSpawner.HandleToolHit`) -- DEBUG
-				WildlifeSpawner.HandleToolHit(player, wildlifeModel, damage, wildlifeType)
-			else
-				print(`WildlifeSpawner not available in _G`) -- DEBUG
-			end
-		else
-			-- Check if this is a resource node
-			local hitModel = hit.Parent
-			if not hitModel or not hitModel:IsA("Model") then
-				print(`Hit model is not valid: {hitModel and hitModel.Name or "nil"}`) -- DEBUG
-				return
-			end
+			-- Route to appropriate manager
+			local managerName = entityConfig.manager
+			local manager = _G[managerName]
+			if manager and manager.HandleToolHit then
+				print(`Calling {managerName}.HandleToolHit`) -- DEBUG
 
-			print(`Checking model: {hitModel.Name}`) -- DEBUG
-
-			-- Check if it's a resource node
-			local resourceType = nil
-			if hitModel.Name:find("WoodNode") then
-				resourceType = "Wood"
-			elseif hitModel.Name:find("StoneNode") then
-				resourceType = "Stone"
-			elseif hitModel.Name:find("MetalNode") then
-				resourceType = "Metal"
-			end
-
-			if resourceType then
-				-- Handle resource mining
-				local requiredTool = GameConfig.resources[resourceType].requiredTool
-				if toolType == requiredTool then
-					print(`Tool hit {resourceType} node!`) -- DEBUG
-
-					-- Play resource-specific mining sound
-					playToolSound(player, toolType, "resource", resourceType)
-
-					local ResourceManager = _G.ResourceManager
-					if ResourceManager then
-						ResourceManager.HandleToolHit(player, hit, resourceType)
-					end
+				-- For resources, pass the resourceType; for others, pass the entityType
+				if entityCategory == "resource" and entityConfig.resourceType then
+					manager.HandleToolHit(player, hit, entityConfig.resourceType)
 				else
-					RemoteEvents.Events.ShowNotification:FireClient(player, `You need a {requiredTool} to mine {resourceType}`)
+					manager.HandleToolHit(player, entityModel, damage, entityType)
 				end
 			else
-				print(`{hit.Name} is not recognized as wildlife or resource`) -- DEBUG
+				print(`{managerName} not available in _G or missing HandleToolHit`) -- DEBUG
 			end
+		else
+			print(`{hit.Name} is not recognized as an entity`) -- DEBUG
 		end
 	end)
 

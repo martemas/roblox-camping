@@ -161,7 +161,7 @@ local function createMainUI()
 	timerLabel.Size = UDim2.new(1, 0, 0.5, 0)
 	timerLabel.Position = UDim2.new(0, 0, 0.5, 0)
 	timerLabel.BackgroundTransparency = 1
-	timerLabel.Text = "5:00"
+	timerLabel.Text = "Gather resources, build and protect the camp!"
 	timerLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 	timerLabel.TextScaled = true
 	timerLabel.Font = Enum.Font.Creepster

@@ -61,7 +61,7 @@ local GameConfig = {
 
 	-- Time Settings
 	time = {
-		dayDuration = 180, -- 5 minutes
+		dayDuration = 10, -- 5 minutes
 		nightDuration = 180, -- 3 minutes
 		transitionTime = 5, -- Seconds for dawn/dusk transition
 	},
@@ -102,16 +102,79 @@ local GameConfig = {
 
 	-- Night Wave Settings
 	nightWaves = {
-		baseZombieCount = 5,
-		waveInterval = 20, -- Seconds between waves
-		difficultyIncrease = 0.2, -- 20% more enemies per night survived
+		baseZombieCount = 5, 
+		waveInterval = 60, -- Increased from 20 to 60 seconds between waves
+		difficultyIncrease = 0.2, -- Reduced from 0.2 to 0.1 (10% increase per night)
 	},
 
 	-- Map Settings
 	map = {
-		size = 1000, -- 1000x1000 studs
+		size = 600, -- 1000x1000 studs
 		campRadius = 50, -- Radius around camp center for building
 		resourceSpawnRadius = 400, -- Max distance from center for resources
+	},
+
+	-- Entity System - defines all objects that can be interacted with
+	entities = {
+		-- Wildlife
+		Wolf = {
+			category = "wildlife",
+			health = 60,
+			canTakeDamage = true,
+			damageableBy = {"Axe", "Pickaxe"}, -- Tools that can damage it
+			manager = "WildlifeSpawner", -- Which manager handles this entity
+		},
+		Bear = {
+			category = "wildlife",
+			health = 100,
+			canTakeDamage = true,
+			damageableBy = {"Axe", "Pickaxe"},
+			manager = "WildlifeSpawner",
+		},
+
+		-- Enemies
+		Zombie = {
+			category = "enemy",
+			health = 50,
+			canTakeDamage = true,
+			damageableBy = {"Axe", "Pickaxe"},
+			manager = "EnemySpawner",
+		},
+
+		-- Resources
+		WoodNode = {
+			category = "resource",
+			health = 3, -- hits required
+			canTakeDamage = true,
+			damageableBy = {"Axe"},
+			resourceType = "Wood",
+			manager = "ResourceManager",
+		},
+		StoneNode = {
+			category = "resource",
+			health = 5,
+			canTakeDamage = true,
+			damageableBy = {"Pickaxe"},
+			resourceType = "Stone",
+			manager = "ResourceManager",
+		},
+		MetalNode = {
+			category = "resource",
+			health = 8,
+			canTakeDamage = true,
+			damageableBy = {"Pickaxe"},
+			resourceType = "Metal",
+			manager = "ResourceManager",
+		},
+
+		-- Buildings (for future expansion)
+		WoodenWall = {
+			category = "building",
+			health = 100,
+			canTakeDamage = false, -- Buildings can't be damaged by tools
+			damageableBy = {},
+			manager = nil,
+		},
 	},
 
 	-- Shop Settings
@@ -119,7 +182,7 @@ local GameConfig = {
 		WoodenWall = {
 			name = "Wooden Wall",
 			description = "A sturdy wooden wall for defense",
-			cost = { Wood = 0, Stone = 0, Metal = 0 },
+			cost = { Wood = 3, Stone = 0, Metal = 0 },
 			category = "Building",
 			toolType = "WoodenWall", -- Will be the tool name
 		},
