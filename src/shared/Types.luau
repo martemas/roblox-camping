@@ -50,4 +50,25 @@ export type TeamResources = {
 	Metal: number,
 }
 
+export type PlayerStats = {
+	Power: number,    -- Affects damage output
+	Accuracy: number, -- Affects hit chance
+	Health: number,   -- Affects max health and health regen
+	Speed: number,    -- Affects attack speed and movement
+}
+
+export type PlayerProgression = {
+	level: number,
+	experience: number,
+	stats: PlayerStats,
+	availableStatPoints: number,
+}
+
+export type CombatResult = {
+	hit: boolean,
+	damage: number,
+	critical: boolean,
+	xpGained: number,
+}
+
 return {}

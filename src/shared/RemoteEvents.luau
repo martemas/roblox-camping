@@ -79,6 +79,11 @@ local RemoteEvents = {
 	ActivateBuildingTool = createRemoteEvent("ActivateBuildingTool"),
 	PlaceBuilding = createRemoteEvent("PlaceBuilding"),
 	CancelBuildingMode = createRemoteEvent("CancelBuildingMode"),
+
+	-- Targeting System
+	SelectTarget = createRemoteEvent("SelectTarget"),
+	ClearTarget = createRemoteEvent("ClearTarget"),
+	UpdateTargetHealth = createRemoteEvent("UpdateTargetHealth"),
 }
 
 -- Export RemoteFunctions

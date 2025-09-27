@@ -16,6 +16,34 @@ local GameConfig = {
 		maxStamina = 100,
 		staminaDrainRate = 20, -- Per second while sprinting
 		staminaRegenRate = 30, -- Per second while not sprinting
+
+		-- Starting Stats (accessible terminology)
+		startingStats = {
+			Power = 5,     -- Affects damage output (was Strength)
+			Accuracy = 5,  -- Affects hit chance
+			Health = 5,    -- Affects max health and health regen (was Vitality)
+			Speed = 5,     -- Affects attack speed and movement (was Dexterity)
+		},
+
+		-- Stats per level
+		statsPerLevel = 3, -- Stat points gained per level up
+		maxStatValue = 50, -- Maximum value for any stat
+	},
+
+	-- Experience and Progression
+	progression = {
+		-- XP rewards for different activities
+		xpRewards = {
+			killWildlife = 10,
+			killEnemy = 15,
+			gatherResource = 2,
+			craftItem = 5,
+			surviveTillDawn = 50,
+		},
+
+		-- Level calculation: level = floor(sqrt(experience / 100))
+		xpPerLevel = 100, -- Base XP needed for level calculation
+		maxLevel = 50,    -- Maximum achievable level
 	},
 
 	-- Resource Settings
@@ -50,12 +78,20 @@ local GameConfig = {
 			miningEfficiency = 1.0,
 			canMine = {"Wood"},
 			swingCooldown = 0.5,
+			-- Auto-targeting properties
+			rangeType = "melee",
+			effectiveRange = 8,
+			autoTargetCompatible = true,
 		},
 		Pickaxe = {
 			damage = 15,
 			miningEfficiency = 1.0,
 			canMine = {"Stone", "Metal"},
 			swingCooldown = 0.5,
+			-- Auto-targeting properties
+			rangeType = "melee",
+			effectiveRange = 8,
+			autoTargetCompatible = true,
 		},
 	},
 
@@ -123,6 +159,13 @@ local GameConfig = {
 			canTakeDamage = true,
 			damageableBy = {"Axe", "Pickaxe"}, -- Tools that can damage it
 			manager = "WildlifeSpawner", -- Which manager handles this entity
+			-- Combat Stats
+			stats = {
+				Power = 8,     -- Damage output
+				Accuracy = 75, -- Hit chance (out of 100)
+				Health = 12,   -- Health multiplier
+				Speed = 10,    -- Attack speed
+			},
 		},
 		Bear = {
 			category = "wildlife",
@@ -130,6 +173,13 @@ local GameConfig = {
 			canTakeDamage = true,
 			damageableBy = {"Axe", "Pickaxe"},
 			manager = "WildlifeSpawner",
+			-- Combat Stats
+			stats = {
+				Power = 15,    -- Higher damage
+				Accuracy = 60, -- Lower accuracy than wolf
+				Health = 20,   -- Much more health
+				Speed = 6,     -- Slower attacks
+			},
 		},
 
 		-- Enemies
@@ -139,6 +189,13 @@ local GameConfig = {
 			canTakeDamage = true,
 			damageableBy = {"Axe", "Pickaxe"},
 			manager = "EnemySpawner",
+			-- Combat Stats
+			stats = {
+				Power = 10,    -- Moderate damage
+				Accuracy = 65, -- Moderate accuracy
+				Health = 10,   -- Moderate health
+				Speed = 8,     -- Moderate speed
+			},
 		},
 
 		-- Resources
@@ -149,6 +206,7 @@ local GameConfig = {
 			damageableBy = {"Axe"},
 			resourceType = "Wood",
 			manager = "ResourceManager",
+			-- No combat stats - resources don't fight back
 		},
 		StoneNode = {
 			category = "resource",

@@ -10,6 +10,7 @@ local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild
 local Types = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Types"))
 local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RemoteEvents"))
 local Utils = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Utils"))
+local CombatCalculator = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("CombatCalculator"))
 
 type EnemyEntity = Types.EnemyEntity
 type EnemyType = Types.EnemyType
@@ -220,14 +221,21 @@ local function _updateEnemyAI(enemy: EnemyEntity)
 
 		-- Attack if close enough and not on cooldown
 		if distance <= config.attackRange and tick() - enemy.lastAttackTime >= config.attackCooldown then
-			if attackTarget == nearestPlayer then
-				-- Attack player
-				RemoteEvents.Events.TakeDamage:FireClient(nearestPlayer, config.damage, enemy.enemyType)
-				print(`{enemy.enemyType} attacked {nearestPlayer.Name} for {config.damage} damage`)
+			if attackTarget == nearestPlayer and nearestPlayer then
+				-- Use universal combat system for enemy attacking player
+				local combatResult = CombatCalculator.CalculateCombat(enemy.model, nearestPlayer, nil)
+
+				-- Print combat result for debugging
+				CombatCalculator.PrintCombatResult(combatResult, enemy.enemyType, nearestPlayer.Name)
+
+				-- Only apply damage if attack hit
+				if combatResult.hit then
+					RemoteEvents.Events.TakeDamage:FireClient(nearestPlayer, combatResult.damage, enemy.enemyType)
+				end
 			else
-				-- Attack warehouse/structure
-				-- TODO: Implement structure damage when building system is ready
+				-- Attack warehouse/structure - use fixed damage for now
 				print(`{enemy.enemyType} attacked warehouse for {config.damage} damage`)
+				-- TODO: Implement structure damage when building system is ready
 			end
 
 			enemy.lastAttackTime = tick()

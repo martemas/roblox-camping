@@ -10,6 +10,7 @@ local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild
 local Types = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Types"))
 local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RemoteEvents"))
 local Utils = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Utils"))
+local CombatCalculator = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("CombatCalculator"))
 
 type WildlifeEntity = Types.WildlifeEntity
 type WildlifeType = Types.WildlifeType
@@ -177,12 +178,18 @@ local function _updateWildlifeAI(wildlife: WildlifeEntity)
 		local distance = (position - targetPosition).Magnitude
 
 		if distance <= 8 and tick() - wildlife.lastAttackTime >= 2 then
-			-- Attack the player
-			local damage = config.damage
-			RemoteEvents.Events.TakeDamage:FireClient(nearestPlayer, damage, wildlife.wildlifeType)
-			wildlife.lastAttackTime = tick()
+			-- Use universal combat system for wildlife attacking player
+			local combatResult = CombatCalculator.CalculateCombat(wildlife.model, nearestPlayer, nil)
 
-			print(`{wildlife.wildlifeType} attacked {nearestPlayer.Name} for {damage} damage`)
+			-- Print combat result for debugging
+			CombatCalculator.PrintCombatResult(combatResult, wildlife.wildlifeType, nearestPlayer.Name)
+
+			-- Only apply damage if attack hit
+			if combatResult.hit then
+				RemoteEvents.Events.TakeDamage:FireClient(nearestPlayer, combatResult.damage, wildlife.wildlifeType)
+			end
+
+			wildlife.lastAttackTime = tick()
 
 			-- TODO: Play attack animation when animation assets are ready
 			-- TODO: Play attack sound when sound assets are ready

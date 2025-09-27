@@ -8,6 +8,7 @@ local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild
 local Types = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Types"))
 local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RemoteEvents"))
 local Utils = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Utils"))
+local CombatCalculator = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("CombatCalculator"))
 
 type ToolType = Types.ToolType
 
@@ -178,24 +179,41 @@ local function enableToolHitDetection(player: Player, toolType: ToolType)
 			-- Play attack swing sound
 			playToolSound(player, toolType, "attack")
 
-			local toolConfig = GameConfig.tools[toolType]
-			local damage = toolConfig and toolConfig.damage or 0
-			print(`Dealing {damage} damage to {entityType} with {toolType}`) -- DEBUG
+			-- Use universal combat calculator for damage and hit/miss
+			local character = player.Character
+			local toolInstance = character and character:FindFirstChild(toolType)
+			local tool = toolInstance and toolInstance:IsA("Tool") and toolInstance or nil
 
-			-- Route to appropriate manager
-			local managerName = entityConfig.manager
-			local manager = _G[managerName]
-			if manager and manager.HandleToolHit then
-				print(`Calling {managerName}.HandleToolHit`) -- DEBUG
+			local combatResult = CombatCalculator.CalculateCombat(player, entityModel, tool)
 
-				-- For resources, pass the resourceType; for others, pass the entityType
-				if entityCategory == "resource" and entityConfig.resourceType then
-					manager.HandleToolHit(player, hit, entityConfig.resourceType)
+			-- Print combat result for debugging
+			CombatCalculator.PrintCombatResult(combatResult, player.Name, entityType)
+
+			-- Only proceed if attack hit
+			if combatResult.hit then
+				-- Route to appropriate manager
+				local managerName = entityConfig.manager
+				local manager = _G[managerName]
+				if manager and manager.HandleToolHit then
+					print(`Calling {managerName}.HandleToolHit with {combatResult.damage} damage`) -- DEBUG
+
+					-- For resources, pass the resourceType; for others, pass the damage from combat result
+					if entityCategory == "resource" and entityConfig.resourceType then
+						manager.HandleToolHit(player, hit, entityConfig.resourceType)
+					else
+						manager.HandleToolHit(player, entityModel, combatResult.damage, entityType)
+					end
+
+					-- TODO: Award XP to player when PlayerStatsManager is implemented
+					if combatResult.xpGained > 0 then
+						print(`{player.Name} would gain {combatResult.xpGained} XP`) -- DEBUG
+					end
 				else
-					manager.HandleToolHit(player, entityModel, damage, entityType)
+					print(`{managerName} not available in _G or missing HandleToolHit`) -- DEBUG
 				end
 			else
-				print(`{managerName} not available in _G or missing HandleToolHit`) -- DEBUG
+				-- Attack missed
+				RemoteEvents.Events.ShowNotification:FireClient(player, "Attack missed!")
 			end
 		else
 			print(`{hit.Name} is not recognized as an entity`) -- DEBUG
