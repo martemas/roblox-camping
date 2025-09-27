@@ -217,7 +217,7 @@ local function updatePreviewPosition()
 	-- Calculate position 6 studs in front of player
 	local rootPart = character.PrimaryPart
 	local forwardVector = rootPart.CFrame.LookVector
-	local targetPosition = rootPart.Position + (forwardVector * 6)
+	local targetPosition = rootPart.Position + (forwardVector * (6 + (previewModel.PrimaryPart and previewModel.PrimaryPart.Size.Z / 2 or 0)))
 
 	-- Find ground level at target position
 	local groundLevel = Utils.findGroundLevel(targetPosition)
@@ -287,9 +287,10 @@ local function startBuildingMode(itemId: string)
 	end
 
 	-- Create mobile controls for touch devices
-	if UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled then
+	if UserInputService.TouchEnabled then
 		mobileControlsGui = createMobileControls()
 		print("Created mobile building controls for touch device") -- DEBUG
+		print(`DEBUG: TouchEnabled={UserInputService.TouchEnabled}, KeyboardEnabled={UserInputService.KeyboardEnabled}`) -- DEBUG
 	end
 
 	-- Start updating preview position (runs every 10 frames for performance)
