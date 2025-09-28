@@ -91,6 +91,7 @@ end
 local function playSound(entity: EntityInstance, soundName: string)
 	local sound = entity.model:FindFirstChild("HumanoidRootPart"):FindFirstChild(soundName)
 	if sound and sound:IsA("Sound") then
+		sound.PlaybackSpeed = 1 + (math.random() * 0.2 - 0.1) -- Slight pitch variation
 		sound:Play()
 	end
 end
