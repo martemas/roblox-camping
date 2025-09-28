@@ -79,6 +79,12 @@ local RemoteEvents = {
 	ActivateBuildingTool = createRemoteEvent("ActivateBuildingTool"),
 	PlaceBuilding = createRemoteEvent("PlaceBuilding"),
 	CancelBuildingMode = createRemoteEvent("CancelBuildingMode"),
+
+	-- Entity Targeting
+	SelectTarget = createRemoteEvent("SelectTarget"),
+	DeselectTarget = createRemoteEvent("DeselectTarget"),
+	RequestClosestTarget = createRemoteEvent("RequestClosestTarget"),
+	TargetUpdated = createRemoteEvent("TargetUpdated"), -- For real-time health updates
 }
 
 -- Export RemoteFunctions

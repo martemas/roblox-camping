@@ -50,4 +50,23 @@ export type TeamResources = {
 	Metal: number,
 }
 
+export type TargetInfo = {
+	model: Model,
+	entityType: string,
+	entityCategory: string,
+	health: number,
+	maxHealth: number,
+	distance: number,
+	state: string?,
+	damage: number?,
+	walkSpeed: number?,
+	runSpeed: number?,
+}
+
+export type PlayerTarget = {
+	player: Player,
+	targetModel: Model?,
+	lastUpdate: number,
+}
+
 return {}

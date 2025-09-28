@@ -218,6 +218,16 @@ local GameConfig = {
 		},
 	},
 
+	-- Targeting System Settings
+	targeting = {
+		selectionRange = 80, -- Maximum distance to select a target
+		autoDeselectRange = 100, -- Auto-deselect if target moves this far
+		showOtherPlayersTargets = false, -- Show other players' target highlights
+		otherPlayerHighlightOpacity = 0.3, -- Opacity for other players' highlights
+		ownTargetColor = Color3.fromRGB(255, 200, 0), -- Yellow for own target
+		otherPlayerTargetColor = Color3.fromRGB(100, 150, 255), -- Blue for others
+	},
+
 	-- Shop Settings
 	shop = {
 		WoodenWall = {
