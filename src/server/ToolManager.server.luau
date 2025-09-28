@@ -184,18 +184,31 @@ local function enableToolHitDetection(player: Player, toolType: ToolType)
 
 			-- Route to appropriate manager
 			local managerName = entityConfig.manager
-			local manager = _G[managerName]
-			if manager and manager.HandleToolHit then
-				print(`Calling {managerName}.HandleToolHit`) -- DEBUG
 
-				-- For resources, pass the resourceType; for others, pass the entityType
-				if entityCategory == "resource" and entityConfig.resourceType then
-					manager.HandleToolHit(player, hit, entityConfig.resourceType)
+			-- Handle entity damage through centralized EnemyController for wildlife/enemies
+			if entityCategory == "wildlife" or entityCategory == "enemy" then
+				local EnemyController = _G.EnemyController
+				if EnemyController and EnemyController.handleDamage then
+					print(`Calling EnemyController.handleDamage for {entityType}`) -- DEBUG
+					EnemyController.handleDamage(entityModel, damage, toolType, player)
 				else
-					manager.HandleToolHit(player, entityModel, damage, entityType)
+					print(`EnemyController not available or missing handleDamage method`) -- DEBUG
 				end
 			else
-				print(`{managerName} not available in _G or missing HandleToolHit`) -- DEBUG
+				-- Handle other entities (resources, buildings) through their specific managers
+				local manager = _G[managerName]
+				if manager and manager.HandleToolHit then
+					print(`Calling {managerName}.HandleToolHit`) -- DEBUG
+
+					-- For resources, pass the resourceType; for others, pass the entityType
+					if entityCategory == "resource" and entityConfig.resourceType then
+						manager.HandleToolHit(player, hit, entityConfig.resourceType)
+					else
+						manager.HandleToolHit(player, entityModel, damage, entityType)
+					end
+				else
+					print(`{managerName} not available in _G or missing HandleToolHit`) -- DEBUG
+				end
 			end
 		else
 			print(`{hit.Name} is not recognized as an entity`) -- DEBUG

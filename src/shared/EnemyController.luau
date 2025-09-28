@@ -2,6 +2,8 @@
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local Debris = game:GetService("Debris")
 
 local GameConfig = require(script.Parent:WaitForChild("GameConfig"))
 
@@ -96,6 +98,78 @@ local function playSound(entity: EntityInstance, soundName: string)
 	end
 end
 
+-- Create floating damage number above entity
+local function createDamageDisplay(entity: EntityInstance, damage: number, damageSource: string?, damageType: string?)
+	local humanoidRootPart = entity.humanoidRootPart
+
+	-- Determine color based on damage type
+	local textColor: Color3
+	local displayText: string
+
+	if damageType == "self" then
+		-- Damage you dealt (your attacks on entities)
+		textColor = Color3.fromRGB(255, 255, 100) -- Yellow
+		displayText = "-" .. tostring(damage)
+	elseif damageType == "other_player" then
+		-- Damage dealt by another player
+		textColor = Color3.fromRGB(150, 150, 150) -- Gray
+		displayText = "-" .. tostring(damage)
+	elseif damageType == "incoming" then
+		-- Damage dealt to you
+		textColor = Color3.fromRGB(255, 100, 100) -- Red
+		displayText = "-" .. tostring(damage)
+	else
+		-- Default damage color (fallback)
+		textColor = Color3.fromRGB(255, 150, 150) -- Light red
+		displayText = "-" .. tostring(damage)
+	end
+
+	-- Create BillboardGui for damage display
+	local billboardGui = Instance.new("BillboardGui")
+	billboardGui.Size = UDim2.new(0, 200, 0, 50)
+	billboardGui.StudsOffset = Vector3.new(0, 2, 0)
+	billboardGui.Parent = humanoidRootPart
+
+	-- Create damage text label
+	local damageLabel = Instance.new("TextLabel")
+	damageLabel.Size = UDim2.new(1, 0, 1, 0)
+	damageLabel.BackgroundTransparency = 1
+	damageLabel.Text = displayText
+	damageLabel.TextColor3 = textColor
+	damageLabel.TextScaled = true
+	damageLabel.Font = Enum.Font.SourceSansBold
+	damageLabel.TextStrokeTransparency = 0
+	damageLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+	damageLabel.Parent = billboardGui
+
+	-- Animate the damage number
+	local tweenInfo = TweenInfo.new(
+		1.5, -- Duration
+		Enum.EasingStyle.Quad,
+		Enum.EasingDirection.Out,
+		0, -- Repeat count
+		false, -- Reverse
+		0 -- Delay
+	)
+
+	-- Tween upward movement and fade
+	local tween = TweenService:Create(billboardGui, tweenInfo, {
+		StudsOffset = Vector3.new(math.random(-1, 1), 4, math.random(-1, 1))
+	})
+
+	local fadeTween = TweenService:Create(damageLabel, tweenInfo, {
+		TextTransparency = 1,
+		TextStrokeTransparency = 1
+	})
+
+	-- Start animations
+	tween:Play()
+	fadeTween:Play()
+
+	-- Clean up after animation
+	Debris:AddItem(billboardGui, 1.5)
+end
+
 -- Get closest player to entity
 local function getClosestPlayer(entity: EntityInstance): Player?
 	local config = getEntityConfig(entity.entityType)
@@ -106,12 +180,17 @@ local function getClosestPlayer(entity: EntityInstance): Player?
 	local shortestDist = config.aggroDistance or config.aggroRange or 15
 
 	for _, player in Players:GetPlayers() do
-		if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+		if player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild("Humanoid") then
+			local playerHumanoid = player.Character.Humanoid :: Humanoid
 			local playerHRP = player.Character.HumanoidRootPart :: BasePart
-			local dist = (playerHRP.Position - position).Magnitude
-			if dist <= shortestDist then
-				closest = player
-				shortestDist = dist
+
+			-- Only target players who are alive
+			if playerHumanoid.Health > 0 then
+				local dist = (playerHRP.Position - position).Magnitude
+				if dist <= shortestDist then
+					closest = player
+					shortestDist = dist
+				end
 			end
 		end
 	end
@@ -144,6 +223,11 @@ local function performAttack(entity: EntityInstance, target: Player)
 	local targetHumanoid = target.Character.Humanoid :: Humanoid
 	local config = getEntityConfig(entity.entityType)
 
+	-- Don't attack if target is already dead
+	if targetHumanoid.Health <= 0 then
+		return
+	end
+
 	-- Check recently hit attribute to prevent spam
 	if targetHumanoid:GetAttribute("RecentlyBit") then
 		return
@@ -152,6 +236,17 @@ local function performAttack(entity: EntityInstance, target: Player)
 	-- Calculate and apply damage
 	local damage = EnemyController.calculateDamage(entity.entityType, targetHumanoid)
 	targetHumanoid:TakeDamage(damage)
+
+	-- Show floating damage number above player
+	if target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+		local playerHRP = target.Character.HumanoidRootPart :: BasePart
+		-- Create a temporary entity-like structure for damage display
+		local tempEntity = {
+			entityType = "Player",
+			humanoidRootPart = playerHRP
+		}
+		createDamageDisplay(tempEntity :: any, damage, entity.entityType, "incoming")
+	end
 
 	-- Play attack animation and sound
 	playAnimation(entity, "attack")
@@ -422,11 +517,23 @@ function EnemyController.cleanup()
 end
 
 -- Public API for external systems (like ToolManager hitting entities)
-function EnemyController.handleDamage(model: Model, damage: number, damageSource: string?)
+function EnemyController.handleDamage(model: Model, damage: number, damageSource: string?, attackingPlayer: Player?)
 	local entity = activeEntities[model]
 	if entity then
+		-- Apply damage
 		entity.humanoid:TakeDamage(damage)
+
+		-- Determine damage type for color coding
+		local damageType = "self" -- Default to self damage (assume it's the local player for now)
+		-- Note: We could enhance this by tracking which player is viewing this
+		-- For multiplayer, we'd need to send this info via RemoteEvents to clients
+
+		-- Show floating damage number
+		createDamageDisplay(entity, damage, damageSource, damageType)
+
+		-- Play damage sound
 		playSound(entity, "damage")
+
 		print(`{entity.entityType} took {damage} damage from {damageSource or "unknown"}`)
 	end
 end
