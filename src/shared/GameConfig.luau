@@ -61,7 +61,7 @@ local GameConfig = {
 
 	-- Time Settings
 	time = {
-		dayDuration = 10, -- 5 minutes
+		dayDuration = 60, -- 5 minutes
 		nightDuration = 180, -- 3 minutes
 		transitionTime = 5, -- Seconds for dawn/dusk transition
 	},
@@ -73,18 +73,42 @@ local GameConfig = {
 			health = 60,
 			damage = 8,
 			walkSpeed = 12,
-			aggroRange = 15,
+			runSpeed = 22,
+			aggroRange = 30,
+			attackDistance = 5,
+			attackCooldown = 2,
+			wanderRange = 10,
+			jumpCooldown = 3,
 			respawnTime = 60,
+			canJump = true,
 			drops = {"Food", "Hide", "Bones"},
+			targetPriority = "players", -- "players", "structures", "both"
+			animations = {
+				walk = "rbxassetid://125448487250472",
+				run = "rbxassetid://70972717905830",
+				jump = "rbxassetid://130986182083396",
+				attack = "rbxassetid://83719559878946",
+			},
 		},
 		Bear = {
 			maxCount = 3,
 			health = 100,
-			damage = 15,
-			walkSpeed = 8,
-			aggroRange = 20,
+			damage = 25,
+			walkSpeed = 5,
+			runSpeed = 10,
+			aggroRange = 25,
+			attackDistance = 8,
+			attackCooldown = 2,
+			wanderRange = 35,
+			jumpCooldown = 4,
 			respawnTime = 90,
+			canJump = false,
 			drops = {"Meat", "Hide", "Bones"},
+			targetPriority = "players",
+			animations = {
+				walk = "rbxassetid://97593039109435", -- You can change these per entity
+				attack = "rbxassetid://97384715486637",
+			},
 		},
 	},
 
@@ -94,9 +118,26 @@ local GameConfig = {
 			health = 50,
 			damage = 15,
 			walkSpeed = 8,
-			attackRange = 6,
+			runSpeed = 12,
+			aggroRange = 25,
+			attackDistance = 6,
 			attackCooldown = 2,
+			wanderRange = 5,
+			jumpCooldown = 4,
 			spawnWeight = 1,
+			canJump = false,
+			targetPriority = "both", -- Attack both players and structures
+			animations = {
+				walk = "rbxassetid://125448487250472", -- Change these to zombie-specific animations
+				run = "rbxassetid://70972717905830",
+				jump = "rbxassetid://130986182083396",
+				attack = "rbxassetid://83719559878946",
+			},
+			-- Future: Different attack types for weapons/abilities
+			-- attackTypes = {
+			--     bite = { damage = 15, cooldown = 2, animation = "bite" },
+			--     claw = { damage = 12, cooldown = 1.5, animation = "claw" },
+			-- }
 		},
 	},
 
