@@ -28,6 +28,13 @@ local EnemyController = {}
 local activeEntities: {[Model]: EntityInstance} = {}
 local isInitialized = false
 
+-- Helper function to update entity state and sync to model attribute
+local function updateEntityState(entity: EntityInstance, newState: EntityState)
+	entity.state = newState
+	-- Update model attribute so clients can see the state
+	entity.model:SetAttribute("EntityState", newState)
+end
+
 -- Get entity configuration from GameConfig
 local function getEntityConfig(entityType: string)
 	-- First check wildlife
@@ -308,7 +315,7 @@ local function handleJumping(entity: EntityInstance)
 		entity.humanoid.Jump = true
 		playAnimation(entity, "jump")
 		entity.lastJumpTime = currentTime
-		entity.state = "jumping"
+		updateEntityState(entity, "jumping")
 	end
 end
 
@@ -359,7 +366,7 @@ local function updateEntityAI(entity: EntityInstance)
 
 		-- Set running speed and animation
 		entity.humanoid.WalkSpeed = config.runSpeed -- or config.walkSpeed or 12
-		entity.state = "chasing"
+		updateEntityState(entity, "chasing")
 		playAnimation(entity, "run")
 
 		-- Attack if close enough
@@ -367,7 +374,7 @@ local function updateEntityAI(entity: EntityInstance)
 		if distToTarget <= attackDistance then
 			local attackCooldown = config.attackCooldown or 2
 			if currentTime - entity.lastAttackTime >= attackCooldown then
-				entity.state = "attacking"
+				updateEntityState(entity, "attacking")
 				performAttack(entity, entity.target)
 			end
 		else
@@ -382,7 +389,7 @@ local function updateEntityAI(entity: EntityInstance)
 	else
 		-- Wandering behavior
 		entity.humanoid.WalkSpeed = config.walkSpeed or 12
-		entity.state = "wandering"
+		updateEntityState(entity, "wandering")
 		playAnimation(entity, "walk")
 
 		-- Simple wandering logic with cooldown to prevent rapid direction changes
@@ -444,6 +451,9 @@ function EnemyController.initializeEntity(model: Model, entityType: string): Ent
 
 	-- Load animations
 	loadAnimations(entity)
+
+	-- Set initial state
+	updateEntityState(entity, "idle")
 
 	-- Handle death
 	humanoid.Died:Connect(function()

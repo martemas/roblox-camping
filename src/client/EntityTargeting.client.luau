@@ -8,13 +8,17 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TargetingSystem = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("TargetingSystem"))
 local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RemoteEvents"))
 local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("GameConfig"))
+local PlayerSettingsManager = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("PlayerSettingsManager"))
 
 local player = Players.LocalPlayer
 local mouse = player:GetMouse()
 local camera = workspace.CurrentCamera
 
--- Initialize targeting system
+-- Initialize systems
 TargetingSystem.initialize()
+PlayerSettingsManager.initialize()
+
+-- PlayerSettingsManager will be used in connectMouseEvents()
 
 -- Find entity model from a clicked part (traverse up the hierarchy)
 local function findEntityFromPart(hitPart: BasePart): Model?
@@ -96,17 +100,36 @@ local function onKeyPressed(key: string)
 	end
 end
 
--- Connect input events
-mouse.Button1Down:Connect(onMouseClick)
+-- Connect configurable mouse input events
+local function connectMouseEvents()
+	local controls = PlayerSettingsManager.getControlSettings(player)
+
+	-- Connect the appropriate mouse button based on settings
+	if controls.targetingMouseButton == "Left" then
+		mouse.Button1Down:Connect(onMouseClick)
+		print("EntityTargeting: Using LEFT mouse button for targeting")
+	elseif controls.targetingMouseButton == "Right" then
+		mouse.Button2Down:Connect(onMouseClick)
+		print("EntityTargeting: Using RIGHT mouse button for targeting")
+	elseif controls.targetingMouseButton == "Middle" then
+		mouse.Button3Down:Connect(onMouseClick)
+		print("EntityTargeting: Using MIDDLE mouse button for targeting")
+	end
+end
+
+-- Connect mouse events
+connectMouseEvents()
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if gameProcessed then
 		return -- Don't process if GUI consumed the input
 	end
 
-	if input.KeyCode == Enum.KeyCode.X then
+	local controls = PlayerSettingsManager.getControlSettings(player)
+
+	if input.KeyCode == controls.targetClosestKey then
 		onKeyPressed("X")
-	elseif input.KeyCode == Enum.KeyCode.Escape then
+	elseif input.KeyCode == controls.clearTargetKey then
 		onKeyPressed("Escape")
 	end
 end)
