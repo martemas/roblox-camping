@@ -9,6 +9,7 @@ local TargetingSystem = require(ReplicatedStorage:WaitForChild("Shared"):WaitFor
 local PlayerSettingsManager = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("PlayerSettingsManager"))
 local PlayerSettings = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("PlayerSettings"))
 local Types = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Types"))
+local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RemoteEvents"))
 
 type TargetInfo = Types.TargetInfo
 type TargetHUDSettings = PlayerSettings.TargetHUDSettings
@@ -160,6 +161,25 @@ local function createTargetHUD(): ScreenGui
 	typeLabel.TextXAlignment = Enum.TextXAlignment.Left
 	typeLabel.Parent = detailsFrame
 
+	-- Close button (X)
+	local closeButton = Instance.new("TextButton")
+	closeButton.Name = "CloseButton"
+	closeButton.Size = UDim2.new(0, 30, 0, 30)
+	closeButton.Position = UDim2.new(1, -35, 0, 5)
+	closeButton.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+	closeButton.BackgroundTransparency = 0.3
+	closeButton.BorderSizePixel = 1
+	closeButton.BorderColor3 = Color3.fromRGB(255, 255, 255)
+	closeButton.Text = "X"
+	closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+	closeButton.TextScaled = true
+	closeButton.Font = Enum.Font.SourceSansBold
+	closeButton.Parent = mainFrame
+
+	local closeCorner = Instance.new("UICorner")
+	closeCorner.CornerRadius = UDim.new(0, 6)
+	closeCorner.Parent = closeButton
+
 	return screenGui
 end
 
@@ -289,6 +309,18 @@ local function showTargetHUD(targetInfo: TargetInfo)
 	-- Create HUD if it doesn't exist
 	if not currentHUD then
 		currentHUD = createTargetHUD()
+
+		-- Connect close button
+		local mainFrame = currentHUD:FindFirstChild("MainFrame") :: Frame
+		if mainFrame then
+			local closeButton = mainFrame:FindFirstChild("CloseButton") :: TextButton
+			if closeButton then
+				closeButton.MouseButton1Click:Connect(function()
+					TargetingSystem.setTarget(player, nil)
+					RemoteEvents.Events.DeselectTarget:FireServer()
+				end)
+			end
+		end
 	end
 
 	-- Apply settings and update content

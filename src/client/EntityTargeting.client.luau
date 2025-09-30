@@ -54,23 +54,14 @@ end
 local function onMouseClick()
 	local hitPart = mouse.Target
 	if not hitPart then
-		-- Click on empty space - clear target
-		clearTarget()
+		-- Click on empty space - do nothing (keep current target)
 		return
 	end
 
 	-- Find entity from clicked part
 	local entity = findEntityFromPart(hitPart)
 	if not entity then
-		-- Clicked on non-entity - clear target
-		clearTarget()
-		return
-	end
-
-	-- If clicking same target, clear it
-	local currentTarget = TargetingSystem.getTarget(player)
-	if entity == currentTarget then
-		clearTarget()
+		-- Clicked on non-entity - do nothing (keep current target)
 		return
 	end
 
