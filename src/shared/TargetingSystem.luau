@@ -20,7 +20,14 @@ local CHECK_INTERVAL = 0.1 -- How often to check target validity (seconds)
 
 -- Check if a model has targeting attributes and is valid
 local function isTargetable(model: Model): boolean
-	-- Must have EntityType attribute
+	-- Check if it's a player character
+	local player = Players:GetPlayerFromCharacter(model)
+	if player then
+		-- Players are targetable if PvP is enabled
+		return GameConfig.combat.pvpEnabled
+	end
+
+	-- Must have EntityType attribute for non-player entities
 	local entityType = model:GetAttribute("EntityType")
 	if not entityType then
 		return false
@@ -73,8 +80,17 @@ local function getTargetInfo(model: Model, playerPosition: vector?): TargetInfo?
 		return nil
 	end
 
-	local entityType = tostring(model:GetAttribute("EntityType"))
-	local entityCategory = tostring(model:GetAttribute("EntityCategory"))
+	-- Check if it's a player character
+	local targetPlayer = Players:GetPlayerFromCharacter(model)
+	local entityType, entityCategory
+
+	if targetPlayer then
+		entityType = "Player"
+		entityCategory = "player"
+	else
+		entityType = tostring(model:GetAttribute("EntityType"))
+		entityCategory = tostring(model:GetAttribute("EntityCategory"))
+	end
 
 	-- Calculate distance if player position provided
 	local distance = 0
@@ -98,14 +114,21 @@ local function getTargetInfo(model: Model, playerPosition: vector?): TargetInfo?
 	local damage, walkSpeed, runSpeed = nil, nil, nil
 	if entityCategory == "wildlife" and GameConfig.wildlife[entityType] then
 		local config = GameConfig.wildlife[entityType]
-		damage = config.damage
+		local weaponConfig = GameConfig.weapons[config.primaryWeapon]
+		damage = weaponConfig and weaponConfig.damage or nil
 		walkSpeed = config.walkSpeed
 		runSpeed = config.runSpeed
 	elseif entityCategory == "enemy" and GameConfig.enemies[entityType] then
 		local config = GameConfig.enemies[entityType]
-		damage = config.damage
+		local weaponConfig = GameConfig.weapons[config.primaryWeapon]
+		damage = weaponConfig and weaponConfig.damage or nil
 		walkSpeed = config.walkSpeed
 		runSpeed = config.runSpeed
+	elseif entityCategory == "player" then
+		-- For players, damage depends on equipped weapon
+		damage = nil -- Not static for players
+		walkSpeed = GameConfig.player.walkSpeed
+		runSpeed = GameConfig.player.sprintSpeed
 	end
 
 	-- Get current state from model attribute (set by EntityController)

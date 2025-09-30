@@ -2,12 +2,13 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
--- Removed unused Debris import
 
 local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("GameConfig"))
 local Types = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Types"))
 local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RemoteEvents"))
 local Utils = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Utils"))
+local CombatSystem = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("CombatSystem"))
+local TargetingSystem = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("TargetingSystem"))
 
 type ToolType = Types.ToolType
 
@@ -83,163 +84,76 @@ local function setCooldown(player: Player, action: string, duration: number?)
 end
 
 
--- Find entity model by traversing up the parent hierarchy
-local function findEntity(startPart: BasePart): (Model?, string?, string?)
-	local current = startPart.Parent
-	while current do
-		if current:IsA("Model") then
-			-- Check if this model has entity attributes
-			local entityType = current:GetAttribute("EntityType")
-			local entityCategory = current:GetAttribute("EntityCategory")
-			if entityType and entityCategory then
-				return current, tostring(entityType), tostring(entityCategory)
-			end
-		end
-		current = current.Parent
-		-- Stop at workspace to avoid infinite loop
-		if current == workspace then
-			break
-		end
-	end
-	return nil, nil, nil
-end
 
--- Enable hit detection for tool swing
-local function enableToolHitDetection(player: Player, toolType: ToolType)
-	-- Create unique swing ID for this player's swing
-	local swingId = tick()
-
-	-- Initialize player's swing tracking if needed
-	if not swingHits[player] then
-		swingHits[player] = {}
-	end
-	swingHits[player][swingId] = false
+-- Perform combat attack using unified CombatSystem
+local function performCombatAttack(player: Player, toolType: ToolType)
 	local character = player.Character
 	if not character then
 		return
 	end
 
-	local tool = character:FindFirstChild(toolType)
-	if not tool or not tool:IsA("Tool") then
+	-- Get weapon reference from tool config
+	local toolConfig = GameConfig.tools[toolType]
+	if not toolConfig or not toolConfig.weaponRef then
+		warn(`Tool {toolType} has no weaponRef`)
 		return
 	end
 
-	local handle = tool:FindFirstChild("Hitbox")
-	if not handle or not handle:IsA("BasePart") then
-		warn(`Tool {toolType} has no Handle or Handle is not a BasePart`)
+	local weaponName = toolConfig.weaponRef
+	local weaponConfig = CombatSystem.getWeaponConfig(weaponName)
+	if not weaponConfig then
 		return
 	end
 
-	print(`Enabling hit detection for {toolType}`) -- DEBUG
+	-- Wait for castDuration (telegraph window)
+	task.wait(weaponConfig.castDuration)
 
-	-- Create temporary hit detection
-	local connection
-	connection = handle.Touched:Connect(function(hit)
-		print(`Tool handle touched: {hit.Name} (parent: {hit.Parent and hit.Parent.Name or "nil"})`) -- DEBUG
+	-- Get player's target
+	local target = TargetingSystem.getTarget(player)
 
-		-- Check if this swing has already registered a hit
-		if swingHits[player][swingId] then
-			print('Swing already registered a hit...')
+	-- Determine hit detection mode
+	if GameConfig.combat.damageTargetOnly then
+		-- Mode A: Target-only mode - need a target selected
+		if not target then
+			-- No target selected - play miss sound
+			playToolSound(player, toolType, "swing")
+			print(`{player.Name} swung {toolType} but has no target selected`)
 			return
-		else
-			swingHits[player][swingId] = true
 		end
 
-		-- First try to find entity model by traversing up the hierarchy
-		local entityModel, entityType, entityCategory = findEntity(hit)
+		-- Attempt attack on target
+		local result = CombatSystem.attemptMeleeAttack(character, target, weaponName, player)
 
-		if entityModel and entityType and entityCategory then
-			-- Handle entity combat using generic system
-			print(`Tool hit {entityType} ({entityCategory})!`) -- DEBUG
-
-			-- Get entity configuration
-			local entityConfig = GameConfig.entities[entityType]
-			if not entityConfig then
-				print(`No configuration found for entity: {entityType}`) -- DEBUG
-				return
-			end
-
-			-- Check if this entity can take damage
-			if not entityConfig.canTakeDamage then
-				print(`{entityType} cannot be damaged`) -- DEBUG
-				RemoteEvents.Events.ShowNotification:FireClient(player, `{entityType} cannot be damaged`)
-				return
-			end
-
-			-- Check if this tool can damage this entity
-			if not table.find(entityConfig.damageableBy, toolType) then
-				print(`{toolType} cannot damage {entityType}`) -- DEBUG
-				RemoteEvents.Events.ShowNotification:FireClient(player, `{toolType} cannot damage {entityType}`)
-				return
-			end
-
-			-- Play attack swing sound
+		if result.hit then
+			-- Hit! Damage already applied by CombatSystem
 			playToolSound(player, toolType, "attack")
-
-			local toolConfig = GameConfig.tools[toolType]
-			local damage = toolConfig and toolConfig.damage or 0
-			print(`Dealing {damage} damage to {entityType} with {toolType}`) -- DEBUG
-
-			-- Route to appropriate manager
-			local managerName = entityConfig.manager
-
-			-- Handle entity damage through centralized EntityController for wildlife/enemies
-			if entityCategory == "wildlife" or entityCategory == "enemy" then
-				local EntityController = _G.EntityController
-				if EntityController and EntityController.handleDamage then
-					print(`Calling EntityController.handleDamage for {entityType}`) -- DEBUG
-					EntityController.handleDamage(entityModel, damage, toolType, player)
-				else
-					print(`EntityController not available or missing handleDamage method`) -- DEBUG
-				end
-			else
-				-- Handle other entities (resources, buildings) through their specific managers
-				local manager = _G[managerName]
-				if manager and manager.HandleToolHit then
-					print(`Calling {managerName}.HandleToolHit`) -- DEBUG
-
-					-- For resources, pass the resourceType; for others, pass the entityType
-					if entityCategory == "resource" and entityConfig.resourceType then
-						manager.HandleToolHit(player, hit, entityConfig.resourceType)
-					else
-						manager.HandleToolHit(player, entityModel, damage, entityType)
-					end
-				else
-					print(`{managerName} not available in _G or missing HandleToolHit`) -- DEBUG
-				end
-			end
+			print(`{player.Name} hit {target.Name} for {result.damage} damage`)
+		elseif result.wasDodged then
+			-- Target dodged
+			playToolSound(player, toolType, "swing")
+			print(`{player.Name}'s attack on {target.Name} was dodged`)
+		elseif result.blockedByInvulnerability then
+			-- Blocked by invulnerability
+			playToolSound(player, toolType, "swing")
+			print(`{target.Name} is invulnerable to {weaponName}`)
 		else
-			print(`{hit.Name} is not recognized as an entity`) -- DEBUG
-		end
-	end)
-
-	-- Disable hit detection after swing duration and clean up tracking
-	task.spawn(function()
-		task.wait(0.5) -- Hit detection window
-		connection:Disconnect()
-
-		-- If no hit was registered, play default swing sound (swinging at air)
-		if swingHits[player] and not swingHits[player][swingId] then
+			-- Miss
 			playToolSound(player, toolType, "swing")
 		end
+	else
+		-- Mode B: AOE mode - hit all entities in range
+		local result = CombatSystem.attemptMeleeAttack(character, target, weaponName, player)
 
-		-- Clean up swing tracking
-		if swingHits[player] then
-			swingHits[player][swingId] = nil
-
-			-- Clean up empty player entries
-			local hasEntries = false
-			for _ in pairs(swingHits[player]) do
-				hasEntries = true
-				break
-			end
-			if not hasEntries then
-				swingHits[player] = nil
-			end
+		if result.hit then
+			-- Hit at least one entity
+			playToolSound(player, toolType, "attack")
+			print(`{player.Name} hit entities for {result.damage} total damage`)
+		else
+			-- No hits - play swing sound
+			playToolSound(player, toolType, "swing")
+			print(`{player.Name} swung {toolType} but hit nothing`)
 		end
-
-		print(`Hit detection disabled for {toolType}`) -- DEBUG
-	end)
+	end
 end
 
 -- Building tools are now handled by ShopManager via tool.Equipped
@@ -275,9 +189,6 @@ local function onPlaceBuilding(player: Player, buildingItemId: string, placement
 
 	-- Use ground detection to ensure proper placement
 	local groundPosition = Utils.findGroundLevel(vector.create(position.X, 0, position.Z))
-	
-	-- Create final placement CFrame with ground position but preserve rotation
-	local finalCFrame = placementCFrame - placementCFrame.Position + groundPosition
 
 	-- Clone and place the building
 	local building = itemTemplate:Clone()
@@ -299,8 +210,9 @@ local function onPlaceBuilding(player: Player, buildingItemId: string, placement
 		heightOffset = building.Size.Y / 2
 	end
 
-	-- Adjust final CFrame to position building properly on ground
-	local adjustedCFrame = finalCFrame + vector.create(0, heightOffset, 0)
+	-- Create final placement CFrame with ground position, height offset, and preserve rotation
+	local finalPosition = groundPosition + vector.create(0, heightOffset, 0)
+	local adjustedCFrame = CFrame.new(finalPosition) * (placementCFrame - placementCFrame.Position)
 
 	-- Position and rotate the building
 	if building:IsA("Model") then
@@ -347,18 +259,20 @@ local function onToolSwing(player: Player, toolType: ToolType)
 	end
 
 	local toolConfig = GameConfig.tools[toolType]
-	if not toolConfig then
+	if not toolConfig or not toolConfig.weaponRef then
 		return
 	end
 
-	-- Set swing cooldown
-	setCooldown(player, "swing", toolConfig.swingCooldown)
+	-- Get weapon config for cooldown
+	local weaponConfig = CombatSystem.getWeaponConfig(toolConfig.weaponRef)
+	if not weaponConfig then
+		return
+	end
 
-	-- Enable tool hit detection for a short time
-	enableToolHitDetection(player, toolType)
+	-- Set swing cooldown based on weapon
+	setCooldown(player, "swing", weaponConfig.cooldown)
 
 	-- Play swing animation using default Roblox character animation
-	-- Note: Specific sounds are played in the hit detection based on what is hit
 	local animateScript = character:FindFirstChild("Animate")
 	if animateScript then
 		local toolSlashAnim = animateScript:FindFirstChild("toolslash")
@@ -375,7 +289,7 @@ local function onToolSwing(player: Player, toolType: ToolType)
 
 					if success and animationTrack then
 						animationTrack:Play()
-						print(`Playing swing animation for {player.Name}`) -- DEBUG
+						print(`Playing swing animation for {player.Name}`)
 					else
 						warn(`Failed to load swing animation for {player.Name}`)
 					end
@@ -392,11 +306,10 @@ local function onToolSwing(player: Player, toolType: ToolType)
 		warn(`No Animate script found for {player.Name}`)
 	end
 
-	-- TODO: Play swing sound effect when sound assets are ready
-	-- local swingSound = ReplicatedStorage.Sounds:FindFirstChild(toolType .. "Swing")
-	-- if swingSound then
-	--     swingSound:Play()
-	-- end
+	-- Perform combat attack using CombatSystem (spawned so animation plays immediately)
+	task.spawn(function()
+		performCombatAttack(player, toolType)
+	end)
 
 	print(`{player.Name} swung {toolType}`)
 end

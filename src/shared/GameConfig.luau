@@ -43,20 +43,92 @@ local GameConfig = {
 		},
 	},
 
-	-- Tool Settings
+	-- Weapon System - defines all weapons for players and entities
+	weapons = {
+		-- ========================================
+		-- PLAYER WEAPONS (Tools as weapons)
+		-- ========================================
+		Axe = {
+			type = "melee",
+			name = "Axe",
+			damage = 20,
+			range = 8,
+			cooldown = 0.5,
+			castDuration = 0.3,
+		},
+
+		Pickaxe = {
+			type = "melee",
+			name = "Pickaxe",
+			damage = 15,
+			range = 7,
+			cooldown = 0.5,
+			castDuration = 0.3,
+		},
+
+		-- ========================================
+		-- WILDLIFE WEAPONS
+		-- ========================================
+		WolfClaw = {
+			type = "melee",
+			name = "Wolf Claw",
+			damage = 8,
+			range = 10,
+			cooldown = 2,
+			castDuration = 0.5,
+		},
+
+		BearClaw = {
+			type = "melee",
+			name = "Bear Claw",
+			damage = 25,
+			range = 12,
+			cooldown = 2,
+			castDuration = 0.8,
+		},
+
+		-- ========================================
+		-- ENEMY WEAPONS
+		-- ========================================
+		ZombieBite = {
+			type = "melee",
+			name = "Zombie Bite",
+			damage = 15,
+			range = 8,
+			cooldown = 2,
+			castDuration = 0.4,
+		},
+	},
+
+	-- Tool Settings (for mining and resource gathering)
 	tools = {
 		Axe = {
-			damage = 20,
 			miningEfficiency = 1.0,
 			canMine = {"Wood"},
 			swingCooldown = 0.5,
+			weaponRef = "Axe", -- References weapons.Axe for combat
 		},
 		Pickaxe = {
-			damage = 15,
 			miningEfficiency = 1.0,
 			canMine = {"Stone", "Metal"},
 			swingCooldown = 0.5,
+			weaponRef = "Pickaxe", -- References weapons.Pickaxe for combat
 		},
+	},
+
+	-- Combat System Settings
+	combat = {
+		-- Hit Detection Mode
+		damageTargetOnly = true, -- false = hit all entities in range, true = only hit targeted entity
+
+		-- Invulnerability Frames (prevent weapon spam)
+		invulnerabilityFrames = false,
+		invulnerabilityDuration = 0.5, -- Seconds of immunity per weapon type
+
+		-- Game Modes
+		pvpEnabled = true, -- Enable player vs player damage
+		teamBased = false, -- Enable team-based combat (future)
+		friendlyFire = false, -- Can teammates damage each other (future)
 	},
 
 	-- Time Settings
@@ -71,19 +143,16 @@ local GameConfig = {
 		Wolf = {
 			maxCount = 5,
 			health = 60,
-			damage = 8,
 			walkSpeed = 12,
 			runSpeed = 22,
 			aggroRange = 30,
-			attackDistance = 10,
-			attackStoppingDistance = 8, -- stops 2 studs before attack range
-			attackCooldown = 2,
 			wanderRange = 10,
 			jumpCooldown = 3,
 			respawnTime = 60,
 			canJump = true,
 			drops = {"Food", "Hide", "Bones"},
 			targetPriority = "players", -- "players", "structures", "both"
+			primaryWeapon = "WolfClaw", -- References weapons.WolfClaw
 			animations = {
 				walk = "rbxassetid://125448487250472",
 				run = "rbxassetid://70972717905830",
@@ -94,21 +163,18 @@ local GameConfig = {
 		Bear = {
 			maxCount = 3,
 			health = 100,
-			damage = 25,
 			walkSpeed = 5,
 			runSpeed = 10,
 			aggroRange = 25,
-			attackDistance = 12,
-			attackStoppingDistance = 10, -- stops 2 studs before attack range
-			attackCooldown = 2,
 			wanderRange = 35,
 			jumpCooldown = 4,
 			respawnTime = 90,
 			canJump = false,
 			drops = {"Meat", "Hide", "Bones"},
 			targetPriority = "players",
+			primaryWeapon = "BearClaw", -- References weapons.BearClaw
 			animations = {
-				walk = "rbxassetid://97593039109435", -- You can change these per entity
+				walk = "rbxassetid://97593039109435",
 				attack = "rbxassetid://97384715486637",
 			},
 		},
@@ -118,29 +184,21 @@ local GameConfig = {
 	enemies = {
 		Zombie = {
 			health = 50,
-			damage = 15,
 			walkSpeed = 8,
 			runSpeed = 12,
 			aggroRange = 25,
-			attackDistance = 8,
-			attackStoppingDistance = 7, -- stops 1 stud before attack range
-			attackCooldown = 2,
 			wanderRange = 5,
 			jumpCooldown = 4,
 			spawnWeight = 1,
 			canJump = false,
 			targetPriority = "both", -- Attack both players and structures
+			primaryWeapon = "ZombieBite", -- References weapons.ZombieBite
 			animations = {
-				walk = "rbxassetid://125448487250472", -- Change these to zombie-specific animations
+				walk = "rbxassetid://125448487250472",
 				run = "rbxassetid://70972717905830",
 				jump = "rbxassetid://130986182083396",
 				attack = "rbxassetid://83719559878946",
 			},
-			-- Future: Different attack types for weapons/abilities
-			-- attackTypes = {
-			--     bite = { damage = 15, cooldown = 2, animation = "bite" },
-			--     claw = { damage = 12, cooldown = 1.5, animation = "claw" },
-			-- }
 		},
 	},
 

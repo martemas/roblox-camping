@@ -6,6 +6,8 @@ local TweenService = game:GetService("TweenService")
 local Debris = game:GetService("Debris")
 
 local GameConfig = require(script.Parent:WaitForChild("GameConfig"))
+local CombatSystem = require(script.Parent:WaitForChild("CombatSystem"))
+local CombatFeedback = require(script.Parent:WaitForChild("CombatFeedback"))
 
 -- Entity runtime state
 export type EntityState = "idle" | "wandering" | "chasing" | "attacking" | "jumping"
@@ -116,77 +118,6 @@ local function playSound(entity: EntityInstance, soundName: string)
 	end
 end
 
--- Create floating damage number above entity
-local function createDamageDisplay(entity: EntityInstance, damage: number, damageSource: string?, damageType: string?)
-	local humanoidRootPart = entity.humanoidRootPart
-
-	-- Determine color based on damage type
-	local textColor: Color3
-	local displayText: string
-
-	if damageType == "self" then
-		-- Damage you dealt (your attacks on entities)
-		textColor = Color3.fromRGB(255, 255, 100) -- Yellow
-		displayText = "-" .. tostring(damage)
-	elseif damageType == "other_player" then
-		-- Damage dealt by another player
-		textColor = Color3.fromRGB(150, 150, 150) -- Gray
-		displayText = "-" .. tostring(damage)
-	elseif damageType == "incoming" then
-		-- Damage dealt to you
-		textColor = Color3.fromRGB(255, 100, 100) -- Red
-		displayText = "-" .. tostring(damage)
-	else
-		-- Default damage color (fallback)
-		textColor = Color3.fromRGB(255, 150, 150) -- Light red
-		displayText = "-" .. tostring(damage)
-	end
-
-	-- Create BillboardGui for damage display
-	local billboardGui = Instance.new("BillboardGui")
-	billboardGui.Size = UDim2.new(0, 200, 0, 50)
-	billboardGui.StudsOffset = Vector3.new(0, 2, 0)
-	billboardGui.Parent = humanoidRootPart
-
-	-- Create damage text label
-	local damageLabel = Instance.new("TextLabel")
-	damageLabel.Size = UDim2.new(1, 0, 1, 0)
-	damageLabel.BackgroundTransparency = 1
-	damageLabel.Text = displayText
-	damageLabel.TextColor3 = textColor
-	damageLabel.TextScaled = true
-	damageLabel.Font = Enum.Font.SourceSansBold
-	damageLabel.TextStrokeTransparency = 0
-	damageLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-	damageLabel.Parent = billboardGui
-
-	-- Animate the damage number
-	local tweenInfo = TweenInfo.new(
-		1.5, -- Duration
-		Enum.EasingStyle.Quad,
-		Enum.EasingDirection.Out,
-		0, -- Repeat count
-		false, -- Reverse
-		0 -- Delay
-	)
-
-	-- Tween upward movement and fade
-	local tween = TweenService:Create(billboardGui, tweenInfo, {
-		StudsOffset = Vector3.new(math.random(-1, 1), 4, math.random(-1, 1))
-	})
-
-	local fadeTween = TweenService:Create(damageLabel, tweenInfo, {
-		TextTransparency = 1,
-		TextStrokeTransparency = 1
-	})
-
-	-- Start animations
-	tween:Play()
-	fadeTween:Play()
-
-	-- Clean up after animation
-	Debris:AddItem(billboardGui, 1.5)
-end
 
 -- Get closest player to entity
 local function getClosestPlayer(entity: EntityInstance): Player?
@@ -216,23 +147,7 @@ local function getClosestPlayer(entity: EntityInstance): Player?
 	return closest
 end
 
--- Calculate damage (centralized but configurable per entity)
-function EnemyController.calculateDamage(entityType: string, targetHumanoid: Humanoid, attackType: string?): number
-	local config = getEntityConfig(entityType)
-	if not config then
-		return 10 -- fallback damage
-	end
-
-	-- Support different attack types in future
-	if attackType and config.attackTypes and config.attackTypes[attackType] then
-		return config.attackTypes[attackType].damage
-	end
-
-	-- Default damage
-	return config.damage or 10
-end
-
--- Perform attack on target
+-- Perform attack on target using unified CombatSystem
 local function performAttack(entity: EntityInstance, target: Player)
 	if not target.Character or not target.Character:FindFirstChild("Humanoid") then
 		return
@@ -246,43 +161,49 @@ local function performAttack(entity: EntityInstance, target: Player)
 		return
 	end
 
-	-- Check recently hit attribute to prevent spam
-	if targetHumanoid:GetAttribute("RecentlyBit") then
+	-- Get entity's weapon
+	local weaponName = config.primaryWeapon
+	if not weaponName then
+		warn(`Entity {entity.entityType} has no primaryWeapon configured`)
 		return
 	end
 
-	-- Calculate and apply damage
-	local damage = EnemyController.calculateDamage(entity.entityType, targetHumanoid)
-	targetHumanoid:TakeDamage(damage)
-
-	-- Show floating damage number above player
-	if target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-		local playerHRP = target.Character.HumanoidRootPart :: BasePart
-		-- Create a temporary entity-like structure for damage display
-		local tempEntity = {
-			entityType = "Player",
-			humanoidRootPart = playerHRP
-		}
-		createDamageDisplay(tempEntity :: any, damage, entity.entityType, "incoming")
+	local weaponConfig = CombatSystem.getWeaponConfig(weaponName)
+	if not weaponConfig then
+		return
 	end
+
+	-- Set attack time IMMEDIATELY to prevent multiple attacks during castDuration
+	entity.lastAttackTime = tick()
 
 	-- Play attack animation and sound
 	playAnimation(entity, "attack")
-	playSound(entity, "attack") -- Look for "attack" sound in model
+	playSound(entity, "attack")
 
-	-- Set recently hit protection
-	targetHumanoid:SetAttribute("RecentlyBit", true)
-	print(`*** {entity.entityType} attacked {target.Name} for {damage} damage`)
+	-- Set state to attacking
+	updateEntityState(entity, "attacking")
 
-	-- Clear protection after cooldown
-	local attackCooldown = config.attackCooldown or 2
-	task.delay(attackCooldown, function()
-		if targetHumanoid then
-			targetHumanoid:SetAttribute("RecentlyBit", false)
-		end
-	end)
+	-- Wait castDuration (telegraph window - player can dodge during this time)
+	task.wait(weaponConfig.castDuration)
 
-	entity.lastAttackTime = tick()
+	-- After castDuration: Check if target still in range using CombatSystem
+	local result = CombatSystem.attemptMeleeAttack(
+		entity.model,
+		target.Character,
+		weaponName,
+		nil -- No attacking player (this is an NPC)
+	)
+
+	if result.hit and result.damage then
+		-- Target was in range - damage was applied by CombatSystem
+		print(`*** {entity.entityType} hit {target.Name} for {result.damage} damage with {weaponName}`)
+	elseif result.wasDodged then
+		-- Target dodged!
+		print(`*** {target.Name} dodged {entity.entityType} attack!`)
+	elseif result.blockedByInvulnerability then
+		-- Target is invulnerable
+		print(`*** {target.Name} is invulnerable to {weaponName}`)
+	end
 end
 
 -- Handle jumping logic
@@ -364,27 +285,36 @@ local function updateEntityAI(entity: EntityInstance)
 		local targetPos = targetHRP.Position
 		local distToTarget = (targetHRP.Position - entity.humanoidRootPart.Position).Magnitude
 
-		-- Attack if close enough
-		local attackDistance = config.attackDistance or 5
-		local stoppingDistance = config.attackStoppingDistance or attackDistance
+		-- Get weapon config for range/cooldown
+		local weaponName = config.primaryWeapon
+		local weaponConfig = CombatSystem.getWeaponConfig(weaponName)
+		if not weaponConfig then
+			warn(`Entity {entity.entityType} has no valid weapon config`)
+			return
+		end
 
-		-- Adjust speed based on distance - slower when closer
-		if distToTarget <= stoppingDistance then
-			-- Within stopping distance: reduce speed for circling/strafing
-			entity.humanoid.WalkSpeed = (config.walkSpeed or 12) * 0.6 -- 60% of walk speed
-			updateEntityState(entity, "chasing")
-			playAnimation(entity, "walk") -- use walk animation at lower speed
-		else
-			-- Outside stopping distance: full chase speed
-			entity.humanoid.WalkSpeed = config.runSpeed or 12
-			updateEntityState(entity, "chasing")
-			playAnimation(entity, "run")
+		local attackDistance = weaponConfig.range
+		local stoppingDistance = attackDistance * 0.8 -- Stop a bit before attack range
+
+		-- Check if entity is currently attacking
+		if entity.state ~= "attacking" then
+			-- Adjust speed based on distance - slower when closer
+			if distToTarget <= stoppingDistance then
+				-- Within stopping distance: reduce speed for circling/strafing
+				entity.humanoid.WalkSpeed = (config.walkSpeed or 12) * 0.6 -- 60% of walk speed
+				updateEntityState(entity, "chasing")
+				playAnimation(entity, "walk") -- use walk animation at lower speed
+			else
+				-- Outside stopping distance: full chase speed
+				entity.humanoid.WalkSpeed = config.runSpeed or 12
+				updateEntityState(entity, "chasing")
+				playAnimation(entity, "run")
+			end
 		end
 
 		if distToTarget <= attackDistance then
-			local attackCooldown = config.attackCooldown or 2
-			if currentTime - entity.lastAttackTime >= attackCooldown then
-				updateEntityState(entity, "attacking")
+			if currentTime - entity.lastAttackTime >= weaponConfig.cooldown then
+				-- Perform attack (performAttack now handles castDuration internally)
 				performAttack(entity, entity.target)
 			end
 		end
@@ -392,9 +322,12 @@ local function updateEntityAI(entity: EntityInstance)
 		-- Movement behavior based on distance
 		if distToTarget > stoppingDistance then
 			-- Chase: move directly toward target
-			entity.humanoid:MoveTo(Vector3.new(targetPos.X, targetPos.Y, targetPos.Z))
+			entity.humanoid:MoveTo(targetPos)
+		else
+			-- Within stopping distance: stop moving and clear pathfinding target
+			local currentPos = entity.humanoidRootPart.Position
+			entity.humanoid:MoveTo(currentPos)
 		end
-		-- Within stopping distance: don't move, just stay in range
 
 		-- Handle jumping
 		if config.canJump then
@@ -558,13 +491,11 @@ function EnemyController.handleDamage(model: Model, damage: number, damageSource
 		-- Apply damage
 		entity.humanoid:TakeDamage(damage)
 
-		-- Determine damage type for color coding
-		local damageType = "self" -- Default to self damage (assume it's the local player for now)
-		-- Note: We could enhance this by tracking which player is viewing this
-		-- For multiplayer, we'd need to send this info via RemoteEvents to clients
+		-- Determine damage type for feedback
+		local damageType: CombatFeedback.DamageType = if attackingPlayer then "self" else "other_player"
 
-		-- Show floating damage number
-		createDamageDisplay(entity, damage, damageSource, damageType)
+		-- Show floating damage number via CombatFeedback
+		CombatFeedback.showDamage(model, damage, damageSource, damageType, attackingPlayer)
 
 		-- Play damage sound
 		playSound(entity, "damage")
