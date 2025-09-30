@@ -300,7 +300,6 @@ local function showTargetHUD(targetInfo: TargetInfo)
 
 	-- Make sure it's visible
 	currentHUD.Enabled = true
-	print(`TargetHUD: HUD should now be visible for {targetInfo.entityType}`) -- DEBUG
 end
 
 -- Hide the target HUD
@@ -317,7 +316,6 @@ end
 -- Main update loop for the HUD
 local function updateHUD()
 	local target = TargetingSystem.getTarget(player)
-	print(`TargetHUD: Checking target - {target and target.Name or "nil"}`) -- DEBUG
 
 	-- If no target, hide HUD
 	if not target then

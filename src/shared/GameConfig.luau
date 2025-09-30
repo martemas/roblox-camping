@@ -3,16 +3,23 @@
 local GameConfig = {
 	-- Player Settings
 	player = {
-		maxHealth = 100,
+		-- Base stats for new players
+		stats = {
+			strength = 10,
+			stamina = 15,
+			agility = 12,
+			iq = 8,
+		},
 		inventorySize = 5,
 		startingTools = {"Axe", "Pickaxe"},
 		healthRegenRate = 5, -- Percentage per interval
 		healthRegenInterval = 5, -- Seconds
 		respawnTimeout = 10, -- Seconds
+		defaultWeapon = "Fists", -- When no tool equipped
 
-		-- Movement settings
-		walkSpeed = 16,
-		sprintSpeed = 24,
+		-- Movement settings (these will be overridden by agility stat)
+		baseWalkSpeed = 16,
+		sprintMultiplier = 1.5,
 		maxStamina = 100,
 		staminaDrainRate = 20, -- Per second while sprinting
 		staminaRegenRate = 30, -- Per second while not sprinting
@@ -69,14 +76,16 @@ local GameConfig = {
 	-- Wildlife Settings
 	wildlife = {
 		Wolf = {
+			-- Entity stats (determines health, damage, speed, etc.)
+			stats = {
+				strength = 2,  -- Moderate physical power
+				stamina = 3,   -- Lower health pool
+				agility = 5,   -- Fast and agile
+				iq = 3,        -- Low intelligence
+			},
 			maxCount = 5,
-			health = 60,
-			damage = 8,
-			walkSpeed = 12,
-			runSpeed = 22,
+			defaultWeapon = "WolfClaws",
 			aggroRange = 30,
-			attackDistance = 5,
-			attackCooldown = 2,
 			wanderRange = 10,
 			jumpCooldown = 3,
 			respawnTime = 60,
@@ -91,14 +100,16 @@ local GameConfig = {
 			},
 		},
 		Bear = {
+			-- Entity stats (determines health, damage, speed, etc.)
+			stats = {
+				strength = 5,  -- High physical power
+				stamina = 5,   -- Very high health
+				agility = 2,    -- Slow but powerful
+				iq = 5,        -- Low intelligence
+			},
 			maxCount = 3,
-			health = 100,
-			damage = 25,
-			walkSpeed = 5,
-			runSpeed = 10,
+			defaultWeapon = "BearClaws",
 			aggroRange = 25,
-			attackDistance = 8,
-			attackCooldown = 2,
 			wanderRange = 35,
 			jumpCooldown = 4,
 			respawnTime = 90,
@@ -115,13 +126,15 @@ local GameConfig = {
 	-- Enemy Settings
 	enemies = {
 		Zombie = {
-			health = 50,
-			damage = 15,
-			walkSpeed = 8,
-			runSpeed = 12,
+			-- Entity stats (determines health, damage, speed, etc.)
+			stats = {
+				strength = 12,  -- Moderate physical power
+				stamina = 10,   -- Low health
+				agility = 6,    -- Slow and shambling
+				iq = 1,        -- Very low intelligence
+			},
+			defaultWeapon = "ZombieBite",
 			aggroRange = 25,
-			attackDistance = 6,
-			attackCooldown = 2,
 			wanderRange = 5,
 			jumpCooldown = 4,
 			spawnWeight = 1,

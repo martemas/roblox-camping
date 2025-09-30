@@ -1,78 +1,46 @@
 --!strict
 
--- Movement Controller - Handles player movement including sprint functionality
+-- Movement Controller - Handles player input for movement (server controls actual speed via attributes)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
-local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("GameConfig"))
 local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RemoteEvents"))
 
 local player = Players.LocalPlayer
 
--- Sprint settings (loaded from config)
-local NORMAL_WALKSPEED = GameConfig.player.walkSpeed
-local SPRINT_WALKSPEED = GameConfig.player.sprintSpeed
-local SPRINT_STAMINA_MAX = GameConfig.player.maxStamina
-local STAMINA_DRAIN_RATE = GameConfig.player.staminaDrainRate
-local STAMINA_REGEN_RATE = GameConfig.player.staminaRegenRate
-
--- Sprint state
-local isSprinting = false
-local currentStamina = SPRINT_STAMINA_MAX
-
--- Track input state
+-- Track input state only
 local isShiftPressed = false
 
--- Update stamina
-local function updateStamina(deltaTime: number)
-	if isSprinting and currentStamina > 0 then
-		currentStamina = math.max(0, currentStamina - (STAMINA_DRAIN_RATE * deltaTime))
-		if currentStamina <= 0 then
-			-- Stop sprinting when out of stamina
-			stopSprinting()
+-- Update UI based on server attributes
+local function updateStaminaUI()
+	local character = player.Character
+	if not character then return end
+
+	local currentStamina = character:GetAttribute("CurrentStamina")
+	local maxStamina = character:GetAttribute("MaxStamina")
+
+	if currentStamina and maxStamina then
+		-- Update UI via GameUI
+		local GameUI = _G.GameUI
+		if GameUI and GameUI.updateStaminaUI then
+			GameUI.updateStaminaUI(currentStamina, maxStamina)
 		end
-	elseif not isSprinting and currentStamina < SPRINT_STAMINA_MAX then
-		currentStamina = math.min(SPRINT_STAMINA_MAX, currentStamina + (STAMINA_REGEN_RATE * deltaTime))
-	end
-
-	-- Update UI via GameUI
-	local GameUI = _G.GameUI
-	if GameUI and GameUI.updateStaminaUI then
-		GameUI.updateStaminaUI(currentStamina, SPRINT_STAMINA_MAX)
 	end
 end
 
--- Start sprinting
+-- Start sprinting (request to server)
 local function startSprinting()
-	local character = player.Character
-	if not character then return end
-
-	local humanoid = character:FindFirstChildOfClass("Humanoid")
-	if not humanoid then return end
-
-	if currentStamina > 0 and not isSprinting then
-		isSprinting = true
-		humanoid.WalkSpeed = SPRINT_WALKSPEED
-		print("Started sprinting")
-	end
+	RemoteEvents.Events.StartSprint:FireServer()
+	print("Requested sprint start")
 end
 
--- Stop sprinting
-function stopSprinting()
-	local character = player.Character
-	if not character then return end
-
-	local humanoid = character:FindFirstChildOfClass("Humanoid")
-	if not humanoid then return end
-
-	if isSprinting then
-		isSprinting = false
-		humanoid.WalkSpeed = NORMAL_WALKSPEED
-		print("Stopped sprinting")
-	end
+-- Stop sprinting (request to server)
+local function stopSprinting()
+	RemoteEvents.Events.StopSprint:FireServer()
+	print("Requested sprint stop")
 end
 
 -- Handle input
@@ -81,9 +49,7 @@ local function onInputBegan(input: InputObject, gameProcessed: boolean)
 
 	if input.KeyCode == Enum.KeyCode.LeftShift or input.KeyCode == Enum.KeyCode.RightShift then
 		isShiftPressed = true
-		if currentStamina > 0 then
-			startSprinting()
-		end
+		startSprinting()
 	end
 end
 
@@ -98,14 +64,8 @@ end
 
 -- Handle character spawning
 local function onCharacterAdded(character: Model)
-	-- Reset sprint state
-	isSprinting = false
-	currentStamina = SPRINT_STAMINA_MAX
+	-- Reset input state
 	isShiftPressed = false
-
-	-- Wait for humanoid
-	local humanoid = character:WaitForChild("Humanoid") :: Humanoid
-	humanoid.WalkSpeed = NORMAL_WALKSPEED
 
 	print("Movement controller set up for new character")
 end
@@ -124,8 +84,8 @@ local function initialize()
 		onCharacterAdded(player.Character)
 	end
 
-	-- Start stamina update loop
-	RunService.Heartbeat:Connect(updateStamina)
+	-- Start UI update loop (reads from attributes)
+	RunService.Heartbeat:Connect(updateStaminaUI)
 
 	print("MovementController initialized")
 end

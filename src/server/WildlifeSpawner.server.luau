@@ -82,17 +82,51 @@ local function createWildlife(wildlifeType: WildlifeType, position: vector): Wil
 		return nil
 	end
 
+	-- Initialize entity using the new EntityController system
+	local EntityController = _G.EntityController
+	if EntityController then
+		local entityInstance = EntityController.initializeEntity(wildlifeModel, wildlifeType, "wildlife")
+		if entityInstance then
+			-- Create WildlifeEntity wrapper for backwards compatibility
+			local wildlifeEntity: WildlifeEntity = {
+				wildlifeType = wildlifeType,
+				model = wildlifeModel,
+				humanoid = humanoid,
+				health = entityInstance.stats.health,
+				maxHealth = entityInstance.stats.maxHealth,
+				isAggro = false,
+				target = nil,
+				lastAttackTime = 0,
+			}
+
+			return wildlifeEntity
+		else
+			warn(`Failed to initialize {wildlifeType} with EntityController`)
+		end
+	else
+		warn("EntityController not available - falling back to legacy system")
+	end
+
+	-- Fallback to old system (should not be needed)
 	local config = GameConfig.wildlife[wildlifeType]
-	humanoid.MaxHealth = config.health
-	humanoid.Health = config.health
-	humanoid.WalkSpeed = config.walkSpeed
+	if config and config.stats then
+		-- Use base values from stats as fallback
+		local health = config.stats.stamina * 10 -- Approximate health from stamina
+		humanoid.MaxHealth = health
+		humanoid.Health = health
+		humanoid.WalkSpeed = config.stats.agility or 16
+	else
+		warn(`No valid config found for {wildlifeType}`)
+		wildlifeModel:Destroy()
+		return nil
+	end
 
 	local wildlifeEntity: WildlifeEntity = {
 		wildlifeType = wildlifeType,
 		model = wildlifeModel,
 		humanoid = humanoid,
-		health = config.health,
-		maxHealth = config.health,
+		health = humanoid.MaxHealth,
+		maxHealth = humanoid.MaxHealth,
 		isAggro = false,
 		target = nil,
 		lastAttackTime = 0,

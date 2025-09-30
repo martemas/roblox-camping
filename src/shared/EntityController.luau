@@ -6,12 +6,15 @@ local TweenService = game:GetService("TweenService")
 local Debris = game:GetService("Debris")
 
 local GameConfig = require(script.Parent:WaitForChild("GameConfig"))
+local EntityStats = require(script.Parent:WaitForChild("EntityStats"))
+local WeaponDefinitions = require(script.Parent:WaitForChild("WeaponDefinitions"))
 
 -- Entity runtime state
 export type EntityState = "idle" | "wandering" | "chasing" | "attacking" | "jumping"
 
 export type EntityInstance = {
 	entityType: string,
+	entityCategory: string,
 	model: Model,
 	humanoid: Humanoid,
 	humanoidRootPart: BasePart,
@@ -22,9 +25,13 @@ export type EntityInstance = {
 	lastWanderTime: number,
 	isAggro: boolean,
 	animationTracks: {[string]: AnimationTrack},
+
+	-- New stats system
+	stats: EntityStats.EntityStats,
+	currentWeapon: EntityStats.WeaponStats,
 }
 
-local EnemyController = {}
+local EntityController = {}
 local activeEntities: {[Model]: EntityInstance} = {}
 local isInitialized = false
 
@@ -36,23 +43,20 @@ local function updateEntityState(entity: EntityInstance, newState: EntityState)
 end
 
 -- Get entity configuration from GameConfig
-local function getEntityConfig(entityType: string)
-	-- First check wildlife
-	if GameConfig.wildlife[entityType] then
+local function getEntityConfig(entityType: string, entityCategory: string)
+	if entityCategory == "wildlife" and GameConfig.wildlife[entityType] then
 		return GameConfig.wildlife[entityType]
-	end
-
-	-- Then check enemies
-	if GameConfig.enemies[entityType] then
+	elseif entityCategory == "enemy" and GameConfig.enemies[entityType] then
 		return GameConfig.enemies[entityType]
+	elseif entityCategory == "player" then
+		return GameConfig.player
 	end
-
 	return nil
 end
 
 -- Load animations for an entity from GameConfig
 local function loadAnimations(entity: EntityInstance)
-	local config = getEntityConfig(entity.entityType)
+	local config = getEntityConfig(entity.entityType, entity.entityCategory)
 	if not config or not config.animations then
 		return
 	end
@@ -96,11 +100,10 @@ local function playAnimation(entity: EntityInstance, animName: string)
 	end
 end
 
--- Play sound effect from model (sounds stay in model for easy modification)
+-- Play sound effect from model
 local function playSound(entity: EntityInstance, soundName: string)
 	local humanoidRootPart = entity.model:FindFirstChild("HumanoidRootPart")
 	if not humanoidRootPart then
-		-- Fallback: look for sound directly in the model
 		local sound = entity.model:FindFirstChild(soundName)
 		if sound and sound:IsA("Sound") then
 			sound.PlaybackSpeed = 1 + (math.random() * 0.2 - 0.1)
@@ -111,7 +114,7 @@ local function playSound(entity: EntityInstance, soundName: string)
 
 	local sound = humanoidRootPart:FindFirstChild(soundName)
 	if sound and sound:IsA("Sound") then
-		sound.PlaybackSpeed = 1 + (math.random() * 0.2 - 0.1) -- Slight pitch variation
+		sound.PlaybackSpeed = 1 + (math.random() * 0.2 - 0.1)
 		sound:Play()
 	end
 end
@@ -125,19 +128,15 @@ local function createDamageDisplay(entity: EntityInstance, damage: number, damag
 	local displayText: string
 
 	if damageType == "self" then
-		-- Damage you dealt (your attacks on entities)
 		textColor = Color3.fromRGB(255, 255, 100) -- Yellow
 		displayText = "-" .. tostring(damage)
 	elseif damageType == "other_player" then
-		-- Damage dealt by another player
 		textColor = Color3.fromRGB(150, 150, 150) -- Gray
 		displayText = "-" .. tostring(damage)
 	elseif damageType == "incoming" then
-		-- Damage dealt to you
 		textColor = Color3.fromRGB(255, 100, 100) -- Red
 		displayText = "-" .. tostring(damage)
 	else
-		-- Default damage color (fallback)
 		textColor = Color3.fromRGB(255, 150, 150) -- Light red
 		displayText = "-" .. tostring(damage)
 	end
@@ -161,48 +160,34 @@ local function createDamageDisplay(entity: EntityInstance, damage: number, damag
 	damageLabel.Parent = billboardGui
 
 	-- Animate the damage number
-	local tweenInfo = TweenInfo.new(
-		1.5, -- Duration
-		Enum.EasingStyle.Quad,
-		Enum.EasingDirection.Out,
-		0, -- Repeat count
-		false, -- Reverse
-		0 -- Delay
-	)
-
-	-- Tween upward movement and fade
+	local tweenInfo = TweenInfo.new(1.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 	local tween = TweenService:Create(billboardGui, tweenInfo, {
 		StudsOffset = Vector3.new(math.random(-1, 1), 4, math.random(-1, 1))
 	})
-
 	local fadeTween = TweenService:Create(damageLabel, tweenInfo, {
 		TextTransparency = 1,
 		TextStrokeTransparency = 1
 	})
 
-	-- Start animations
 	tween:Play()
 	fadeTween:Play()
-
-	-- Clean up after animation
 	Debris:AddItem(billboardGui, 1.5)
 end
 
 -- Get closest player to entity
 local function getClosestPlayer(entity: EntityInstance): Player?
-	local config = getEntityConfig(entity.entityType)
+	local config = getEntityConfig(entity.entityType, entity.entityCategory)
 	if not config then return nil end
 
 	local position = entity.humanoidRootPart.Position
 	local closest: Player? = nil
-	local shortestDist = config.aggroDistance or config.aggroRange or 15
+	local shortestDist = config.aggroRange or 15
 
 	for _, player in Players:GetPlayers() do
 		if player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild("Humanoid") then
 			local playerHumanoid = player.Character.Humanoid :: Humanoid
 			local playerHRP = player.Character.HumanoidRootPart :: BasePart
 
-			-- Only target players who are alive
 			if playerHumanoid.Health > 0 then
 				local dist = (playerHRP.Position - position).Magnitude
 				if dist <= shortestDist then
@@ -216,30 +201,13 @@ local function getClosestPlayer(entity: EntityInstance): Player?
 	return closest
 end
 
--- Calculate damage (centralized but configurable per entity)
-function EnemyController.calculateDamage(entityType: string, targetHumanoid: Humanoid, attackType: string?): number
-	local config = getEntityConfig(entityType)
-	if not config then
-		return 10 -- fallback damage
-	end
-
-	-- Support different attack types in future
-	if attackType and config.attackTypes and config.attackTypes[attackType] then
-		return config.attackTypes[attackType].damage
-	end
-
-	-- Default damage
-	return config.damage or 10
-end
-
--- Perform attack on target
+-- Perform attack on target using stats system
 local function performAttack(entity: EntityInstance, target: Player)
 	if not target.Character or not target.Character:FindFirstChild("Humanoid") then
 		return
 	end
 
 	local targetHumanoid = target.Character.Humanoid :: Humanoid
-	local config = getEntityConfig(entity.entityType)
 
 	-- Don't attack if target is already dead
 	if targetHumanoid.Health <= 0 then
@@ -251,32 +219,54 @@ local function performAttack(entity: EntityInstance, target: Player)
 		return
 	end
 
-	-- Calculate and apply damage
-	local damage = EnemyController.calculateDamage(entity.entityType, targetHumanoid)
-	targetHumanoid:TakeDamage(damage)
+	-- TODO: Get target player's stats for defense calculations
+	-- For now, assume basic player stats
+	local targetStats = EntityStats.calculateDerivedStats({
+		strength = 10, stamina = 15, agility = 12, iq = 8
+	})
+
+	-- Calculate hit chance
+	local hitChance = EntityStats.calculateHitChance(entity.stats, targetStats, entity.currentWeapon)
+	local didHit = math.random() <= hitChance
+
+	if not didHit then
+		-- Miss - show miss indicator
+		print(`{entity.entityType} missed {target.Name}`)
+		return
+	end
+
+	-- Check for critical hit
+	local isCritical = EntityStats.calculateCriticalHit(entity.stats, entity.currentWeapon)
+
+	-- Calculate damage with stats
+	local baseDamage = EntityStats.calculateDamage(entity.stats, entity.currentWeapon, isCritical)
+	local finalDamage = EntityStats.calculateDamageReduction(baseDamage, targetStats, entity.currentWeapon.damageType)
+
+	-- Apply damage
+	targetHumanoid:TakeDamage(finalDamage)
 
 	-- Show floating damage number above player
 	if target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
 		local playerHRP = target.Character.HumanoidRootPart :: BasePart
-		-- Create a temporary entity-like structure for damage display
 		local tempEntity = {
 			entityType = "Player",
 			humanoidRootPart = playerHRP
 		}
-		createDamageDisplay(tempEntity :: any, damage, entity.entityType, "incoming")
+		createDamageDisplay(tempEntity :: any, finalDamage, entity.entityType, "incoming")
 	end
 
 	-- Play attack animation and sound
 	playAnimation(entity, "attack")
-	playSound(entity, "attack") -- Look for "attack" sound in model
+	playSound(entity, "attack")
 
 	-- Set recently hit protection
 	targetHumanoid:SetAttribute("RecentlyBit", true)
-	print(`*** {entity.entityType} attacked {target.Name} for {damage} damage`)
+
+	local critText = isCritical and " (CRITICAL!)" or ""
+	print(`{entity.entityType} attacked {target.Name} for {finalDamage} damage{critText}`)
 
 	-- Clear protection after cooldown
-	local attackCooldown = config.attackCooldown or 2
-	task.delay(attackCooldown, function()
+	task.delay(entity.currentWeapon.cooldown, function()
 		if targetHumanoid then
 			targetHumanoid:SetAttribute("RecentlyBit", false)
 		end
@@ -287,7 +277,7 @@ end
 
 -- Handle jumping logic
 local function handleJumping(entity: EntityInstance)
-	local config = getEntityConfig(entity.entityType)
+	local config = getEntityConfig(entity.entityType, entity.entityCategory)
 	local jumpCooldown = config.jumpCooldown or 3
 
 	local currentTime = tick()
@@ -319,21 +309,18 @@ local function handleJumping(entity: EntityInstance)
 	end
 end
 
--- Get target based on priority (players first, then structures)
+-- Get target based on priority
 local function getTarget(entity: EntityInstance): Player?
-	local config = getEntityConfig(entity.entityType)
+	local config = getEntityConfig(entity.entityType, entity.entityCategory)
 	if not config then return nil end
 
-	-- Always prioritize players first (as requested)
+	-- Always prioritize players first
 	local player = getClosestPlayer(entity)
-
 	if player then
 		return player
 	end
 
 	-- TODO: Add structure targeting when building system is ready
-	-- This will check config.targetPriority to decide behavior
-
 	return nil
 end
 
@@ -343,7 +330,7 @@ local function updateEntityAI(entity: EntityInstance)
 		return
 	end
 
-	local config = getEntityConfig(entity.entityType)
+	local config = getEntityConfig(entity.entityType, entity.entityCategory)
 	if not config then return end
 
 	local currentTime = tick()
@@ -364,16 +351,14 @@ local function updateEntityAI(entity: EntityInstance)
 		local targetPos = targetHRP.Position
 		local distToTarget = (targetHRP.Position - entity.humanoidRootPart.Position).Magnitude
 
-		-- Set running speed and animation
-		entity.humanoid.WalkSpeed = config.runSpeed -- or config.walkSpeed or 12
+		-- Set running speed based on stats
+		entity.humanoid.WalkSpeed = entity.stats.moveSpeed * 1.5 -- Run speed
 		updateEntityState(entity, "chasing")
 		playAnimation(entity, "run")
 
 		-- Attack if close enough
-		local attackDistance = config.attackDistance or 5
-		if distToTarget <= attackDistance then
-			local attackCooldown = config.attackCooldown or 2
-			if currentTime - entity.lastAttackTime >= attackCooldown then
+		if distToTarget <= entity.currentWeapon.attackRange then
+			if currentTime - entity.lastAttackTime >= entity.currentWeapon.cooldown then
 				updateEntityState(entity, "attacking")
 				performAttack(entity, entity.target)
 			end
@@ -388,24 +373,24 @@ local function updateEntityAI(entity: EntityInstance)
 		end
 	else
 		-- Wandering behavior
-		entity.humanoid.WalkSpeed = config.walkSpeed or 12
+		entity.humanoid.WalkSpeed = entity.stats.moveSpeed
 		updateEntityState(entity, "wandering")
 		playAnimation(entity, "walk")
 
-		-- Simple wandering logic with cooldown to prevent rapid direction changes
-		local wanderCooldown = 3 -- seconds between wander direction changes
+		-- Simple wandering logic with cooldown
+		local wanderCooldown = 3
 		if currentTime - entity.lastWanderTime >= wanderCooldown then
 			local wanderRange = config.wanderRange or 10
-			local randomOffset = vector.create(
+			local randomOffset = Vector3.new(
 				math.random(-wanderRange, wanderRange),
 				0,
 				math.random(-wanderRange, wanderRange)
 			)
 			local currentPos = entity.humanoidRootPart.Position
 			local targetPos = Vector3.new(
-				currentPos.X + randomOffset.x,
-				currentPos.Y + randomOffset.y,
-				currentPos.Z + randomOffset.z
+				currentPos.X + randomOffset.X,
+				currentPos.Y + randomOffset.Y,
+				currentPos.Z + randomOffset.Z
 			)
 			entity.humanoid:MoveTo(targetPos)
 			entity.lastWanderTime = currentTime
@@ -413,11 +398,11 @@ local function updateEntityAI(entity: EntityInstance)
 	end
 end
 
--- Initialize an entity with the centralized system
-function EnemyController.initializeEntity(model: Model, entityType: string): EntityInstance?
-	local config = getEntityConfig(entityType)
+-- Initialize an entity with the stats system
+function EntityController.initializeEntity(model: Model, entityType: string, entityCategory: string): EntityInstance?
+	local config = getEntityConfig(entityType, entityCategory)
 	if not config then
-		warn(`No configuration found for entity type: {entityType}`)
+		warn(`No configuration found for entity type: {entityType} ({entityCategory})`)
 		return nil
 	end
 
@@ -429,14 +414,29 @@ function EnemyController.initializeEntity(model: Model, entityType: string): Ent
 		return nil
 	end
 
-	-- Set up humanoid properties from config
-	humanoid.MaxHealth = config.health or 50
-	humanoid.Health = config.health or 50
-	humanoid.WalkSpeed = config.walkSpeed or 12
+	-- Calculate entity stats from config
+	local entityStats = EntityStats.calculateDerivedStats(config.stats)
+
+	-- Get default weapon
+	local defaultWeapon = WeaponDefinitions.getDefaultWeapon(entityType)
+	if not defaultWeapon then
+		warn(`No default weapon found for entity type: {entityType}`)
+		return nil
+	end
+
+	-- Set up humanoid properties from calculated stats
+	humanoid.MaxHealth = entityStats.maxHealth
+	humanoid.Health = entityStats.health
+	humanoid.WalkSpeed = entityStats.moveSpeed
+
+	-- Set model attributes for targeting system
+	model:SetAttribute("EntityType", entityType)
+	model:SetAttribute("EntityCategory", entityCategory)
 
 	-- Create entity instance
 	local entity: EntityInstance = {
 		entityType = entityType,
+		entityCategory = entityCategory,
 		model = model,
 		humanoid = humanoid,
 		humanoidRootPart = humanoidRootPart,
@@ -447,6 +447,8 @@ function EnemyController.initializeEntity(model: Model, entityType: string): Ent
 		lastWanderTime = 0,
 		isAggro = false,
 		animationTracks = {},
+		stats = entityStats,
+		currentWeapon = defaultWeapon,
 	}
 
 	-- Load animations
@@ -457,19 +459,19 @@ function EnemyController.initializeEntity(model: Model, entityType: string): Ent
 
 	-- Handle death
 	humanoid.Died:Connect(function()
-		playSound(entity, "died") -- Play death sound if it exists
-		EnemyController.removeEntity(model)
+		playSound(entity, "died")
+		EntityController.removeEntity(model)
 	end)
 
 	-- Register entity
 	activeEntities[model] = entity
 
-	print(`Initialized {entityType} entity with centralized controller`)
+	print(`Initialized {entityType} ({entityCategory}) with stats: HP={entityStats.maxHealth}, ATK={entityStats.attackPower}, SPD={entityStats.moveSpeed}`)
 	return entity
 end
 
 -- Remove entity from tracking
-function EnemyController.removeEntity(model: Model)
+function EntityController.removeEntity(model: Model)
 	local entity = activeEntities[model]
 	if entity then
 		-- Clean up animation tracks
@@ -481,22 +483,22 @@ function EnemyController.removeEntity(model: Model)
 		end
 
 		activeEntities[model] = nil
-		print(`Removed {entity.entityType} from centralized controller`)
+		print(`Removed {entity.entityType} from EntityController`)
 	end
 end
 
 -- Get all active entities
-function EnemyController.getActiveEntities(): {[Model]: EntityInstance}
+function EntityController.getActiveEntities(): {[Model]: EntityInstance}
 	return activeEntities
 end
 
 -- Get entity by model
-function EnemyController.getEntity(model: Model): EntityInstance?
+function EntityController.getEntity(model: Model): EntityInstance?
 	return activeEntities[model]
 end
 
--- Force an entity to target a specific player (useful for testing/special events)
-function EnemyController.setTarget(model: Model, target: Player?)
+-- Force an entity to target a specific player
+function EntityController.setTarget(model: Model, target: Player?)
 	local entity = activeEntities[model]
 	if entity then
 		entity.target = target
@@ -510,14 +512,13 @@ local function updateAllEntities()
 		if model.Parent then
 			updateEntityAI(entity)
 		else
-			-- Model was destroyed, clean up
-			EnemyController.removeEntity(model)
+			EntityController.removeEntity(model)
 		end
 	end
 end
 
 -- Initialize the controller system
-function EnemyController.initialize()
+function EntityController.initialize()
 	if isInitialized then
 		return
 	end
@@ -526,37 +527,38 @@ function EnemyController.initialize()
 	RunService.Heartbeat:Connect(updateAllEntities)
 
 	isInitialized = true
-	print("EnemyController centralized system initialized")
+	print("EntityController centralized system initialized")
 end
 
--- Clean up all entities (useful for testing/resetting)
-function EnemyController.cleanup()
+-- Clean up all entities
+function EntityController.cleanup()
 	for model, entity in pairs(activeEntities) do
-		EnemyController.removeEntity(model)
+		EntityController.removeEntity(model)
 	end
 	activeEntities = {}
 end
 
 -- Public API for external systems (like ToolManager hitting entities)
-function EnemyController.handleDamage(model: Model, damage: number, damageSource: string?, attackingPlayer: Player?)
+function EntityController.handleDamage(model: Model, damage: number, damageSource: string?, attackingPlayer: Player?)
 	local entity = activeEntities[model]
 	if entity then
-		-- Apply damage
-		entity.humanoid:TakeDamage(damage)
+		-- Apply damage using stats system
+		local actualDamage = EntityStats.applyDamage(entity.stats, damage)
+
+		-- Update humanoid health to match entity stats
+		entity.humanoid.Health = entity.stats.health
 
 		-- Determine damage type for color coding
-		local damageType = "self" -- Default to self damage (assume it's the local player for now)
-		-- Note: We could enhance this by tracking which player is viewing this
-		-- For multiplayer, we'd need to send this info via RemoteEvents to clients
+		local damageType = "self" -- Default to self damage
 
 		-- Show floating damage number
-		createDamageDisplay(entity, damage, damageSource, damageType)
+		createDamageDisplay(entity, actualDamage, damageSource, damageType)
 
 		-- Play damage sound
 		playSound(entity, "damage")
 
-		print(`{entity.entityType} took {damage} damage from {damageSource or "unknown"}`)
+		print(`{entity.entityType} took {actualDamage} damage from {damageSource or "unknown"}`)
 	end
 end
 
-return EnemyController
+return EntityController

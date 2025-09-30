@@ -43,6 +43,10 @@ export type ControlSettings = {
 	targetingMouseButton: "Left" | "Right" | "Middle",
 }
 
+export type CombatSettings = {
+	autoAttackEnabled: boolean, -- Auto-attack when target is selected
+}
+
 export type AudioSettings = {
 	masterVolume: number,
 	sfxVolume: number,
@@ -52,6 +56,7 @@ export type AudioSettings = {
 
 export type GameplaySettings = {
 	controls: ControlSettings,
+	combat: CombatSettings,
 	audio: AudioSettings,
 }
 
@@ -98,6 +103,10 @@ local DEFAULT_SETTINGS: PlayerSettingsData = {
 			toggleRunKey = Enum.KeyCode.LeftShift,
 			toggleBuildModeKey = Enum.KeyCode.B,
 			targetingMouseButton = "Left",
+		},
+
+		combat = {
+			autoAttackEnabled = true, -- Auto-attack when target is selected
 		},
 
 		audio = {

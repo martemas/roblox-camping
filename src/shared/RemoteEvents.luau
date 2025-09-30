@@ -85,6 +85,14 @@ local RemoteEvents = {
 	DeselectTarget = createRemoteEvent("DeselectTarget"),
 	RequestClosestTarget = createRemoteEvent("RequestClosestTarget"),
 	TargetUpdated = createRemoteEvent("TargetUpdated"), -- For real-time health updates
+
+	-- Movement System
+	StartSprint = createRemoteEvent("StartSprint"),
+	StopSprint = createRemoteEvent("StopSprint"),
+
+	-- Action Bar System
+	ActivateTool = createRemoteEvent("ActivateTool"),
+	UpdateToolCooldowns = createRemoteEvent("UpdateToolCooldowns")
 }
 
 -- Export RemoteFunctions

@@ -2,14 +2,14 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
--- Wait for the EnemyController to be available
-local EnemyController
-while not EnemyController do
+-- Wait for the EntityController to be available
+local EntityController
+while not EntityController do
 	local success, result = pcall(function()
-		return require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("EnemyController"))
+		return require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("EntityController"))
 	end)
 	if success then
-		EnemyController = result
+		EntityController = result
 	else
 		task.wait(0.1)
 	end
@@ -23,7 +23,7 @@ model:WaitForChild("Humanoid")
 model:WaitForChild("HumanoidRootPart")
 
 -- Initialize this entity with the centralized controller
-local entity = EnemyController.initializeEntity(model, entityType)
+local entity = EntityController.initializeEntity(model, entityType, "enemy")
 
 if entity then
 	print(`Successfully initialized {entityType} with centralized AI system`)

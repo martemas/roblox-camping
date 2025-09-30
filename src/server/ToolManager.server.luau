@@ -185,14 +185,14 @@ local function enableToolHitDetection(player: Player, toolType: ToolType)
 			-- Route to appropriate manager
 			local managerName = entityConfig.manager
 
-			-- Handle entity damage through centralized EnemyController for wildlife/enemies
+			-- Handle entity damage through centralized EntityController for wildlife/enemies
 			if entityCategory == "wildlife" or entityCategory == "enemy" then
-				local EnemyController = _G.EnemyController
-				if EnemyController and EnemyController.handleDamage then
-					print(`Calling EnemyController.handleDamage for {entityType}`) -- DEBUG
-					EnemyController.handleDamage(entityModel, damage, toolType, player)
+				local EntityController = _G.EntityController
+				if EntityController and EntityController.handleDamage then
+					print(`Calling EntityController.handleDamage for {entityType}`) -- DEBUG
+					EntityController.handleDamage(entityModel, damage, toolType, player)
 				else
-					print(`EnemyController not available or missing handleDamage method`) -- DEBUG
+					print(`EntityController not available or missing handleDamage method`) -- DEBUG
 				end
 			else
 				-- Handle other entities (resources, buildings) through their specific managers

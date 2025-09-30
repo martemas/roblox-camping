@@ -96,45 +96,52 @@ local function createEnemy(enemyType: EnemyType, position: vector): EnemyEntity?
 		return nil
 	end
 
-	local config = GameConfig.enemies[enemyType]
-	humanoid.MaxHealth = config.health
-	humanoid.Health = config.health
-	humanoid.WalkSpeed = config.walkSpeed
+	-- Initialize entity using the new EntityController system
+	local EntityController = _G.EntityController
+	if EntityController then
+		local entityInstance = EntityController.initializeEntity(enemyModel, enemyType, "enemy")
+		if entityInstance then
+			-- Create EnemyEntity wrapper for backwards compatibility
+			local enemyEntity: EnemyEntity = {
+				enemyType = enemyType,
+				model = enemyModel,
+				humanoid = humanoid,
+				health = entityInstance.stats.health,
+				maxHealth = entityInstance.stats.maxHealth,
+				target = nil, -- Will be managed by EntityController
+				lastAttackTime = 0,
+			}
 
-	-- Set generic entity attributes for tool interaction system
-	local entityConfig = GameConfig.entities[enemyType]
-	if entityConfig then
-		enemyModel:SetAttribute("EntityType", enemyType)
-		enemyModel:SetAttribute("EntityCategory", entityConfig.category)
-		enemyModel:SetAttribute("CanTakeDamage", entityConfig.canTakeDamage)
-		enemyModel:SetAttribute("MaxHealth", entityConfig.health)
-		enemyModel:SetAttribute("CurrentHealth", entityConfig.health)
-		print(`DEBUG: Set entity attributes for {enemyType}`) -- DEBUG
+			-- Handle death
+			humanoid.Died:Connect(function()
+				onEnemyDied(enemyEntity)
+			end)
+
+			activeEnemies[enemyModel] = enemyEntity
+			print(`Spawned {enemyType} with EntityController stats system`)
+			return enemyEntity
+		else
+			warn(`Failed to initialize {enemyType} with EntityController`)
+		end
 	else
-		warn(`No entity configuration found for {enemyType}`)
+		warn("EntityController not available - falling back to legacy system")
 	end
 
-	-- Get warehouse as primary target
-	local warehouse = nil
-	if TownhallManager then
-		warehouse = TownhallManager.GetTownhall()
-	end
-	local target = warehouse and warehouse.PrimaryPart
+	-- Fallback to old system
+	local config = GameConfig.enemies[enemyType]
+	humanoid.MaxHealth = config.health or 50
+	humanoid.Health = config.health or 50
+	humanoid.WalkSpeed = config.walkSpeed or 8
 
 	local enemyEntity: EnemyEntity = {
 		enemyType = enemyType,
 		model = enemyModel,
 		humanoid = humanoid,
-		health = config.health,
-		maxHealth = config.health,
-		target = target,
+		health = config.health or 50,
+		maxHealth = config.health or 50,
+		target = nil,
 		lastAttackTime = 0,
 	}
-
-	-- Handle death
-	humanoid.Died:Connect(function()
-		onEnemyDied(enemyEntity)
-	end)
 
 	activeEnemies[enemyModel] = enemyEntity
 	return enemyEntity
