@@ -281,16 +281,13 @@ end
 -- Show the target HUD
 local function showTargetHUD(targetInfo: TargetInfo)
 	local settings = PlayerSettingsManager.getTargetHUDSettings(player)
-	print(`TargetHUD: showTargetHUD called - enabled: {settings.enabled}`) -- DEBUG
 
 	if not settings.enabled then
-		print("TargetHUD: HUD disabled in settings") -- DEBUG
 		return
 	end
 
 	-- Create HUD if it doesn't exist
 	if not currentHUD then
-		print("TargetHUD: Creating new HUD") -- DEBUG
 		currentHUD = createTargetHUD()
 	end
 
@@ -300,14 +297,12 @@ local function showTargetHUD(targetInfo: TargetInfo)
 
 	-- Make sure it's visible
 	currentHUD.Enabled = true
-	print(`TargetHUD: HUD should now be visible for {targetInfo.entityType}`) -- DEBUG
 end
 
 -- Hide the target HUD
 local function hideTargetHUD()
 	if currentHUD then
 		currentHUD.Enabled = false
-		print("TargetHUD: HUD hidden") -- DEBUG
 	end
 
 	-- Don't stop the update loop - we need it to detect new targets!
@@ -317,12 +312,10 @@ end
 -- Main update loop for the HUD
 local function updateHUD()
 	local target = TargetingSystem.getTarget(player)
-	print(`TargetHUD: Checking target - {target and target.Name or "nil"}`) -- DEBUG
 
 	-- If no target, hide HUD
 	if not target then
 		if currentTarget then
-			print("TargetHUD: Hiding HUD - no target") -- DEBUG
 			hideTargetHUD()
 		end
 		return
@@ -331,13 +324,11 @@ local function updateHUD()
 	-- Get target info
 	local targetInfo = TargetingSystem.getTargetInfo(player)
 	if not targetInfo then
-		print("TargetHUD: No target info available") -- DEBUG
 		hideTargetHUD()
 		return
 	end
 
 	-- Show/update HUD
-	print(`TargetHUD: Showing HUD for {targetInfo.entityType}`) -- DEBUG
 	currentTarget = target
 	showTargetHUD(targetInfo)
 end
@@ -346,7 +337,6 @@ end
 local lastUpdateTime = 0
 local function startUpdateLoop()
 	local settings = PlayerSettingsManager.getTargetHUDSettings(player)
-	print(`TargetHUD: Starting update loop - enabled: {settings.enabled}, frequency: {settings.updateFrequency}`) -- DEBUG
 
 	if updateConnection then
 		updateConnection:Disconnect()

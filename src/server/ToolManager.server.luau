@@ -17,9 +17,7 @@ local playerCooldowns: {[Player]: {[string]: number}} = {}
 -- Track hitting state per player per swing
 local swingHits: {[Player]: {[number]: boolean}} = {}
 
--- Pre-created animation object (create once, reuse many times)
-local swingAnimation = Instance.new("Animation")
-swingAnimation.AnimationId = "rbxassetid://117996568228908"
+-- Note: We use the default Roblox character.Animate.toolslash animation instead of a pre-created one
 
 -- Play tool sound effect
 local function playToolSound(player: Player, toolType: ToolType, soundType: string?, resourceType: string?)
@@ -185,14 +183,14 @@ local function enableToolHitDetection(player: Player, toolType: ToolType)
 			-- Route to appropriate manager
 			local managerName = entityConfig.manager
 
-			-- Handle entity damage through centralized EnemyController for wildlife/enemies
+			-- Handle entity damage through centralized EntityController for wildlife/enemies
 			if entityCategory == "wildlife" or entityCategory == "enemy" then
-				local EnemyController = _G.EnemyController
-				if EnemyController and EnemyController.handleDamage then
-					print(`Calling EnemyController.handleDamage for {entityType}`) -- DEBUG
-					EnemyController.handleDamage(entityModel, damage, toolType, player)
+				local EntityController = _G.EntityController
+				if EntityController and EntityController.handleDamage then
+					print(`Calling EntityController.handleDamage for {entityType}`) -- DEBUG
+					EntityController.handleDamage(entityModel, damage, toolType, player)
 				else
-					print(`EnemyController not available or missing handleDamage method`) -- DEBUG
+					print(`EntityController not available or missing handleDamage method`) -- DEBUG
 				end
 			else
 				-- Handle other entities (resources, buildings) through their specific managers
@@ -359,24 +357,39 @@ local function onToolSwing(player: Player, toolType: ToolType)
 	-- Enable tool hit detection for a short time
 	enableToolHitDetection(player, toolType)
 
-	-- Play swing animation
+	-- Play swing animation using default Roblox character animation
 	-- Note: Specific sounds are played in the hit detection based on what is hit
-	local animator = humanoid:FindFirstChildOfClass("Animator")
-	if animator then
-		local success, animationTrack = pcall(function()
-			local track = animator:LoadAnimation(swingAnimation)
-			track.Priority = Enum.AnimationPriority.Action4
-			return track
-		end)
+	local animateScript = character:FindFirstChild("Animate")
+	if animateScript then
+		local toolSlashAnim = animateScript:FindFirstChild("toolslash")
+		if toolSlashAnim then
+			local slashAnimation = toolSlashAnim:FindFirstChildOfClass("Animation")
+			if slashAnimation then
+				local animator = humanoid:FindFirstChildOfClass("Animator")
+				if animator then
+					local success, animationTrack = pcall(function()
+						local track = animator:LoadAnimation(slashAnimation)
+						track.Priority = Enum.AnimationPriority.Action
+						return track
+					end)
 
-		if success and animationTrack then
-			animationTrack:Play()
-			print(`Playing swing animation for {player.Name}`) -- DEBUG
+					if success and animationTrack then
+						animationTrack:Play()
+						print(`Playing swing animation for {player.Name}`) -- DEBUG
+					else
+						warn(`Failed to load swing animation for {player.Name}`)
+					end
+				else
+					warn(`No Animator found for {player.Name}`)
+				end
+			else
+				warn(`No Animation found in character.Animate.toolslash for {player.Name}`)
+			end
 		else
-			warn(`Failed to load swing animation for {player.Name}`)
+			warn(`No toolslash found in character.Animate for {player.Name}`)
 		end
 	else
-		warn(`No Animator found for {player.Name}`)
+		warn(`No Animate script found for {player.Name}`)
 	end
 
 	-- TODO: Play swing sound effect when sound assets are ready

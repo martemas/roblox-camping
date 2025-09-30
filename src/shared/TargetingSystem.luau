@@ -108,7 +108,7 @@ local function getTargetInfo(model: Model, playerPosition: vector?): TargetInfo?
 		runSpeed = config.runSpeed
 	end
 
-	-- Get current state from model attribute (set by EnemyController)
+	-- Get current state from model attribute (set by EntityController)
 	local state = model:GetAttribute("EntityState") or "unknown"
 
 	return {

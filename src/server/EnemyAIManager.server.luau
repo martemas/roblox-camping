@@ -1,12 +1,12 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local EnemyController = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("EnemyController"))
+local EntityController = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("EntityController"))
 
--- Initialize the centralized enemy controller system
-EnemyController.initialize()
+-- Initialize the centralized entity controller system
+EntityController.initialize()
 
 -- Export to global _G for other servers to access
-_G.EnemyController = EnemyController
+_G.EntityController = EntityController
 
-print("EnemyAIManager: Centralized enemy system initialized")
+print("EnemyAIManager: Centralized entity system initialized")
