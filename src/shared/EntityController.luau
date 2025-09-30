@@ -364,23 +364,37 @@ local function updateEntityAI(entity: EntityInstance)
 		local targetPos = targetHRP.Position
 		local distToTarget = (targetHRP.Position - entity.humanoidRootPart.Position).Magnitude
 
-		-- Set running speed and animation
-		entity.humanoid.WalkSpeed = config.runSpeed -- or config.walkSpeed or 12
-		updateEntityState(entity, "chasing")
-		playAnimation(entity, "run")
-
 		-- Attack if close enough
 		local attackDistance = config.attackDistance or 5
+		local stoppingDistance = config.attackStoppingDistance or attackDistance
+
+		-- Adjust speed based on distance - slower when closer
+		if distToTarget <= stoppingDistance then
+			-- Within stopping distance: reduce speed for circling/strafing
+			entity.humanoid.WalkSpeed = (config.walkSpeed or 12) * 0.6 -- 60% of walk speed
+			updateEntityState(entity, "chasing")
+			playAnimation(entity, "walk") -- use walk animation at lower speed
+		else
+			-- Outside stopping distance: full chase speed
+			entity.humanoid.WalkSpeed = config.runSpeed or 12
+			updateEntityState(entity, "chasing")
+			playAnimation(entity, "run")
+		end
+
 		if distToTarget <= attackDistance then
 			local attackCooldown = config.attackCooldown or 2
 			if currentTime - entity.lastAttackTime >= attackCooldown then
 				updateEntityState(entity, "attacking")
 				performAttack(entity, entity.target)
 			end
-		else
-			-- Move toward target
+		end
+
+		-- Movement behavior based on distance
+		if distToTarget > stoppingDistance then
+			-- Chase: move directly toward target
 			entity.humanoid:MoveTo(Vector3.new(targetPos.X, targetPos.Y, targetPos.Z))
 		end
+		-- Within stopping distance: don't move, just stay in range
 
 		-- Handle jumping
 		if config.canJump then
