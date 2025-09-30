@@ -83,5 +83,28 @@ src/
 
 ## Roblox Lua language
 
-use `vector.create` instead of `Vector3.new`
-use `vector` instead of `Vector3`
+- use `vector.create` instead of `Vector3.new`
+- use `vector` instead of `Vector3`
+
+
+- Don't use ipairs - While ipairs is still functional in Luau (Roblox's version of Lua), newer, more generalized iteration syntax is often preferred for its flexibility and potential performance benefits, especially when dealing with tables that might not be strictly arrays (i.e., tables with non-sequential or non-numeric keys, or with nil values in the sequence). Instead use generalized iteration:
+
+A more modern and flexible approach in Luau is to use the generalized for loop directly on the table, which essentially uses next internally. This handles both array-like and dictionary-like tables more robustly. Example of generalized iteration:
+```
+local mixedTable = {
+    "apples",
+    "oranges",
+    key = "value",
+    [4] = "grape", -- Explicitly setting an index
+    [6] = "banana" -- Another explicit index, creating a gap
+}
+
+for index, value in mixedTable do
+    print(index, value)
+end
+```
+This generalized iteration provides a more consistent way to loop through tables regardless of their structure, making it a common and recommended practice in modern Roblox development.
+
+- Use Roblox best practices
+- Make sure the method definitions are defined before they are called.
+- Run rojo build after changes to ensure there are no compilation error.
