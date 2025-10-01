@@ -4,10 +4,12 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Debris = game:GetService("Debris")
+local PathfindingService = game:GetService("PathfindingService")
 
 local GameConfig = require(script.Parent:WaitForChild("GameConfig"))
 local CombatSystem = require(script.Parent:WaitForChild("CombatSystem"))
 local CombatFeedback = require(script.Parent:WaitForChild("CombatFeedback"))
+local ProjectileLOS = require(script.Parent:WaitForChild("ProjectileLOS"))
 
 -- Entity runtime state
 export type EntityState = "idle" | "wandering" | "chasing" | "attacking" | "jumping"
@@ -147,6 +149,52 @@ local function getClosestPlayer(entity: EntityInstance): Player?
 	return closest
 end
 
+-- Move entity to avoid obstacles (simple sidestep)
+local function repositionForClearShot(entity: EntityInstance, target: Player)
+	if not target.Character or not target.Character:FindFirstChild("HumanoidRootPart") then
+		return
+	end
+
+	local entityPos = entity.humanoidRootPart.Position
+	local targetPos = target.Character.HumanoidRootPart.Position
+	local toTarget = (targetPos - entityPos).Unit
+
+	-- Calculate perpendicular directions (left and right)
+	local leftDir = vector.create(-toTarget.Z, 0, toTarget.X)
+	local rightDir = vector.create(toTarget.Z, 0, -toTarget.X)
+
+	-- Test both sidestep positions
+	local sideStepDist = 8
+	local leftPos = entityPos + (leftDir * sideStepDist)
+	local rightPos = entityPos + (rightDir * sideStepDist)
+
+	-- Check which side gives clearer LOS
+	local leftLOS = ProjectileLOS.validatePath(leftPos, targetPos, entity.model)
+	local rightLOS = ProjectileLOS.validatePath(rightPos, targetPos, entity.model)
+
+	-- Pick best direction
+	local moveDir
+	if leftLOS.hasLineOfSight then
+		moveDir = leftDir
+	elseif rightLOS.hasLineOfSight then
+		moveDir = rightDir
+	else
+		-- Neither side clear, pick random
+		moveDir = math.random() > 0.5 and leftDir or rightDir
+	end
+
+	-- Calculate new goal position
+	local moveDistance = math.random(5, 10)
+	local newGoal = entityPos + (moveDir * moveDistance)
+
+	-- Move toward new position (simple approach, no pathfinding)
+	entity.humanoid:MoveTo(newGoal)
+	print(`*** {entity.entityType} repositioning to find clear shot`)
+
+	-- Wait briefly for repositioning
+	task.wait(0.5)
+end
+
 -- Perform attack on target using unified CombatSystem
 local function performAttack(entity: EntityInstance, target: Player)
 	if not target.Character or not target.Character:FindFirstChild("Humanoid") then
@@ -176,33 +224,88 @@ local function performAttack(entity: EntityInstance, target: Player)
 	-- Set attack time IMMEDIATELY to prevent multiple attacks during castDuration
 	entity.lastAttackTime = tick()
 
-	-- Play attack animation and sound
-	playAnimation(entity, "attack")
-	playSound(entity, "attack")
+	-- Handle different weapon types
+	if weaponConfig.type == "melee" then
+		-- Play attack animation and sound
+		playAnimation(entity, "attack")
+		playSound(entity, "attack")
+		updateEntityState(entity, "attacking")
 
-	-- Set state to attacking
-	updateEntityState(entity, "attacking")
+		-- Wait castDuration (telegraph window - player can dodge during this time)
+		task.wait(weaponConfig.castDuration)
 
-	-- Wait castDuration (telegraph window - player can dodge during this time)
-	task.wait(weaponConfig.castDuration)
+		-- After castDuration: Check if target still in range using CombatSystem
+		local result = CombatSystem.attemptMeleeAttack(
+			entity.model,
+			target.Character,
+			weaponName,
+			nil -- No attacking player (this is an NPC)
+		)
 
-	-- After castDuration: Check if target still in range using CombatSystem
-	local result = CombatSystem.attemptMeleeAttack(
-		entity.model,
-		target.Character,
-		weaponName,
-		nil -- No attacking player (this is an NPC)
-	)
+		if result.hit and result.damage then
+			-- Target was in range - damage was applied by CombatSystem
+			print(`*** {entity.entityType} hit {target.Name} for {result.damage} damage with {weaponName}`)
+		elseif result.wasDodged then
+			-- Target dodged!
+			print(`*** {target.Name} dodged {entity.entityType} attack!`)
+		elseif result.blockedByInvulnerability then
+			-- Target is invulnerable
+			print(`*** {target.Name} is invulnerable to {weaponName}`)
+		end
 
-	if result.hit and result.damage then
-		-- Target was in range - damage was applied by CombatSystem
-		print(`*** {entity.entityType} hit {target.Name} for {result.damage} damage with {weaponName}`)
-	elseif result.wasDodged then
-		-- Target dodged!
-		print(`*** {target.Name} dodged {entity.entityType} attack!`)
-	elseif result.blockedByInvulnerability then
-		-- Target is invulnerable
-		print(`*** {target.Name} is invulnerable to {weaponName}`)
+	elseif weaponConfig.type == "projectile" then
+		-- Check LOS before firing
+		if weaponConfig.requiresLineOfSight then
+			local losResult = ProjectileLOS.canTargetEntity(entity.model, target.Character)
+
+			if not losResult.hasLineOfSight then
+				print(`*** {entity.entityType} blocked by obstacle, repositioning`)
+				-- Attempt to reposition for clear shot
+				repositionForClearShot(entity, target)
+				return -- Skip attack this cycle
+			end
+		end
+
+		-- LOS is clear, proceed with projectile attack
+		local targetPos = target.Character.HumanoidRootPart.Position
+		local entityPos = entity.humanoidRootPart.Position
+
+		-- Calculate direction with target leading (predict movement)
+		local targetVelocity = target.Character.HumanoidRootPart.AssemblyLinearVelocity
+		local projectileSpeed = weaponConfig.projectileSpeed or 50
+		local timeToImpact = (targetPos - entityPos).Magnitude / projectileSpeed
+		local leadTarget = targetPos + (targetVelocity * timeToImpact)
+		local direction = (leadTarget - entityPos).Unit
+
+		-- Play attack animation
+		playAnimation(entity, "attack")
+		playSound(entity, "attack")
+		updateEntityState(entity, "attacking")
+
+		-- Wait castDuration
+		task.wait(weaponConfig.castDuration)
+
+		-- Fire projectile via ProjectileManager
+		local ProjectileManager = require(script.Parent:WaitForChild("ProjectileManager"))
+		local origin = entityPos + (direction * 2) -- Slightly in front
+		local projectile = ProjectileManager.spawnProjectile(
+			origin,
+			direction,
+			weaponName,
+			entity.model,
+			nil, -- No attacking player
+			target.Character -- Locked target
+		)
+
+		if projectile then
+			print(`*** {entity.entityType} fired {weaponName} at {target.Name}`)
+		else
+			print(`*** {entity.entityType} projectile attack failed`)
+		end
+
+	else
+		-- Other weapon types (hitscan, AOE) will be added in Phase 2
+		warn(`Weapon type {weaponConfig.type} not yet implemented for NPCs`)
 	end
 end
 

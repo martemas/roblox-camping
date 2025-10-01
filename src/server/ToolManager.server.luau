@@ -93,67 +93,129 @@ local function performCombatAttack(player: Player, toolType: ToolType)
 		return
 	end
 
-	-- Get weapon reference from tool config
+	-- Get weapon name: use weaponRef if available, otherwise use tool name directly
 	local toolConfig = GameConfig.tools[toolType]
-	if not toolConfig or not toolConfig.weaponRef then
-		warn(`Tool {toolType} has no weaponRef`)
-		return
-	end
-
-	local weaponName = toolConfig.weaponRef
+	local weaponName = (toolConfig and toolConfig.weaponRef) or toolType
 	local weaponConfig = CombatSystem.getWeaponConfig(weaponName)
 	if not weaponConfig then
+		warn(`DEBUG: No weapon config found for {weaponName}`)
 		return
 	end
 
-	-- Wait for castDuration (telegraph window)
-	task.wait(weaponConfig.castDuration)
+	print(`DEBUG: Weapon type: {weaponConfig.type}, Weapon name: {weaponName}`)
 
 	-- Get player's target
 	local target = TargetingSystem.getTarget(player)
 
-	-- Determine hit detection mode
-	if GameConfig.combat.damageTargetOnly then
-		-- Mode A: Target-only mode - need a target selected
+	-- Handle different weapon types
+	if weaponConfig.type == "melee" then
+		print("DEBUG: Melee weapon branch")
+		-- Wait for castDuration (telegraph window)
+		task.wait(weaponConfig.castDuration)
+
+		-- Determine hit detection mode
+		if GameConfig.combat.damageTargetOnly then
+			-- Mode A: Target-only mode - need a target selected
+			if not target then
+				-- No target selected - play miss sound
+				playToolSound(player, toolType, "swing")
+				print(`{player.Name} swung {toolType} but has no target selected`)
+				return
+			end
+
+			-- Attempt attack on target
+			local result = CombatSystem.attemptMeleeAttack(character, target, weaponName, player)
+
+			if result.hit then
+				-- Hit! Damage already applied by CombatSystem
+				playToolSound(player, toolType, "attack")
+				print(`{player.Name} hit {target.Name} for {result.damage} damage`)
+			elseif result.wasDodged then
+				-- Target dodged
+				playToolSound(player, toolType, "swing")
+				print(`{player.Name}'s attack on {target.Name} was dodged`)
+			elseif result.blockedByInvulnerability then
+				-- Blocked by invulnerability
+				playToolSound(player, toolType, "swing")
+				print(`{target.Name} is invulnerable to {weaponName}`)
+			else
+				-- Miss
+				playToolSound(player, toolType, "swing")
+			end
+		else
+			-- Mode B: AOE mode - hit all entities in range
+			local result = CombatSystem.attemptMeleeAttack(character, target, weaponName, player)
+
+			if result.hit then
+				-- Hit at least one entity
+				playToolSound(player, toolType, "attack")
+				print(`{player.Name} hit entities for {result.damage} total damage`)
+			else
+				-- No hits - play swing sound
+				playToolSound(player, toolType, "swing")
+				print(`{player.Name} swung {toolType} but hit nothing`)
+			end
+		end
+
+	elseif weaponConfig.type == "projectile" then
+		-- Projectile weapons require a locked target
 		if not target then
-			-- No target selected - play miss sound
 			playToolSound(player, toolType, "swing")
-			print(`{player.Name} swung {toolType} but has no target selected`)
+			print(`{player.Name} fired {weaponName} but has no target selected`)
 			return
 		end
 
-		-- Attempt attack on target
-		local result = CombatSystem.attemptMeleeAttack(character, target, weaponName, player)
+		-- Wait for castDuration (draw/charge animation)
+		task.wait(weaponConfig.castDuration)
 
-		if result.hit then
-			-- Hit! Damage already applied by CombatSystem
-			playToolSound(player, toolType, "attack")
-			print(`{player.Name} hit {target.Name} for {result.damage} damage`)
-		elseif result.wasDodged then
-			-- Target dodged
-			playToolSound(player, toolType, "swing")
-			print(`{player.Name}'s attack on {target.Name} was dodged`)
-		elseif result.blockedByInvulnerability then
-			-- Blocked by invulnerability
-			playToolSound(player, toolType, "swing")
-			print(`{target.Name} is invulnerable to {weaponName}`)
-		else
-			-- Miss
-			playToolSound(player, toolType, "swing")
+		-- Verify character still exists and get root parts
+		local humanoidRootPart = character:FindFirstChild("HumanoidRootPart") :: BasePart?
+		if not humanoidRootPart then
+			return
 		end
+
+		local targetRoot = target:FindFirstChild("HumanoidRootPart") or target:FindFirstChild("Torso") :: BasePart?
+		if not targetRoot or not targetRoot:IsA("BasePart") then
+			playToolSound(player, toolType, "swing")
+			print(`{player.Name} fired {weaponName} but target has no valid root part`)
+			return
+		end
+
+		-- Check if player is facing the target
+		if not CombatSystem.isFacingTarget(humanoidRootPart, targetRoot) then
+			playToolSound(player, toolType, "swing")
+			print(`{player.Name} fired {weaponName} but not facing target`)
+			return
+		end
+
+		-- Calculate spawn position at chest height (no forward offset to reduce visual lag)
+		local origin = humanoidRootPart.Position + Vector3.new(0, 1.5, 0)
+
+		-- Aim at target's center (use their root position directly for accurate aiming)
+		local targetPosition = targetRoot.Position
+		local direction = (targetPosition - origin).Unit
+
+		-- Spawn projectile via ProjectileManager
+		local ProjectileManager = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ProjectileManager"))
+		local projectile = ProjectileManager.spawnProjectile(
+			origin,
+			direction,
+			weaponName,
+			character,
+			player,
+			target -- Locked target
+		)
+
+		if projectile then
+			playToolSound(player, toolType, "attack")
+			print(`{player.Name} fired {weaponName} at {target.Name}`)
+		else
+			playToolSound(player, toolType, "swing")
+			print(`{player.Name} projectile attack blocked`)
+		end
+
 	else
-		-- Mode B: AOE mode - hit all entities in range
-		local result = CombatSystem.attemptMeleeAttack(character, target, weaponName, player)
-
-		if result.hit then
-			-- Hit at least one entity
-			playToolSound(player, toolType, "attack")
-			print(`{player.Name} hit entities for {result.damage} total damage`)
-		else
-			-- No hits - play swing sound
-			playToolSound(player, toolType, "swing")
-			print(`{player.Name} swung {toolType} but hit nothing`)
-		end
+		warn(`Weapon type {weaponConfig.type} not yet implemented`)
 	end
 end
 
@@ -212,7 +274,7 @@ local function onPlaceBuilding(player: Player, buildingItemId: string, placement
 	end
 
 	-- Create final placement CFrame with ground position, height offset, and preserve rotation
-	local finalPosition = groundPosition + vector.create(0, heightOffset, 0)
+	local finalPosition = groundPosition + Vector3.new(0, heightOffset, 0)
 	local adjustedCFrame = CFrame.new(finalPosition) * (placementCFrame - placementCFrame.Position)
 
 	-- Position and rotate the building
@@ -260,12 +322,12 @@ local function onToolSwing(player: Player, toolType: ToolType)
 	end
 
 	local toolConfig = GameConfig.tools[toolType]
-	if not toolConfig or not toolConfig.weaponRef then
-		return
-	end
+
+	-- Get weapon name: use weaponRef if available, otherwise use tool name directly
+	local weaponName = (toolConfig and toolConfig.weaponRef) or toolType
 
 	-- Get weapon config for cooldown
-	local weaponConfig = CombatSystem.getWeaponConfig(toolConfig.weaponRef)
+	local weaponConfig = CombatSystem.getWeaponConfig(weaponName)
 	if not weaponConfig then
 		return
 	end

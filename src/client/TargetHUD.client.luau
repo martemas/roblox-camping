@@ -12,6 +12,7 @@ local Types = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Typ
 local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RemoteEvents"))
 local CombatSystem = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("CombatSystem"))
 local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("GameConfig"))
+local ProjectileLOS = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ProjectileLOS"))
 
 type TargetInfo = Types.TargetInfo
 type TargetHUDSettings = PlayerSettings.TargetHUDSettings
@@ -244,44 +245,88 @@ local function updateHUDContent(hud: ScreenGui, targetInfo: TargetInfo)
 		nameLabel.Text = `{targetInfo.entityType} ({targetInfo.model.Name})`
 	end
 
-	-- Update border color based on attackability
+	-- Update border color and status based on attackability
 	local character = player.Character
 	if character and character:FindFirstChild("HumanoidRootPart") then
 		local playerRoot = character.HumanoidRootPart :: BasePart
 		local targetRoot = targetInfo.model:FindFirstChild("HumanoidRootPart") :: BasePart?
 
 		if targetRoot then
-			-- Get player's equipped weapon for range check
+			-- Get player's equipped weapon
 			local weaponName = CombatSystem.getPlayerWeapon(player)
 			local weaponConfig = nil
 			if weaponName then
 				weaponConfig = CombatSystem.getWeaponConfig(weaponName)
 			end
 
-			-- Check distance
-			local inRange = true -- Default to true if no weapon equipped
-			if weaponConfig then
-				local distance = (targetRoot.Position - playerRoot.Position).Magnitude
-				inRange = distance <= weaponConfig.range
-			end
-
-			-- Check facing (only if facing requirement is enabled)
-			local isFacing = CombatSystem.isFacingTarget(playerRoot, targetRoot, nil)
-
-			-- Determine border color
+			-- Determine status and border color
 			local borderColor: Color3
-			if inRange and isFacing then
-				-- Can attack: Green
-				borderColor = Color3.fromRGB(0, 255, 0)
+			local statusText: string = "READY"
+
+			if not weaponConfig then
+				-- No weapon equipped
+				borderColor = Color3.fromRGB(150, 150, 150)
+				statusText = "NO WEAPON"
 			else
-				-- Cannot attack: Red
-				borderColor = Color3.fromRGB(255, 0, 0)
+				-- Check distance
+				local distance = (targetRoot.Position - playerRoot.Position).Magnitude
+				local inRange = distance <= weaponConfig.range
+
+				if not inRange then
+					-- Out of range
+					borderColor = Color3.fromRGB(255, 150, 0) -- Orange
+					statusText = "OUT OF RANGE"
+				else
+					-- Check facing (if required)
+					local isFacing = true
+					if GameConfig.combat.requireFacingForDamage then
+						isFacing = CombatSystem.isFacingTarget(playerRoot, targetRoot, nil)
+					end
+
+					if not isFacing then
+						-- Not facing target
+						borderColor = Color3.fromRGB(255, 100, 0) -- Orange
+						statusText = "NOT FACING"
+					else
+						-- Check LOS (for projectile weapons only)
+						local hasLOS = true
+						if weaponConfig.type == "projectile" and weaponConfig.requiresLineOfSight then
+							local origin = playerRoot.Position + Vector3.new(0, 1, 0)
+							local targetPos = targetRoot.Position + Vector3.new(0, 1, 0)
+							local losResult = ProjectileLOS.validatePath(origin, targetPos, character)
+							hasLOS = losResult.hasLineOfSight
+
+							if not hasLOS then
+								-- Blocked by obstacle
+								borderColor = Color3.fromRGB(255, 50, 50) -- Red
+								statusText = "BLOCKED"
+							end
+						end
+
+						if hasLOS then
+							-- Can attack: Green
+							borderColor = Color3.fromRGB(0, 255, 0)
+							statusText = "READY"
+						end
+					end
+				end
 			end
 
 			-- Update UIStroke color
 			local stroke = mainFrame:FindFirstChild("BorderStroke") :: UIStroke?
 			if stroke then
 				stroke.Color = borderColor
+			end
+
+			-- Update status label if it exists
+			local detailsFrame = mainFrame:FindFirstChild("DetailsFrame") :: Frame?
+			if detailsFrame then
+				local stateLabel = detailsFrame:FindFirstChild("StateLabel") :: TextLabel?
+				if stateLabel then
+					-- Update state to show attack status
+					stateLabel.Text = `Status: {statusText}`
+					stateLabel.TextColor3 = borderColor
+				end
 			end
 		end
 	end

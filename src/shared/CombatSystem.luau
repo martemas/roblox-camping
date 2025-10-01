@@ -3,6 +3,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GameConfig = require(script.Parent:WaitForChild("GameConfig"))
 local CombatFeedback = require(script.Parent:WaitForChild("CombatFeedback"))
+local ProjectileLOS = require(script.Parent:WaitForChild("ProjectileLOS"))
 
 -- Export types
 export type WeaponType = "melee" | "projectile" | "hitscan" | "aoe"
@@ -40,6 +41,36 @@ export type AOEHitInfo = {
 	entity: Model,
 	damage: number,
 	distance: number,       -- Distance from AOE center
+}
+
+export type DamageMode = {
+	damageTargetOnly: boolean,
+	penetratesEntities: boolean,
+}
+
+export type ProjectileConfig = {
+	modelPath: string,
+	speed: number,
+	maxRange: number,
+	trailEnabled: boolean,
+	trailColor: Color3?,
+	impactEffect: string?,
+}
+
+export type ProjectileInstance = {
+	model: Model,
+	weapon: string,
+	attacker: Model,
+	attackingPlayer: Player?,
+	lockedTarget: Model?,
+	damageMode: DamageMode,
+	spawnTime: number,
+	distanceTraveled: number,
+	maxRange: number,
+	speed: number,
+	direction: Vector3,
+	lastPosition: Vector3,
+	entitiesHit: {[Model]: boolean},
 }
 
 local CombatSystem = {}
@@ -82,10 +113,13 @@ function CombatSystem.getPlayerWeapon(player: Player): string?
 	for _, toolName in GameConfig.player.startingTools do
 		local tool = character:FindFirstChild(toolName)
 		if tool and tool:IsA("Tool") then
-			-- Get weapon reference from tool config
+			-- Get weapon name: use weaponRef if available, otherwise use tool name directly
 			local toolConfig = GameConfig.tools[toolName]
 			if toolConfig and toolConfig.weaponRef then
 				return toolConfig.weaponRef
+			else
+				-- Pure weapon tools (like Bow) use tool name as weapon name
+				return toolName
 			end
 		end
 	end
@@ -203,6 +237,34 @@ local function isPvPAllowed(attacker: Model, target: Model): boolean
 
 	-- Check if PvP is enabled
 	return GameConfig.combat.pvpEnabled
+end
+
+-- Get effective damage mode from weapon and combat config
+local function getEffectiveDamageMode(weaponConfig: any): DamageMode
+	local weaponDamageTargetOnly = weaponConfig.damageTargetOnly
+	local combatDamageTargetOnly = GameConfig.combat.damageTargetOnly
+
+	-- Rule: If EITHER weapon or combat is false, can hit entities along path
+	-- Weapon false overrides combat true
+	local effectiveDamageTargetOnly = true
+
+	if weaponDamageTargetOnly == false then
+		-- Weapon explicitly allows multi-target
+		effectiveDamageTargetOnly = false
+	elseif weaponDamageTargetOnly == nil and combatDamageTargetOnly == false then
+		-- Weapon not set, combat allows multi-target
+		effectiveDamageTargetOnly = false
+	end
+
+	-- Penetration only matters if damageTargetOnly is false
+	local penetrates = if not effectiveDamageTargetOnly
+		then (weaponConfig.penetratesEntities or false)
+		else false
+
+	return {
+		damageTargetOnly = effectiveDamageTargetOnly,
+		penetratesEntities = penetrates,
+	}
 end
 
 -- Find all entities within range of a position
@@ -436,6 +498,54 @@ function CombatSystem.performHitscan(
 		wasDodged = false,
 		blockedByInvulnerability = false
 	}
+end
+
+-- Perform projectile attack (validation only - spawning handled by caller)
+function CombatSystem.performProjectileAttack(
+	origin: Vector3,
+	direction: Vector3,
+	weaponName: string,
+	attacker: Model,
+	attackingPlayer: Player?,
+	lockedTarget: Model?
+): boolean
+	local weaponConfig = CombatSystem.getWeaponConfig(weaponName)
+	if not weaponConfig or weaponConfig.type ~= "projectile" then
+		warn(`Weapon {weaponName} is not a projectile weapon`)
+		return false
+	end
+
+	-- Validate LOS if required (server-side validation)
+	if weaponConfig.requiresLineOfSight and lockedTarget then
+		local targetRoot = lockedTarget:FindFirstChild("HumanoidRootPart") :: BasePart?
+		if targetRoot then
+			local targetPos = targetRoot.Position
+			local losResult = ProjectileLOS.validatePath(
+				origin,
+				Vector3.new(targetPos.X, targetPos.Y, targetPos.Z),
+				attacker
+			)
+
+			if not losResult.hasLineOfSight then
+				warn(`Projectile blocked for {attacker.Name} - no line of sight to {lockedTarget.Name}`)
+				return false
+			end
+		end
+	end
+
+	-- Return true - caller (ProjectileManager) will spawn projectile
+	print(`Projectile attack validated for {attacker.Name} with {weaponName}`)
+	return true
+end
+
+-- Export isPvPAllowed for use by other systems
+function CombatSystem.isPvPAllowed(attacker: Model, target: Model): boolean
+	return isPvPAllowed(attacker, target)
+end
+
+-- Export getEffectiveDamageMode for use by ProjectileManager
+function CombatSystem.getEffectiveDamageMode(weaponConfig: any): DamageMode
+	return getEffectiveDamageMode(weaponConfig)
 end
 
 -- Export isFacingTarget for client-side use (target HUD indicator)

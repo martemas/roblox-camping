@@ -131,7 +131,7 @@ local GameConfig = {
     player = {
         maxHealth = 100,
         inventorySize = 5,
-        startingTools = {"Axe", "Pickaxe"}
+        startingTools = {"Axe", "Pickaxe", "Bow"}
     },
 
     -- Resource Settings

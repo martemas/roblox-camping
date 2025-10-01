@@ -5,7 +5,7 @@ local GameConfig = {
 	player = {
 		maxHealth = 100,
 		inventorySize = 5,
-		startingTools = {"Axe", "Pickaxe"},
+		startingTools = {"Axe", "Pickaxe", "Bow"},
 		healthRegenRate = 5, -- Percentage per interval
 		healthRegenInterval = 5, -- Seconds
 		respawnTimeout = 10, -- Seconds
@@ -98,6 +98,35 @@ local GameConfig = {
 			cooldown = 2,
 			castDuration = 0.4,
 		},
+
+		-- ========================================
+		-- PROJECTILE WEAPONS (Phase 2)
+		-- ========================================
+		Bow = {
+			type = "projectile",
+			name = "Bow",
+			damage = 30,
+			range = 100,
+			cooldown = 1.5,
+			castDuration = 0.5,
+			projectileSpeed = 80,
+			requiresLineOfSight = true,
+			damageTargetOnly = nil, -- Use combat.damageTargetOnly
+			penetratesEntities = false,
+		},
+
+		SpiderWeb = {
+			type = "projectile",
+			name = "Spider Web",
+			damage = 5,
+			range = 40,
+			cooldown = 3,
+			castDuration = 0.6,
+			projectileSpeed = 30,
+			requiresLineOfSight = true,
+			damageTargetOnly = false, -- Can hit entities along path
+			penetratesEntities = false, -- Stops at first hit
+		},
 	},
 
 	-- Tool Settings (for mining and resource gathering)
@@ -113,7 +142,7 @@ local GameConfig = {
 			canMine = {"Stone", "Metal"},
 			swingCooldown = 0.5,
 			weaponRef = "Pickaxe", -- References weapons.Pickaxe for combat
-		},
+		}
 	},
 
 	-- Combat System Settings
@@ -127,7 +156,7 @@ local GameConfig = {
 
 		-- Directional Combat
 		requireFacingForDamage = true, -- Must be facing target to deal damage
-		facingAngleDegrees = 180, -- Total cone angle (180 = full front hemisphere, 120 = narrow cone)
+		facingAngleDegrees = 210, -- Total cone angle (180 = full front hemisphere, 120 = narrow cone)
 		showFacingIndicator = true, -- Show visual feedback in target HUD
 
 		-- Game Modes

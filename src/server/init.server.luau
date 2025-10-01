@@ -13,6 +13,10 @@ local GameConfig = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("GameCo
 local Types = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Types")
 local RemoteEvents = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RemoteEvents")
 
+-- Initialize ProjectileManager
+local ProjectileManager = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ProjectileManager"))
+ProjectileManager.initialize()
+
 -- Pre-warm animation cache FIRST (before other systems)
 local serverFolder = ServerScriptService:FindFirstChild("Server")
 if serverFolder then
