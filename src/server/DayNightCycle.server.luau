@@ -17,25 +17,34 @@ local phaseStartTime: number = 0
 local phaseEndTime: number = 0
 local isTransitioning: boolean = false
 
--- Lighting settings for different phases
-local LIGHTING_SETTINGS = {
-	Day = {
-		TimeOfDay = "12:00:00",
-		Brightness = 1,
-		ColorShift_Top = Color3.fromRGB(0, 0, 0),
-		ColorShift_Bottom = Color3.fromRGB(0, 0, 0),
-		Ambient = Color3.fromRGB(138, 138, 138),
-		OutdoorAmbient = Color3.fromRGB(198, 198, 198),
-	},
-	Night = {
-		TimeOfDay = "00:00:00",
-		Brightness = 0.5,
-		ColorShift_Top = Color3.fromRGB(76, 76, 127),
-		ColorShift_Bottom = Color3.fromRGB(0, 0, 0),
-		Ambient = Color3.fromRGB(59, 59, 80),
-		OutdoorAmbient = Color3.fromRGB(59, 59, 80),
-	},
-}
+-- Build lighting settings from GameConfig
+local function buildLightingSettings()
+	local dayHours = math.floor(GameConfig.time.dayClockTime)
+	local dayMinutes = math.floor((GameConfig.time.dayClockTime - dayHours) * 60)
+	local nightHours = math.floor(GameConfig.time.nightClockTime)
+	local nightMinutes = math.floor((GameConfig.time.nightClockTime - nightHours) * 60)
+
+	return {
+		Day = {
+			TimeOfDay = string.format("%02d:%02d:00", dayHours, dayMinutes),
+			Brightness = GameConfig.time.dayBrightness,
+			ColorShift_Top = GameConfig.time.dayColorShiftTop,
+			ColorShift_Bottom = GameConfig.time.dayColorShiftBottom,
+			Ambient = GameConfig.time.dayOutdoorAmbient,
+			OutdoorAmbient = GameConfig.time.dayOutdoorAmbient,
+		},
+		Night = {
+			TimeOfDay = string.format("%02d:%02d:00", nightHours, nightMinutes),
+			Brightness = GameConfig.time.nightBrightness,
+			ColorShift_Top = GameConfig.time.nightColorShiftTop,
+			ColorShift_Bottom = GameConfig.time.nightColorShiftBottom,
+			Ambient = GameConfig.time.nightOutdoorAmbient,
+			OutdoorAmbient = GameConfig.time.nightOutdoorAmbient,
+		},
+	}
+end
+
+local LIGHTING_SETTINGS = buildLightingSettings()
 
 -- Properties that can be tweened (excludes TimeOfDay)
 local TWEENABLE_PROPERTIES = {

@@ -1,6 +1,7 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
 local GameConfig = require(script.Parent:WaitForChild("GameConfig"))
 local CombatFeedback = require(script.Parent:WaitForChild("CombatFeedback"))
 local ProjectileLOS = require(script.Parent:WaitForChild("ProjectileLOS"))
@@ -18,6 +19,7 @@ export type WeaponConfig = {
 
 	-- Projectile-specific
 	projectileSpeed: number?,
+	projectileConfig: ProjectileConfig?,
 
 	-- AOE-specific
 	aoeRadius: number?,
@@ -434,6 +436,12 @@ function CombatSystem.attemptMeleeAttack(
 				damageType,
 				attackingPlayer
 			)
+
+			-- Notify entity it was damaged (for aggro/retargeting) - lazy load to avoid circular dependency
+			if not targetPlayer then
+				local EntityController = require(script.Parent:WaitForChild("EntityController"))
+				EntityController.onEntityDamaged(targetModel, attacker)
+			end
 
 			-- Play hit sound
 			CombatFeedback.playHitSound(targetModel, "Hit")

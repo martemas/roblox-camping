@@ -160,6 +160,13 @@ local function applyDamage(projectile: ProjectileInstance, entity: Model)
 		projectile.attackingPlayer
 	)
 
+	-- Notify entity it was damaged (for aggro/retargeting) - lazy load to avoid circular dependency
+	if not entityPlayer then
+		-- Only trigger for NPCs (wildlife/enemies)
+		local EntityController = require(script.Parent:WaitForChild("EntityController"))
+		EntityController.onEntityDamaged(entity, projectile.attacker)
+	end
+
 	print(`Projectile {projectile.weapon} hit {entity.Name} for {weaponConfig.damage} damage`)
 end
 

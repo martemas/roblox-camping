@@ -371,15 +371,39 @@ local function updateEntityAI(entity: EntityInstance)
 	if not config then return end
 
 	local currentTime = tick()
-	local target = getTarget(entity)
 
-	-- Update aggro state
-	if target then
-		entity.isAggro = true
-		entity.target = target
-	else
-		entity.isAggro = false
-		entity.target = nil
+	-- If entity already has a target, check if we should maintain it
+	if entity.target and entity.target.Character then
+		local targetHumanoid = entity.target.Character:FindFirstChildOfClass("Humanoid")
+		local targetRoot = entity.target.Character:FindFirstChild("HumanoidRootPart")
+
+		-- Clear target if they died
+		if not targetHumanoid or targetHumanoid.Health <= 0 then
+			entity.target = nil
+			entity.isAggro = false
+		-- Clear target if they're beyond extended chase range
+		elseif targetRoot and targetRoot:IsA("BasePart") then
+			local distance = (targetRoot.Position - entity.humanoidRootPart.Position).Magnitude
+			local chaseMultiplier = GameConfig.combat.chaseRangeMultiplier or 3
+			local maxChaseRange = config.aggroRange * chaseMultiplier
+
+			if distance > maxChaseRange then
+				entity.target = nil
+				entity.isAggro = false
+				print(`{entity.entityType} gave up chase - target too far ({math.floor(distance)} > {maxChaseRange})`)
+			end
+		end
+	end
+
+	-- Only look for new target if we don't have one
+	if not entity.target then
+		local target = getTarget(entity)
+		if target then
+			entity.isAggro = true
+			entity.target = target
+		else
+			entity.isAggro = false
+		end
 	end
 
 	-- Handle behavior based on aggro state
@@ -551,6 +575,29 @@ function EnemyController.setTarget(model: Model, target: Player?)
 	if entity then
 		entity.target = target
 		entity.isAggro = target ~= nil
+	end
+end
+
+--[[
+	Called when an entity takes damage - retargets to attacker ONLY if no current target
+
+	@param entity - Entity that took damage
+	@param attacker - The attacker (character model)
+]]
+function EnemyController.onEntityDamaged(entity: Model, attacker: Model)
+	local entityInstance = activeEntities[entity]
+	if not entityInstance then
+		return
+	end
+
+	-- ONLY retarget if entity has no current target
+	if not entityInstance.target then
+		local attackerPlayer = Players:GetPlayerFromCharacter(attacker)
+		if attackerPlayer then
+			entityInstance.target = attackerPlayer
+			entityInstance.isAggro = true
+			print(`{entity.Name} now targeting {attackerPlayer.Name} after taking damage`)
+		end
 	end
 end
 

@@ -113,6 +113,12 @@ local GameConfig = {
 			requiresLineOfSight = true,
 			damageTargetOnly = nil, -- Use combat.damageTargetOnly
 			penetratesEntities = false,
+			projectileConfig = {
+				modelPath = "Arrow1",
+				trailEnabled = true,
+				trailColor = Color3.fromRGB(255, 200, 100),
+				impactEffect = "ArrowImpact",
+			},
 		},
 
 		SpiderWeb = {
@@ -126,6 +132,12 @@ local GameConfig = {
 			requiresLineOfSight = true,
 			damageTargetOnly = false, -- Can hit entities along path
 			penetratesEntities = false, -- Stops at first hit
+			projectileConfig = {
+				modelPath = "Web1",
+				trailEnabled = true,
+				trailColor = Color3.fromRGB(200, 200, 200),
+				impactEffect = "WebSplat",
+			},
 		},
 	},
 
@@ -159,6 +171,9 @@ local GameConfig = {
 		facingAngleDegrees = 210, -- Total cone angle (180 = full front hemisphere, 120 = narrow cone)
 		showFacingIndicator = true, -- Show visual feedback in target HUD
 
+		-- Entity AI Aggro
+		chaseRangeMultiplier = 3, -- How many times aggroRange before entity gives up chase
+
 		-- Game Modes
 		pvpEnabled = true, -- Enable player vs player damage
 		teamBased = false, -- Enable team-based combat (future)
@@ -170,6 +185,18 @@ local GameConfig = {
 		dayDuration = 60, -- 5 minutes
 		nightDuration = 180, -- 3 minutes
 		transitionTime = 5, -- Seconds for dawn/dusk transition
+
+		-- Lighting Configuration
+		dayBrightness = 2, -- Day ambient brightness (0-3)
+		nightBrightness = 1.5, -- Night ambient brightness (0-3, higher = less dark)
+		dayOutdoorAmbient = Color3.fromRGB(140, 140, 140), -- Day ambient color
+		nightOutdoorAmbient = Color3.fromRGB(120, 120, 150), -- Night ambient color (bluish tint, brighter)
+		dayColorShiftTop = Color3.fromRGB(0, 0, 0), -- Day color shift top
+		dayColorShiftBottom = Color3.fromRGB(0, 0, 0), -- Day color shift bottom
+		nightColorShiftTop = Color3.fromRGB(76, 76, 127), -- Night color shift top
+		nightColorShiftBottom = Color3.fromRGB(0, 0, 0), -- Night color shift bottom
+		dayClockTime = 12, -- Time of day during day (0-24)
+		nightClockTime = 0, -- Time of day during night (0-24)
 	},
 
 	-- Wildlife Settings

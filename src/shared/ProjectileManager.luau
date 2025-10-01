@@ -34,28 +34,11 @@ local isInitialized = false
 	@return ProjectileConfig or nil
 ]]
 local function getProjectileConfig(weaponName: string): CombatSystem.ProjectileConfig?
-	-- Hardcoded configs for now
-	-- Future: Move to GameConfig.weapons[weaponName].projectileConfig
-	local configs: {[string]: CombatSystem.ProjectileConfig} = {
-		Bow = {
-			modelPath = "Arrow1",
-			speed = 80,
-			maxRange = 100,
-			trailEnabled = true,
-			trailColor = Color3.fromRGB(255, 200, 100),
-			impactEffect = "ArrowImpact",
-		},
-		SpiderWeb = {
-			modelPath = "Web1",
-			speed = 30,
-			maxRange = 40,
-			trailEnabled = true,
-			trailColor = Color3.fromRGB(200, 200, 200),
-			impactEffect = "WebSplat",
-		},
-	}
-
-	return configs[weaponName]
+	local weaponConfig = CombatSystem.getWeaponConfig(weaponName)
+	if weaponConfig and weaponConfig.projectileConfig then
+		return weaponConfig.projectileConfig
+	end
+	return nil
 end
 
 --[[
