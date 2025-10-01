@@ -9,6 +9,7 @@ local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChi
 local Utils = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Utils"))
 local CombatSystem = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("CombatSystem"))
 local TargetingSystem = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("TargetingSystem"))
+local AnimationManager = require(script.Parent:WaitForChild("AnimationManager"))
 
 type ToolType = Types.ToolType
 
@@ -272,38 +273,43 @@ local function onToolSwing(player: Player, toolType: ToolType)
 	-- Set swing cooldown based on weapon
 	setCooldown(player, "swing", weaponConfig.cooldown)
 
-	-- Play swing animation using default Roblox character animation
-	local animateScript = character:FindFirstChild("Animate")
-	if animateScript then
-		local toolSlashAnim = animateScript:FindFirstChild("toolslash")
-		if toolSlashAnim then
-			local slashAnimation = toolSlashAnim:FindFirstChildOfClass("Animation")
-			if slashAnimation then
-				local animator = humanoid:FindFirstChildOfClass("Animator")
-				if animator then
-					local success, animationTrack = pcall(function()
-						local track = animator:LoadAnimation(slashAnimation)
-						track.Priority = Enum.AnimationPriority.Action
-						return track
-					end)
+	-- Play custom tool animation or fallback to default
+	local animationPlayed = AnimationManager.PlayNextAnimation(player, toolType)
 
-					if success and animationTrack then
-						animationTrack:Play()
-						print(`Playing swing animation for {player.Name}`)
+	if not animationPlayed then
+		-- Fallback to default Roblox toolslash animation
+		local animateScript = character:FindFirstChild("Animate")
+		if animateScript then
+			local toolSlashAnim = animateScript:FindFirstChild("toolslash")
+			if toolSlashAnim then
+				local slashAnimation = toolSlashAnim:FindFirstChildOfClass("Animation")
+				if slashAnimation then
+					local animator = humanoid:FindFirstChildOfClass("Animator")
+					if animator then
+						local success, animationTrack = pcall(function()
+							local track = animator:LoadAnimation(slashAnimation)
+							track.Priority = Enum.AnimationPriority.Action
+							return track
+						end)
+
+						if success and animationTrack then
+							animationTrack:Play()
+							print(`Playing fallback animation for {player.Name}`)
+						else
+							warn(`Failed to load swing animation for {player.Name}`)
+						end
 					else
-						warn(`Failed to load swing animation for {player.Name}`)
+						warn(`No Animator found for {player.Name}`)
 					end
 				else
-					warn(`No Animator found for {player.Name}`)
+					warn(`No Animation found in character.Animate.toolslash for {player.Name}`)
 				end
 			else
-				warn(`No Animation found in character.Animate.toolslash for {player.Name}`)
+				warn(`No toolslash found in character.Animate for {player.Name}`)
 			end
 		else
-			warn(`No toolslash found in character.Animate for {player.Name}`)
+			warn(`No Animate script found for {player.Name}`)
 		end
-	else
-		warn(`No Animate script found for {player.Name}`)
 	end
 
 	-- Perform combat attack using CombatSystem (spawned so animation plays immediately)
@@ -322,13 +328,33 @@ local function createTool(toolType: ToolType): Tool?
 		return nil
 	end
 
+	-- Check both Models/ and Models/Tools/ for backwards compatibility
 	local toolTemplate = modelsFolder:FindFirstChild(toolType)
+	if not toolTemplate or not toolTemplate:IsA("Tool") then
+		local toolsFolder = modelsFolder:FindFirstChild("Tools")
+		if toolsFolder then
+			toolTemplate = toolsFolder:FindFirstChild(toolType)
+		end
+	end
+
 	if not toolTemplate or not toolTemplate:IsA("Tool") then
 		warn(`Tool template '{toolType}' not found in Models folder`)
 		return nil
 	end
 
 	local tool = toolTemplate:Clone()
+
+	-- Optional: Stop animation when tool unequipped
+	-- Commented out as it may interrupt animations too aggressively
+	-- Uncomment if you want animations to stop immediately when tool is put away
+	--[[
+	tool.Unequipped:Connect(function()
+		local player = Players:GetPlayerFromCharacter(tool.Parent)
+		if player then
+			AnimationManager.StopAllAnimations(player, toolType)
+		end
+	end)
+	]]--
 
 	-- TODO: Add tool icons when UI assets are ready
 	-- tool.TextureId = "rbxasset://path/to/icon"
@@ -415,7 +441,10 @@ local function onPlayerAdded(player: Player)
 	playerCooldowns[player] = {}
 
 	-- Give tools when character spawns
-	player.CharacterAdded:Connect(function()
+	player.CharacterAdded:Connect(function(character)
+		-- Hook character lifecycle for animations
+		AnimationManager.OnCharacterAdded(player, character)
+
 		-- Wait a bit for character to fully load
 		task.wait(1)
 		giveStartingTools(player)
@@ -423,6 +452,7 @@ local function onPlayerAdded(player: Player)
 
 	-- Handle existing character
 	if player.Character then
+		AnimationManager.OnCharacterAdded(player, player.Character)
 		giveStartingTools(player)
 	end
 end
@@ -431,6 +461,7 @@ end
 local function onPlayerRemoving(player: Player)
 	playerCooldowns[player] = nil
 	swingHits[player] = nil
+	AnimationManager.ClearPlayerData(player)
 end
 
 -- Public API

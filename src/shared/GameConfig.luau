@@ -54,14 +54,14 @@ local GameConfig = {
 			damage = 20,
 			range = 8,
 			cooldown = 0.5,
-			castDuration = 0.3,
+			castDuration = 0.4,
 		},
 
 		Pickaxe = {
 			type = "melee",
 			name = "Pickaxe",
 			damage = 15,
-			range = 7,
+			range = 10,
 			cooldown = 0.5,
 			castDuration = 0.3,
 		},
@@ -105,7 +105,7 @@ local GameConfig = {
 		Axe = {
 			miningEfficiency = 1.0,
 			canMine = {"Wood"},
-			swingCooldown = 0.5,
+			swingCooldown = 0.2,
 			weaponRef = "Axe", -- References weapons.Axe for combat
 		},
 		Pickaxe = {

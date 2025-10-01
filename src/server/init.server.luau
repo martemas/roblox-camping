@@ -13,6 +13,15 @@ local GameConfig = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("GameCo
 local Types = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Types")
 local RemoteEvents = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RemoteEvents")
 
+-- Pre-warm animation cache FIRST (before other systems)
+local serverFolder = ServerScriptService:FindFirstChild("Server")
+if serverFolder then
+	local AnimationCache = require(serverFolder:WaitForChild("AnimationCache"))
+	AnimationCache.Initialize()
+else
+	warn("Server folder not found in ServerScriptService")
+end
+
 -- All server systems initialize themselves automatically
 -- We just need to wait for them to be ready
 
