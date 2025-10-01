@@ -9,7 +9,7 @@ local PlayerSettingsManager = require(script.Parent:WaitForChild("PlayerSettings
 local CombatFeedback = {}
 
 -- Damage type for color coding
-export type DamageType = "self" | "other_player" | "incoming" | "dodge" | "miss"
+export type DamageType = "self" | "other_player" | "incoming" | "dodge" | "miss" | "blocked"
 
 -- Create floating damage/feedback text above any entity (player or NPC)
 function CombatFeedback.showDamage(
@@ -32,6 +32,10 @@ function CombatFeedback.showDamage(
 		-- Target dodged the attack
 		textColor = Color3.fromRGB(255, 255, 100) -- Yellow
 		displayText = "DODGED!"
+	elseif damageType == "blocked" then
+		-- Attack blocked due to facing requirement
+		textColor = Color3.fromRGB(255, 150, 0) -- Orange
+		displayText = "NOT FACING"
 	elseif damageType == "miss" then
 		-- Attack missed
 		textColor = Color3.fromRGB(200, 200, 200) -- Gray
@@ -78,6 +82,11 @@ function CombatFeedback.showDamage(
 		elseif damageType == "dodge" then
 			-- Always show dodge to the player who dodged
 			if targetModel == player.Character then
+				shouldShow = true
+			end
+		elseif damageType == "blocked" then
+			-- Show blocked to the attacking player
+			if attackingPlayer == player then
 				shouldShow = true
 			end
 		elseif damageType == "self" then

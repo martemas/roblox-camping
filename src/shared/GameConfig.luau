@@ -125,6 +125,11 @@ local GameConfig = {
 		invulnerabilityFrames = false,
 		invulnerabilityDuration = 0.5, -- Seconds of immunity per weapon type
 
+		-- Directional Combat
+		requireFacingForDamage = true, -- Must be facing target to deal damage
+		facingAngleDegrees = 180, -- Total cone angle (180 = full front hemisphere, 120 = narrow cone)
+		showFacingIndicator = true, -- Show visual feedback in target HUD
+
 		-- Game Modes
 		pvpEnabled = true, -- Enable player vs player damage
 		teamBased = false, -- Enable team-based combat (future)

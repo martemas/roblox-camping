@@ -98,6 +98,36 @@ local function getDistance(pos1: vector, pos2: vector): number
 	return (pos2 - pos1).Magnitude
 end
 
+-- Check if attacker is facing target (within configured angle)
+local function isFacingTarget(
+	attackerRoot: BasePart,
+	targetRoot: BasePart,
+	customAngleDegrees: number?
+): boolean
+	if not GameConfig.combat.requireFacingForDamage then
+		return true -- Always allow damage if directional check is disabled
+	end
+
+	-- Get attacker's look vector (direction they're facing)
+	local attackerLookVector = attackerRoot.CFrame.LookVector
+
+	-- Get direction from attacker to target
+	local directionToTarget = (targetRoot.Position - attackerRoot.Position).Unit
+
+	-- Calculate dot product to determine angle
+	local dotProduct = attackerLookVector:Dot(directionToTarget)
+
+	-- Use custom angle if provided, otherwise use global config
+	local angleDegrees = customAngleDegrees or GameConfig.combat.facingAngleDegrees or 180
+
+	-- Convert configured angle to threshold
+	-- facingAngleDegrees of 120° = 60° on each side of center = cos(60°) = 0.5
+	local angleThreshold = math.cos(math.rad(angleDegrees / 2))
+
+	-- If dot product >= threshold, attacker is facing target
+	return dotProduct >= angleThreshold
+end
+
 -- Find entity model from a part (includes player characters and NPCs)
 local function findEntityFromPart(part: BasePart): Model?
 	local current = part.Parent
@@ -274,6 +304,15 @@ function CombatSystem.attemptMeleeAttack(
 			continue
 		end
 
+		-- Check facing requirement
+		if not isFacingTarget(attackerRoot, targetRoot, nil) then
+			-- Not facing target - blocked
+			if targetModel == target then
+				CombatFeedback.showDamage(targetModel, nil, weaponName, "blocked", attackingPlayer)
+			end
+			continue
+		end
+
 		-- Check PvP rules
 		if not isPvPAllowed(attacker, targetModel) then
 			print(`PvP blocked: {attacker.Name} cannot attack {targetModel.Name}`)
@@ -397,6 +436,15 @@ function CombatSystem.performHitscan(
 		wasDodged = false,
 		blockedByInvulnerability = false
 	}
+end
+
+-- Export isFacingTarget for client-side use (target HUD indicator)
+function CombatSystem.isFacingTarget(
+	attackerRoot: BasePart,
+	targetRoot: BasePart,
+	customAngleDegrees: number?
+): boolean
+	return isFacingTarget(attackerRoot, targetRoot, customAngleDegrees)
 end
 
 return CombatSystem

@@ -10,6 +10,8 @@ local PlayerSettingsManager = require(ReplicatedStorage:WaitForChild("Shared"):W
 local PlayerSettings = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("PlayerSettings"))
 local Types = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Types"))
 local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RemoteEvents"))
+local CombatSystem = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("CombatSystem"))
+local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("GameConfig"))
 
 type TargetInfo = Types.TargetInfo
 type TargetHUDSettings = PlayerSettings.TargetHUDSettings
@@ -40,14 +42,21 @@ local function createTargetHUD(): ScreenGui
 	mainFrame.Position = UDim2.new(1, -320, 0, 20) -- Default to TopRight
 	mainFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 	mainFrame.BackgroundTransparency = 0.3
-	mainFrame.BorderSizePixel = 2
-	mainFrame.BorderColor3 = Color3.fromRGB(255, 255, 255)
+	mainFrame.BorderSizePixel = 0
 	mainFrame.Parent = screenGui
 
 	-- Add corner rounding
 	local corner = Instance.new("UICorner")
 	corner.CornerRadius = UDim.new(0, 8)
 	corner.Parent = mainFrame
+
+	-- Add UIStroke for border (works with UICorner)
+	local stroke = Instance.new("UIStroke")
+	stroke.Name = "BorderStroke"
+	stroke.Thickness = 3
+	stroke.Color = Color3.fromRGB(255, 255, 255)
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	stroke.Parent = mainFrame
 
 	-- Entity name label
 	local nameLabel = Instance.new("TextLabel")
@@ -233,6 +242,48 @@ local function updateHUDContent(hud: ScreenGui, targetInfo: TargetInfo)
 	local nameLabel = mainFrame:FindFirstChild("NameLabel") :: TextLabel
 	if nameLabel then
 		nameLabel.Text = `{targetInfo.entityType} ({targetInfo.model.Name})`
+	end
+
+	-- Update border color based on attackability
+	local character = player.Character
+	if character and character:FindFirstChild("HumanoidRootPart") then
+		local playerRoot = character.HumanoidRootPart :: BasePart
+		local targetRoot = targetInfo.model:FindFirstChild("HumanoidRootPart") :: BasePart?
+
+		if targetRoot then
+			-- Get player's equipped weapon for range check
+			local weaponName = CombatSystem.getPlayerWeapon(player)
+			local weaponConfig = nil
+			if weaponName then
+				weaponConfig = CombatSystem.getWeaponConfig(weaponName)
+			end
+
+			-- Check distance
+			local inRange = true -- Default to true if no weapon equipped
+			if weaponConfig then
+				local distance = (targetRoot.Position - playerRoot.Position).Magnitude
+				inRange = distance <= weaponConfig.range
+			end
+
+			-- Check facing (only if facing requirement is enabled)
+			local isFacing = CombatSystem.isFacingTarget(playerRoot, targetRoot, nil)
+
+			-- Determine border color
+			local borderColor: Color3
+			if inRange and isFacing then
+				-- Can attack: Green
+				borderColor = Color3.fromRGB(0, 255, 0)
+			else
+				-- Cannot attack: Red
+				borderColor = Color3.fromRGB(255, 0, 0)
+			end
+
+			-- Update UIStroke color
+			local stroke = mainFrame:FindFirstChild("BorderStroke") :: UIStroke?
+			if stroke then
+				stroke.Color = borderColor
+			end
+		end
 	end
 
 	-- Update health bar and text
