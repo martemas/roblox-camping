@@ -292,6 +292,17 @@ local GameConfig = {
 		otherPlayerHighlightOpacity = 0.3, -- Opacity for other players' highlights
 		ownTargetColor = Color3.fromRGB(255, 200, 0), -- Yellow for own target
 		otherPlayerTargetColor = Color3.fromRGB(100, 150, 255), -- Blue for others
+
+		-- Lock-On System
+		lockOn = {
+			enabled = true, -- Enable/disable lock-on system
+			maxYawAngle = 75, -- Max rotation left/right (degrees, 0-180)
+			maxPitchAngle = 25, -- Max rotation up/down (degrees, 0-90)
+			rotationSpeed = 0.2, -- Smoothing factor (0.1=slow, 0.5=fast)
+			autoUnlockDistance = 120, -- Auto-unlock distance (studs)
+			toggleKey = Enum.KeyCode.Q, -- Key binding for toggle
+			showLockIndicator = true, -- Show "LOCKED" text in HUD
+		},
 	},
 
 	-- Shop Settings

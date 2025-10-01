@@ -189,6 +189,19 @@ local function createTargetHUD(): ScreenGui
 	closeCorner.CornerRadius = UDim.new(0, 6)
 	closeCorner.Parent = closeButton
 
+	-- Lock-on indicator
+	local lockIndicator = Instance.new("TextLabel")
+	lockIndicator.Name = "LockIndicator"
+	lockIndicator.Size = UDim2.new(0, 80, 0, 20)
+	lockIndicator.Position = UDim2.new(0, 5, 0, 5)
+	lockIndicator.BackgroundTransparency = 1
+	lockIndicator.Text = "🔒 LOCKED"
+	lockIndicator.TextColor3 = Color3.fromRGB(255, 215, 0) -- Gold
+	lockIndicator.TextScaled = true
+	lockIndicator.Font = Enum.Font.SourceSansBold
+	lockIndicator.Visible = false
+	lockIndicator.Parent = mainFrame
+
 	return screenGui
 end
 
@@ -244,6 +257,12 @@ local function updateHUDContent(hud: ScreenGui, targetInfo: TargetInfo)
 		nameLabel.Text = `{targetInfo.entityType} ({targetInfo.model.Name})`
 	end
 
+	-- Update lock-on indicator
+	local lockIndicator = mainFrame:FindFirstChild("LockIndicator") :: TextLabel?
+	if lockIndicator and GameConfig.targeting.lockOn.showLockIndicator then
+		lockIndicator.Visible = TargetingSystem.isLockedOn(player)
+	end
+
 	-- Update border color based on attackability
 	local character = player.Character
 	if character and character:FindFirstChild("HumanoidRootPart") then
@@ -271,8 +290,14 @@ local function updateHUDContent(hud: ScreenGui, targetInfo: TargetInfo)
 			-- Determine border color
 			local borderColor: Color3
 			if inRange and isFacing then
-				-- Can attack: Green
-				borderColor = Color3.fromRGB(0, 255, 0)
+				-- Check if locked on
+				if TargetingSystem.isLockedOn(player) then
+					-- Locked on: Gold
+					borderColor = Color3.fromRGB(255, 215, 0)
+				else
+					-- Can attack: Green
+					borderColor = Color3.fromRGB(0, 255, 0)
+				end
 			else
 				-- Cannot attack: Red
 				borderColor = Color3.fromRGB(255, 0, 0)

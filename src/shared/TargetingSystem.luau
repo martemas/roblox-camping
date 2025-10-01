@@ -10,8 +10,14 @@ type TargetInfo = Types.TargetInfo
 
 local TargetingSystem = {}
 
+-- Player target state
+type PlayerTargetState = {
+	currentTarget: Model?,
+	isLockedOn: boolean,
+}
+
 -- Track player targets and highlights
-local playerTargets: {[Player]: Model?} = {}
+local playerTargets: {[Player]: PlayerTargetState} = {}
 local targetHighlights: {[Model]: {[Player]: Highlight}} = {}
 local lastTargetCheck: {[Player]: number} = {}
 
@@ -189,10 +195,23 @@ local function updateEntityHighlight(model: Model, player: Player, shouldHighlig
 	end
 end
 
+-- Get or create player target state
+local function getOrCreatePlayerState(player: Player): PlayerTargetState
+	if not playerTargets[player] then
+		playerTargets[player] = {
+			currentTarget = nil,
+			isLockedOn = false,
+		}
+	end
+	return playerTargets[player]
+end
+
 -- Set a player's target
 function TargetingSystem.setTarget(player: Player, targetModel: Model?): boolean
+	local state = getOrCreatePlayerState(player)
+
 	-- Clear previous target
-	local previousTarget = playerTargets[player]
+	local previousTarget = state.currentTarget
 	if previousTarget then
 		updateEntityHighlight(previousTarget, player, false)
 	end
@@ -201,7 +220,8 @@ function TargetingSystem.setTarget(player: Player, targetModel: Model?): boolean
 	if targetModel then
 		if not isValidTarget(targetModel) then
 			warn(`Cannot target {targetModel.Name}: not a valid target`)
-			playerTargets[player] = nil
+			state.currentTarget = nil
+			state.isLockedOn = false
 			return false
 		end
 
@@ -213,20 +233,22 @@ function TargetingSystem.setTarget(player: Player, targetModel: Model?): boolean
 				local distance = (targetPos.Position - playerPos).Magnitude
 				if distance > GameConfig.targeting.selectionRange then
 					warn(`Cannot target {targetModel.Name}: too far away ({math.floor(distance * 10) / 10} > {GameConfig.targeting.selectionRange})`)
-					playerTargets[player] = nil
+					state.currentTarget = nil
+					state.isLockedOn = false
 					return false
 				end
 			end
 		end
 
 		-- Set new target
-		playerTargets[player] = targetModel
+		state.currentTarget = targetModel
 		updateEntityHighlight(targetModel, player, true)
 		print(`{player.Name} targeted {targetModel.Name}`)
 		return true
 	else
 		-- Clear target
-		playerTargets[player] = nil
+		state.currentTarget = nil
+		state.isLockedOn = false
 		print(`{player.Name} cleared target`)
 		return true
 	end
@@ -234,12 +256,14 @@ end
 
 -- Get a player's current target
 function TargetingSystem.getTarget(player: Player): Model?
-	return playerTargets[player]
+	local state = playerTargets[player]
+	return state and state.currentTarget or nil
 end
 
 -- Get detailed info about a player's current target
 function TargetingSystem.getTargetInfo(player: Player): TargetInfo?
-	local target = playerTargets[player]
+	local state = playerTargets[player]
+	local target = state and state.currentTarget or nil
 	if not target then
 		return nil
 	end
@@ -281,10 +305,12 @@ end
 
 -- Check if player's target is still valid and within range
 local function validatePlayerTarget(player: Player)
-	local target = playerTargets[player]
-	if not target then
+	local state = playerTargets[player]
+	if not state or not state.currentTarget then
 		return
 	end
+
+	local target = state.currentTarget
 
 	-- Check if target is still valid
 	if not isValidTarget(target) then
@@ -352,6 +378,26 @@ end
 
 function TargetingSystem.getEntityInfo(model: Model, playerPosition: vector?): TargetInfo?
 	return getTargetInfo(model, playerPosition)
+end
+
+-- Lock-on system functions
+function TargetingSystem.setLockedOn(player: Player, locked: boolean)
+	local state = getOrCreatePlayerState(player)
+	state.isLockedOn = locked
+end
+
+function TargetingSystem.isLockedOn(player: Player): boolean
+	local state = playerTargets[player]
+	return state and state.isLockedOn or false
+end
+
+function TargetingSystem.toggleLockOn(player: Player): boolean
+	local state = getOrCreatePlayerState(player)
+	if state.currentTarget then
+		state.isLockedOn = not state.isLockedOn
+		return state.isLockedOn
+	end
+	return false
 end
 
 return TargetingSystem
