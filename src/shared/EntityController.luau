@@ -28,7 +28,7 @@ export type EntityInstance = {
 	animationTracks: {[string]: AnimationTrack},
 }
 
-local EnemyController = {}
+local EntityController = {}
 local activeEntities: {[Model]: EntityInstance} = {}
 local isInitialized = false
 
@@ -488,7 +488,7 @@ local function updateEntityAI(entity: EntityInstance)
 end
 
 -- Initialize an entity with the centralized system
-function EnemyController.initializeEntity(model: Model, entityType: string): EntityInstance?
+function EntityController.initializeEntity(model: Model, entityType: string): EntityInstance?
 	local config = getEntityConfig(entityType)
 	if not config then
 		warn(`No configuration found for entity type: {entityType}`)
@@ -532,7 +532,7 @@ function EnemyController.initializeEntity(model: Model, entityType: string): Ent
 	-- Handle death
 	humanoid.Died:Connect(function()
 		playSound(entity, "died") -- Play death sound if it exists
-		EnemyController.removeEntity(model)
+		EntityController.removeEntity(model)
 	end)
 
 	-- Register entity
@@ -543,7 +543,7 @@ function EnemyController.initializeEntity(model: Model, entityType: string): Ent
 end
 
 -- Remove entity from tracking
-function EnemyController.removeEntity(model: Model)
+function EntityController.removeEntity(model: Model)
 	local entity = activeEntities[model]
 	if entity then
 		-- Clean up animation tracks
@@ -560,17 +560,17 @@ function EnemyController.removeEntity(model: Model)
 end
 
 -- Get all active entities
-function EnemyController.getActiveEntities(): {[Model]: EntityInstance}
+function EntityController.getActiveEntities(): {[Model]: EntityInstance}
 	return activeEntities
 end
 
 -- Get entity by model
-function EnemyController.getEntity(model: Model): EntityInstance?
+function EntityController.getEntity(model: Model): EntityInstance?
 	return activeEntities[model]
 end
 
 -- Force an entity to target a specific player (useful for testing/special events)
-function EnemyController.setTarget(model: Model, target: Player?)
+function EntityController.setTarget(model: Model, target: Player?)
 	local entity = activeEntities[model]
 	if entity then
 		entity.target = target
@@ -584,7 +584,7 @@ end
 	@param entity - Entity that took damage
 	@param attacker - The attacker (character model)
 ]]
-function EnemyController.onEntityDamaged(entity: Model, attacker: Model)
+function EntityController.onEntityDamaged(entity: Model, attacker: Model)
 	local entityInstance = activeEntities[entity]
 	if not entityInstance then
 		return
@@ -608,13 +608,13 @@ local function updateAllEntities()
 			updateEntityAI(entity)
 		else
 			-- Model was destroyed, clean up
-			EnemyController.removeEntity(model)
+			EntityController.removeEntity(model)
 		end
 	end
 end
 
 -- Initialize the controller system
-function EnemyController.initialize()
+function EntityController.initialize()
 	if isInitialized then
 		return
 	end
@@ -623,19 +623,19 @@ function EnemyController.initialize()
 	RunService.Heartbeat:Connect(updateAllEntities)
 
 	isInitialized = true
-	print("EnemyController centralized system initialized")
+	print("EntityController centralized system initialized")
 end
 
 -- Clean up all entities (useful for testing/resetting)
-function EnemyController.cleanup()
+function EntityController.cleanup()
 	for model, entity in pairs(activeEntities) do
-		EnemyController.removeEntity(model)
+		EntityController.removeEntity(model)
 	end
 	activeEntities = {}
 end
 
 -- Public API for external systems (like ToolManager hitting entities)
-function EnemyController.handleDamage(model: Model, damage: number, damageSource: string?, attackingPlayer: Player?)
+function EntityController.handleDamage(model: Model, damage: number, damageSource: string?, attackingPlayer: Player?)
 	local entity = activeEntities[model]
 	if entity then
 		-- Apply damage
@@ -654,4 +654,4 @@ function EnemyController.handleDamage(model: Model, damage: number, damageSource
 	end
 end
 
-return EnemyController
+return EntityController
