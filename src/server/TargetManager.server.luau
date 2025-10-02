@@ -11,8 +11,6 @@ TargetingSystem.initialize()
 
 -- Handle target selection from clients
 local function onSelectTarget(player: Player, targetModel: Model)
-	print(`Server: {player.Name} attempting to target {targetModel and targetModel.Name or "nil"}`)
-
 	if not targetModel or not targetModel.Parent then
 		warn(`Invalid target model from {player.Name}`)
 		return
@@ -22,28 +20,14 @@ local function onSelectTarget(player: Player, targetModel: Model)
 	local success = TargetingSystem.setTarget(player, targetModel)
 
 	if success then
-		print(`Server: {player.Name} successfully targeted {targetModel.Name}`)
-
-		-- Send confirmation back to client (optional)
-		-- RemoteEvents.Events.TargetUpdated:FireClient(player, targetModel)
-
-		-- TODO: Optionally broadcast to other players if showing other players' targets is enabled
-		-- if GameConfig.targeting.showOtherPlayersTargets then
-		--     for _, otherPlayer in pairs(Players:GetPlayers()) do
-		--         if otherPlayer ~= player then
-		--             RemoteEvents.Events.TargetUpdated:FireClient(otherPlayer, targetModel, player)
-		--         end
-		--     end
-		-- end
+		print(`{player.Name} targeted {targetModel.Name}`)
 	else
-		warn(`Server: Failed to set target for {player.Name}`)
+		warn(`Failed to set target for {player.Name} - validation failed`)
 	end
 end
 
 -- Handle target deselection from clients
 local function onDeselectTarget(player: Player)
-	print(`Server: {player.Name} deselecting target`)
-
 	TargetingSystem.setTarget(player, nil)
 
 	-- TODO: Optionally broadcast to other players
@@ -58,13 +42,9 @@ end
 
 -- Handle closest target requests from clients
 local function onRequestClosestTarget(player: Player)
-	print(`Server: {player.Name} requesting closest target`)
-
 	local closestTarget = TargetingSystem.findClosestTarget(player)
 	if closestTarget then
 		onSelectTarget(player, closestTarget)
-	else
-		print(`Server: No closest target found for {player.Name}`)
 	end
 end
 

@@ -17,7 +17,7 @@ function CombatFeedback.showDamage(
 	damage: number?,
 	damageSource: string?,
 	damageType: DamageType?,
-	attackingPlayer: Player?
+	attackerModel: Model? -- Changed from attackingPlayer to support all entity types
 )
 	local humanoidRootPart = targetModel:FindFirstChild("HumanoidRootPart") :: BasePart?
 	if not humanoidRootPart then
@@ -56,6 +56,12 @@ function CombatFeedback.showDamage(
 		-- Default damage color (fallback)
 		textColor = Color3.fromRGB(255, 150, 150) -- Light red
 		displayText = "-" .. tostring(math.floor(damage or 0))
+	end
+
+	-- Derive attacking player from attacker model (if it's a player character)
+	local attackingPlayer: Player? = nil
+	if attackerModel then
+		attackingPlayer = Players:GetPlayerFromCharacter(attackerModel)
 	end
 
 	-- Check visibility settings for all players

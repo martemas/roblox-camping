@@ -5,6 +5,7 @@ local Players = game:GetService("Players")
 local GameConfig = require(script.Parent:WaitForChild("GameConfig"))
 local CombatFeedback = require(script.Parent:WaitForChild("CombatFeedback"))
 local ProjectileLOS = require(script.Parent:WaitForChild("ProjectileLOS"))
+local DamageCalculator = require(script.Parent:WaitForChild("DamageCalculator"))
 
 -- Export types
 export type WeaponType = "melee" | "projectile" | "hitscan" | "aoe"
@@ -400,59 +401,70 @@ function CombatSystem.attemptMeleeAttack(
 			continue
 		end
 
-		-- Target is in range and not invulnerable - apply damage
+		-- Target is in range and not invulnerable - calculate and apply damage
 		local targetHumanoid = targetModel:FindFirstChildOfClass("Humanoid")
 		if targetHumanoid and targetHumanoid.Health > 0 then
-			targetHumanoid:TakeDamage(weaponConfig.damage)
+			-- Calculate damage using DamageCalculator
+			local damageResult = DamageCalculator.calculateDamage({
+				attacker = attacker,
+				target = targetModel,
+				weaponName = weaponName,
+				hitPart = nil, -- Melee doesn't track specific part yet
+			})
 
-			-- Set invulnerability
-			setInvulnerability(
-				targetModel,
-				weaponName,
-				GameConfig.combat.invulnerabilityDuration or 0.5
-			)
+			if damageResult.wasHit then
+				-- Apply damage
+				targetHumanoid:TakeDamage(damageResult.finalDamage)
 
-			-- Determine damage type for feedback
-			local damageType: CombatFeedback.DamageType
-			local targetPlayer = game:GetService("Players"):GetPlayerFromCharacter(targetModel)
+				-- Set invulnerability
+				setInvulnerability(
+					targetModel,
+					weaponName,
+					GameConfig.combat.invulnerabilityDuration or 0.5
+				)
 
-			if targetPlayer then
-				-- Damage to a player
-				damageType = "incoming"
-			else
-				-- Damage to an NPC
-				if attackingPlayer then
-					damageType = "self"
+				-- Determine damage type for feedback
+				local damageType: CombatFeedback.DamageType
+				local targetPlayer = game:GetService("Players"):GetPlayerFromCharacter(targetModel)
+
+				if targetPlayer then
+					-- Damage to a player
+					damageType = "incoming"
 				else
-					damageType = "other_player"
+					-- Damage to an NPC
+					if attackingPlayer then
+						damageType = "self"
+					else
+						damageType = "other_player"
+					end
 				end
+
+				-- Show damage feedback
+				CombatFeedback.showDamage(
+					targetModel,
+					damageResult.finalDamage,
+					weaponName,
+					damageType,
+					attacker -- Changed from attackingPlayer to attacker model
+				)
+
+				-- Notify entity it was damaged (for aggro/retargeting) - lazy load to avoid circular dependency
+				if not targetPlayer then
+					local EntityController = require(script.Parent:WaitForChild("EntityController"))
+					EntityController.onEntityDamaged(targetModel, attacker)
+				end
+
+				-- Play hit sound
+				CombatFeedback.playHitSound(targetModel, "Hit")
+
+				hitAny = true
+				if not firstHit then
+					firstHit = targetModel
+				end
+				totalDamage = totalDamage + damageResult.finalDamage
+
+				print(`*** {attacker.Name} hit {targetModel.Name} for {damageResult.finalDamage} damage with {weaponName} (location: {damageResult.hitLocation}, multiplier: {damageResult.damageMultiplier}x)`)
 			end
-
-			-- Show damage feedback
-			CombatFeedback.showDamage(
-				targetModel,
-				weaponConfig.damage,
-				weaponName,
-				damageType,
-				attackingPlayer
-			)
-
-			-- Notify entity it was damaged (for aggro/retargeting) - lazy load to avoid circular dependency
-			if not targetPlayer then
-				local EntityController = require(script.Parent:WaitForChild("EntityController"))
-				EntityController.onEntityDamaged(targetModel, attacker)
-			end
-
-			-- Play hit sound
-			CombatFeedback.playHitSound(targetModel, "Hit")
-
-			hitAny = true
-			if not firstHit then
-				firstHit = targetModel
-			end
-			totalDamage = totalDamage + weaponConfig.damage
-
-			print(`*** {attacker.Name} hit {targetModel.Name} for {weaponConfig.damage} damage with {weaponName}`)
 		end
 	end
 

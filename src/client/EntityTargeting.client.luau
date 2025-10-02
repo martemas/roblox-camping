@@ -54,19 +54,24 @@ end
 local function onMouseClick()
 	local hitPart = mouse.Target
 	if not hitPart then
-		-- Click on empty space - do nothing (keep current target)
+		-- Click on empty space - keep current target (if any)
 		return
 	end
 
 	-- Find entity from clicked part
 	local entity = findEntityFromPart(hitPart)
-	if not entity then
-		-- Clicked on non-entity - do nothing (keep current target)
-		return
+	if entity then
+		-- Clicked on an entity - set it as target
+		setTarget(entity)
+	else
+		-- Clicked on non-entity (ground, objects, etc.)
+		-- Keep current target if one exists - just let the tool fire
+		local currentTarget = TargetingSystem.getTarget(player)
+		if currentTarget then
+			-- Re-send target to server to ensure sync (in case it was lost)
+			RemoteEvents.Events.SelectTarget:FireServer(currentTarget)
+		end
 	end
-
-	-- Set new target
-	setTarget(entity)
 end
 
 -- Handle keyboard shortcuts

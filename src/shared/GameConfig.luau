@@ -178,6 +178,53 @@ local GameConfig = {
 		pvpEnabled = true, -- Enable player vs player damage
 		teamBased = false, -- Enable team-based combat (future)
 		friendlyFire = false, -- Can teammates damage each other (future)
+
+		-- Body Part Damage Multipliers
+		bodyPartMultipliers = {
+			-- Head (R15)
+			Head = 2.0,
+
+			-- Torso (R15)
+			UpperTorso = 1.0,
+			LowerTorso = 1.0,
+
+			-- Arms (R15)
+			LeftUpperArm = 0.75,
+			RightUpperArm = 0.75,
+			LeftLowerArm = 0.75,
+			RightLowerArm = 0.75,
+			LeftHand = 0.75,
+			RightHand = 0.75,
+
+			-- Legs (R15)
+			LeftUpperLeg = 0.8,
+			RightUpperLeg = 0.8,
+			LeftLowerLeg = 0.8,
+			RightLowerLeg = 0.8,
+			LeftFoot = 0.75,
+			RightFoot = 0.75,
+
+			-- R6 compatibility
+			Torso = 1.0,
+			["Left Arm"] = 0.75,
+			["Right Arm"] = 0.75,
+			["Left Leg"] = 0.8,
+			["Right Leg"] = 0.8,
+
+			-- Default for any unlisted parts
+			default = 1.0,
+		},
+
+		-- Future: Stats-based combat (Phase 2)
+		baseHitChance = 0.95,              -- 95% base hit chance
+		dexterityHitBonus = 0.01,          -- +1% hit per dexterity point
+		evasionDodgeBonus = 0.01,          -- +1% dodge per evasion point
+
+		criticalHitChance = 0.05,          -- 5% base crit chance
+		criticalDamageMultiplier = 1.5,    -- 1.5x damage on crit
+
+		strengthDamageBonus = 0.02,        -- +2% damage per strength point
+		defenseReduction = 0.015,          -- -1.5% damage taken per defense point
 	},
 
 	-- Time Settings

@@ -13,6 +13,7 @@ local Players = game:GetService("Players")
 
 local CombatSystem = require(script.Parent:WaitForChild("CombatSystem"))
 local CombatFeedback = require(script.Parent:WaitForChild("CombatFeedback"))
+local DamageCalculator = require(script.Parent:WaitForChild("DamageCalculator"))
 
 type ProjectileInstance = CombatSystem.ProjectileInstance
 type DamageMode = CombatSystem.DamageMode
@@ -113,8 +114,9 @@ end
 
 	@param projectile - Projectile instance
 	@param entity - Entity to damage
+	@param hitPart - The specific body part that was hit
 ]]
-local function applyDamage(projectile: ProjectileInstance, entity: Model)
+local function applyDamage(projectile: ProjectileInstance, entity: Model, hitPart: BasePart?)
 	local humanoid = entity:FindFirstChildOfClass("Humanoid")
 	if not humanoid or humanoid.Health <= 0 then
 		return
@@ -126,48 +128,52 @@ local function applyDamage(projectile: ProjectileInstance, entity: Model)
 		return
 	end
 
-	-- Get weapon config for damage value
-	local weaponConfig = CombatSystem.getWeaponConfig(projectile.weapon)
-	if not weaponConfig then
-		return
-	end
+	-- Calculate damage using DamageCalculator
+	local damageResult = DamageCalculator.calculateDamage({
+		attacker = projectile.attacker,
+		target = entity,
+		weaponName = projectile.weapon,
+		hitPart = hitPart, -- Use actual hit part from raycast
+	})
 
-	-- Apply damage
-	humanoid:TakeDamage(weaponConfig.damage)
+	if damageResult.wasHit then
+		-- Apply damage
+		humanoid:TakeDamage(damageResult.finalDamage)
 
-	-- Determine damage type for feedback
-	local damageType: CombatFeedback.DamageType
-	local entityPlayer = Players:GetPlayerFromCharacter(entity)
+		-- Determine damage type for feedback
+		local damageType: CombatFeedback.DamageType
+		local entityPlayer = Players:GetPlayerFromCharacter(entity)
 
-	if entityPlayer then
-		-- Damage to a player
-		damageType = "incoming"
-	else
-		-- Damage to an NPC
-		if projectile.attackingPlayer then
-			damageType = "self"
+		if entityPlayer then
+			-- Damage to a player
+			damageType = "incoming"
 		else
-			damageType = "other_player"
+			-- Damage to an NPC
+			if projectile.attackingPlayer then
+				damageType = "self"
+			else
+				damageType = "other_player"
+			end
 		end
+
+		-- Show damage feedback
+		CombatFeedback.showDamage(
+			entity,
+			damageResult.finalDamage,
+			projectile.weapon,
+			damageType,
+			projectile.attacker -- Changed from attackingPlayer to attacker model
+		)
+
+		-- Notify entity it was damaged (for aggro/retargeting) - lazy load to avoid circular dependency
+		if not entityPlayer then
+			-- Only trigger for NPCs (wildlife/enemies)
+			local EntityController = require(script.Parent:WaitForChild("EntityController"))
+			EntityController.onEntityDamaged(entity, projectile.attacker)
+		end
+
+		print(`Projectile {projectile.weapon} hit {entity.Name} for {damageResult.finalDamage} damage (location: {damageResult.hitLocation}, multiplier: {damageResult.damageMultiplier}x)`)
 	end
-
-	-- Show damage feedback
-	CombatFeedback.showDamage(
-		entity,
-		weaponConfig.damage,
-		projectile.weapon,
-		damageType,
-		projectile.attackingPlayer
-	)
-
-	-- Notify entity it was damaged (for aggro/retargeting) - lazy load to avoid circular dependency
-	if not entityPlayer then
-		-- Only trigger for NPCs (wildlife/enemies)
-		local EntityController = require(script.Parent:WaitForChild("EntityController"))
-		EntityController.onEntityDamaged(entity, projectile.attacker)
-	end
-
-	print(`Projectile {projectile.weapon} hit {entity.Name} for {weaponConfig.damage} damage`)
 end
 
 --[[
@@ -202,7 +208,7 @@ local function handleEntityHit(
 	end
 
 	if shouldDamage then
-		applyDamage(projectile, entity)
+		applyDamage(projectile, entity, raycastResult.Instance)
 	end
 
 	-- Check penetration

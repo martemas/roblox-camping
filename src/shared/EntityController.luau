@@ -10,6 +10,7 @@ local GameConfig = require(script.Parent:WaitForChild("GameConfig"))
 local CombatSystem = require(script.Parent:WaitForChild("CombatSystem"))
 local CombatFeedback = require(script.Parent:WaitForChild("CombatFeedback"))
 local ProjectileLOS = require(script.Parent:WaitForChild("ProjectileLOS"))
+local DamageCalculator = require(script.Parent:WaitForChild("DamageCalculator"))
 
 -- Entity runtime state
 export type EntityState = "idle" | "wandering" | "chasing" | "attacking" | "jumping"
@@ -635,22 +636,52 @@ function EntityController.cleanup()
 end
 
 -- Public API for external systems (like ToolManager hitting entities)
-function EntityController.handleDamage(model: Model, damage: number, damageSource: string?, attackingPlayer: Player?)
+function EntityController.handleDamage(
+	model: Model,
+	damage: number,
+	damageSource: string?,
+	attackerModel: Model?,
+	hitPart: BasePart?
+)
 	local entity = activeEntities[model]
 	if entity then
+		-- If attacker is provided, use DamageCalculator; otherwise use direct damage
+		local finalDamage = damage
+		local hitLocation = "unknown"
+
+		if attackerModel and damageSource then
+			-- Use DamageCalculator for proper damage calculation
+			local damageResult = DamageCalculator.calculateDamage({
+				attacker = attackerModel,
+				target = model,
+				weaponName = damageSource,
+				hitPart = hitPart,
+			})
+
+			if damageResult.wasHit then
+				finalDamage = damageResult.finalDamage
+				hitLocation = damageResult.hitLocation
+			else
+				return -- Miss, no damage
+			end
+		end
+
 		-- Apply damage
-		entity.humanoid:TakeDamage(damage)
+		entity.humanoid:TakeDamage(finalDamage)
 
 		-- Determine damage type for feedback
+		local attackingPlayer = if attackerModel
+			then Players:GetPlayerFromCharacter(attackerModel)
+			else nil
 		local damageType: CombatFeedback.DamageType = if attackingPlayer then "self" else "other_player"
 
 		-- Show floating damage number via CombatFeedback
-		CombatFeedback.showDamage(model, damage, damageSource, damageType, attackingPlayer)
+		CombatFeedback.showDamage(model, finalDamage, damageSource, damageType, attackerModel)
 
 		-- Play damage sound
 		playSound(entity, "damage")
 
-		print(`{entity.entityType} took {damage} damage from {damageSource or "unknown"}`)
+		print(`{entity.entityType} took {finalDamage} damage from {damageSource or "unknown"} (location: {hitLocation})`)
 	end
 end
 

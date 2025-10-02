@@ -102,14 +102,11 @@ local function performCombatAttack(player: Player, toolType: ToolType)
 		return
 	end
 
-	print(`DEBUG: Weapon type: {weaponConfig.type}, Weapon name: {weaponName}`)
-
 	-- Get player's target
 	local target = TargetingSystem.getTarget(player)
 
 	-- Handle different weapon types
 	if weaponConfig.type == "melee" then
-		print("DEBUG: Melee weapon branch")
 		-- Wait for castDuration (telegraph window)
 		task.wait(weaponConfig.castDuration)
 
