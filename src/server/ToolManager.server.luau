@@ -9,12 +9,61 @@ local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChi
 local Utils = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Utils"))
 local CombatSystem = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("CombatSystem"))
 local TargetingSystem = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("TargetingSystem"))
+local HitscanManager = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("HitscanManager"))
 local AnimationManager = require(script.Parent:WaitForChild("AnimationManager"))
 
 type ToolType = Types.ToolType
 
 local ToolManager = {}
 local playerCooldowns: {[Player]: {[string]: number}} = {}
+
+-- Play tool swing animation (custom or fallback to default)
+local function playToolAnimation(player: Player, toolType: ToolType)
+	local character = player.Character
+	if not character then return end
+
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if not humanoid then return end
+
+	-- Play custom tool animation or fallback to default
+	local animationPlayed = AnimationManager.PlayNextAnimation(player, toolType)
+
+	if not animationPlayed then
+		-- Fallback to default Roblox toolslash animation
+		local animateScript = character:FindFirstChild("Animate")
+		if animateScript then
+			local toolSlashAnim = animateScript:FindFirstChild("toolslash")
+			if toolSlashAnim then
+				local slashAnimation = toolSlashAnim:FindFirstChildOfClass("Animation")
+				if slashAnimation then
+					local animator = humanoid:FindFirstChildOfClass("Animator")
+					if animator then
+						local success, animationTrack = pcall(function()
+							local track = animator:LoadAnimation(slashAnimation)
+							track.Priority = Enum.AnimationPriority.Action
+							return track
+						end)
+
+						if success and animationTrack then
+							animationTrack:Play()
+							print(`Playing fallback animation for {player.Name}`)
+						else
+							warn(`Failed to load swing animation for {player.Name}`)
+						end
+					else
+						warn(`No Animator found for {player.Name}`)
+					end
+				else
+					warn(`No Animation found in character.Animate.toolslash for {player.Name}`)
+				end
+			else
+				warn(`No toolslash found in character.Animate for {player.Name}`)
+			end
+		else
+			warn(`No Animate script found for {player.Name}`)
+		end
+	end
+end
 
 -- Track hitting state per player per swing
 local swingHits: {[Player]: {[number]: boolean}} = {}
@@ -107,93 +156,104 @@ local function performCombatAttack(player: Player, toolType: ToolType)
 
 	-- Handle different weapon types
 	if weaponConfig.type == "melee" then
-		-- Wait for castDuration (telegraph window)
-		task.wait(weaponConfig.castDuration)
-
-		-- Determine hit detection mode
-		if GameConfig.combat.damageTargetOnly then
-			-- Mode A: Target-only mode - need a target selected
+		-- Check combat mode
+		if GameConfig.combat.combatMode == GameConfig.CombatMode.TACTICAL then
+			-- TACTICAL mode: Must always have target to attack
 			if not target then
-				-- No target selected - play miss sound
-				playToolSound(player, toolType, "swing")
+				-- No target selected - no animation, no sound
 				print(`{player.Name} swung {toolType} but has no target selected`)
 				return
 			end
+		elseif GameConfig.combat.combatMode == GameConfig.CombatMode.ACTION then
+			-- ACTION mode: Only require target if weapon specifically requires it
+			if weaponConfig.requiresTarget and not target then
+				-- No target selected - no animation, no sound
+				print(`{player.Name} swung {toolType} but has no target selected`)
+				return
+			end
+		end
 
-			-- Attempt attack on target
-			local result = CombatSystem.attemptMeleeAttack(character, target, weaponName, player)
+		-- Play animation (validation passed)
+		playToolAnimation(player, toolType)
 
-			if result.hit then
-				-- Hit! Damage already applied by CombatSystem
-				playToolSound(player, toolType, "attack")
+		-- Wait for castDuration (telegraph window)
+		task.wait(weaponConfig.castDuration)
+
+		-- Attempt attack on target
+		local result = CombatSystem.attemptMeleeAttack(character, target, weaponName, player)
+
+		if result.hit then
+			-- Hit! Damage already applied by CombatSystem
+			playToolSound(player, toolType, "attack")
+			if target then
 				print(`{player.Name} hit {target.Name} for {result.damage} damage`)
-			elseif result.wasDodged then
-				-- Target dodged
-				playToolSound(player, toolType, "swing")
-				print(`{player.Name}'s attack on {target.Name} was dodged`)
-			elseif result.blockedByInvulnerability then
-				-- Blocked by invulnerability
-				playToolSound(player, toolType, "swing")
-				print(`{target.Name} is invulnerable to {weaponName}`)
 			else
-				-- Miss
-				playToolSound(player, toolType, "swing")
+				print(`{player.Name} hit entities for {result.damage} total damage`)
+			end
+		elseif result.wasDodged then
+			-- Target dodged
+			playToolSound(player, toolType, "swing")
+			if target then
+				print(`{player.Name}'s attack on {target.Name} was dodged`)
+			end
+		elseif result.blockedByInvulnerability then
+			-- Blocked by invulnerability
+			playToolSound(player, toolType, "swing")
+			if target then
+				print(`{target.Name} is invulnerable to {weaponName}`)
 			end
 		else
-			-- Mode B: AOE mode - hit all entities in range
-			local result = CombatSystem.attemptMeleeAttack(character, target, weaponName, player)
-
-			if result.hit then
-				-- Hit at least one entity
-				playToolSound(player, toolType, "attack")
-				print(`{player.Name} hit entities for {result.damage} total damage`)
-			else
-				-- No hits - play swing sound
-				playToolSound(player, toolType, "swing")
-				print(`{player.Name} swung {toolType} but hit nothing`)
-			end
+			-- Miss
+			playToolSound(player, toolType, "swing")
+			print(`{player.Name} swung {toolType} but hit nothing`)
 		end
 
 	elseif weaponConfig.type == "projectile" then
-		-- Projectile weapons require a locked target
-		if not target then
-			playToolSound(player, toolType, "swing")
-			print(`{player.Name} fired {weaponName} but has no target selected`)
+		-- Projectile attack (follows hitscan pattern)
+		-- Get locked target
+		local target = TargetingSystem.getTarget(player)
+
+		-- Validate attack BEFORE animation
+		local ProjectileManager = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ProjectileManager"))
+		local isValid, errorMsg = ProjectileManager.validateAttack(character, target, weaponName)
+		if not isValid then
+			-- Validation failed - no animation, no sound
+			print(`{player.Name} fired {weaponName} but {errorMsg or "validation failed"}`)
 			return
 		end
+
+		-- Play animation (validation passed)
+		playToolAnimation(player, toolType)
 
 		-- Wait for castDuration (draw/charge animation)
 		task.wait(weaponConfig.castDuration)
 
-		-- Verify character still exists and get root parts
+		-- Verify character still exists
 		local humanoidRootPart = character:FindFirstChild("HumanoidRootPart") :: BasePart?
 		if not humanoidRootPart then
 			return
 		end
 
-		local targetRoot = target:FindFirstChild("HumanoidRootPart") or target:FindFirstChild("Torso") :: BasePart?
-		if not targetRoot or not targetRoot:IsA("BasePart") then
-			playToolSound(player, toolType, "swing")
-			print(`{player.Name} fired {weaponName} but target has no valid root part`)
-			return
-		end
-
-		-- Check if player is facing the target
-		if not CombatSystem.isFacingTarget(humanoidRootPart, targetRoot) then
-			playToolSound(player, toolType, "swing")
-			print(`{player.Name} fired {weaponName} but not facing target`)
-			return
-		end
-
-		-- Calculate spawn position at chest height (no forward offset to reduce visual lag)
+		-- Calculate spawn position at chest height
 		local origin = humanoidRootPart.Position + Vector3.new(0, 1.5, 0)
 
-		-- Aim at target's center (use their root position directly for accurate aiming)
-		local targetPosition = targetRoot.Position
-		local direction = (targetPosition - origin).Unit
+		-- Calculate direction (auto-aim at target or free-aim based on combat.autoAim)
+		local direction: Vector3
+		if GameConfig.combat.autoAim and target then
+			-- Auto-aim mode: Aim at locked target
+			local targetRoot = target:FindFirstChild("HumanoidRootPart") or target:FindFirstChild("Torso") :: BasePart?
+			if targetRoot and targetRoot:IsA("BasePart") then
+				direction = (targetRoot.Position - origin).Unit
+			else
+				-- Fallback to look direction if target lost
+				direction = humanoidRootPart.CFrame.LookVector
+			end
+		else
+			-- Free-aim mode: Use look direction
+			direction = humanoidRootPart.CFrame.LookVector
+		end
 
 		-- Spawn projectile via ProjectileManager
-		local ProjectileManager = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ProjectileManager"))
 		local projectile = ProjectileManager.spawnProjectile(
 			origin,
 			direction,
@@ -205,10 +265,78 @@ local function performCombatAttack(player: Player, toolType: ToolType)
 
 		if projectile then
 			playToolSound(player, toolType, "attack")
-			print(`{player.Name} fired {weaponName} at {target.Name}`)
+			print(`{player.Name} fired {weaponName} at {target and target.Name or "unknown"}`)
 		else
 			playToolSound(player, toolType, "swing")
 			print(`{player.Name} projectile attack blocked`)
+		end
+
+	elseif weaponConfig.type == "hitscan" then
+		-- Hitscan attack (follows projectile pattern)
+		-- Get locked target
+		local target = TargetingSystem.getTarget(player)
+
+		-- Validate attack
+		local isValid, errorMsg = HitscanManager.validateAttack(character, target, weaponName)
+		if not isValid then
+			-- Validation failed - no animation, no sound
+			print(`{player.Name} fired {weaponName} but {errorMsg or "validation failed"}`)
+			return
+		end
+
+		-- Play animation (validation passed)
+		playToolAnimation(player, toolType)
+
+		-- Wait for castDuration (charge/aim animation)
+		task.wait(weaponConfig.castDuration)
+
+		-- Verify character still exists and get root parts
+		local humanoidRootPart = character:FindFirstChild("HumanoidRootPart") :: BasePart?
+		if not humanoidRootPart then
+			return
+		end
+
+		-- Get weapon origin AFTER animation completes
+		local tool = character:FindFirstChildOfClass("Tool")
+		local origin: Vector3
+
+		if tool then
+			local handle = tool:FindFirstChild("Handle") :: BasePart?
+			if handle then
+				-- Use handle position (weapon tip)
+				origin = handle.Position
+			else
+				-- Fallback to chest height
+				origin = humanoidRootPart.Position + Vector3.new(0, 1.5, 0)
+			end
+		else
+			-- No tool, use chest height
+			origin = humanoidRootPart.Position + Vector3.new(0, 1.5, 0)
+		end
+
+		-- Calculate aim direction (auto-aim or free-aim)
+		local direction = HitscanManager.calculateDirection(humanoidRootPart, target, origin)
+
+		-- Perform hitscan via HitscanManager
+		local result = HitscanManager.performHitscan(
+			origin,
+			direction,
+			weaponName,
+			character,
+			player,
+			target
+		)
+
+		if result.hit then
+			playToolSound(player, toolType, "attack")
+			print(`{player.Name} hit {target and target.Name or "unknown"} with {weaponName}`)
+		else
+			playToolSound(player, toolType, "swing")
+			if result.wasDodged then
+				print(`{player.Name} missed with {weaponName} - target out of range`)
+			else
+				print(`{player.Name} missed with {weaponName}`)
+			end
 		end
 
 	else
@@ -271,8 +399,8 @@ local function onPlaceBuilding(player: Player, buildingItemId: string, placement
 	end
 
 	-- Create final placement CFrame with ground position, height offset, and preserve rotation
-	local finalPosition = groundPosition + Vector3.new(0, heightOffset, 0)
-	local adjustedCFrame = CFrame.new(finalPosition) * (placementCFrame - placementCFrame.Position)
+	local finalPosition = groundPosition + vector.create(0, heightOffset, 0)
+	local adjustedCFrame = CFrame.new(finalPosition) * (placementCFrame - Vector3.new(placementCFrame.Position.X, placementCFrame.Position.Y, placementCFrame.Position.Z))
 
 	-- Position and rotate the building
 	if building:IsA("Model") then
@@ -332,46 +460,7 @@ local function onToolSwing(player: Player, toolType: ToolType)
 	-- Set swing cooldown based on weapon
 	setCooldown(player, "swing", weaponConfig.cooldown)
 
-	-- Play custom tool animation or fallback to default
-	local animationPlayed = AnimationManager.PlayNextAnimation(player, toolType)
-
-	if not animationPlayed then
-		-- Fallback to default Roblox toolslash animation
-		local animateScript = character:FindFirstChild("Animate")
-		if animateScript then
-			local toolSlashAnim = animateScript:FindFirstChild("toolslash")
-			if toolSlashAnim then
-				local slashAnimation = toolSlashAnim:FindFirstChildOfClass("Animation")
-				if slashAnimation then
-					local animator = humanoid:FindFirstChildOfClass("Animator")
-					if animator then
-						local success, animationTrack = pcall(function()
-							local track = animator:LoadAnimation(slashAnimation)
-							track.Priority = Enum.AnimationPriority.Action
-							return track
-						end)
-
-						if success and animationTrack then
-							animationTrack:Play()
-							print(`Playing fallback animation for {player.Name}`)
-						else
-							warn(`Failed to load swing animation for {player.Name}`)
-						end
-					else
-						warn(`No Animator found for {player.Name}`)
-					end
-				else
-					warn(`No Animation found in character.Animate.toolslash for {player.Name}`)
-				end
-			else
-				warn(`No toolslash found in character.Animate for {player.Name}`)
-			end
-		else
-			warn(`No Animate script found for {player.Name}`)
-		end
-	end
-
-	-- Perform combat attack using CombatSystem (spawned so animation plays immediately)
+	-- Perform combat attack using CombatSystem (animation plays after validation)
 	task.spawn(function()
 		performCombatAttack(player, toolType)
 	end)

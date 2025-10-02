@@ -6,6 +6,7 @@ local GameConfig = require(script.Parent:WaitForChild("GameConfig"))
 local CombatFeedback = require(script.Parent:WaitForChild("CombatFeedback"))
 local ProjectileLOS = require(script.Parent:WaitForChild("ProjectileLOS"))
 local DamageCalculator = require(script.Parent:WaitForChild("DamageCalculator"))
+local HitscanEffects = require(script.Parent:WaitForChild("HitscanEffects"))
 
 -- Export types
 export type WeaponType = "melee" | "projectile" | "hitscan" | "aoe"
@@ -29,6 +30,11 @@ export type WeaponConfig = {
 	duration: number?,
 	tickRate: number?,
 	targetFilter: string?,
+
+	-- Combat validation properties (all weapon types)
+	requiresTarget: boolean?, -- Weapon always requires target regardless of mode
+	requiresLineOfSight: boolean?, -- Weapon requires line of sight to target
+	requireFacingForDamage: boolean?, -- Override global requireFacingForDamage setting
 }
 
 export type AttackResult = {
@@ -501,23 +507,292 @@ function CombatSystem.performAOEAttack(
 	return {}
 end
 
--- Perform hitscan attack (stub for Phase 2)
-function CombatSystem.performHitscan(
-	origin: vector,
-	direction: vector,
+-- Apply damage to a single entity (low-level API for custom spells)
+function CombatSystem.applyDamageToEntity(
+	attacker: Model,
+	target: Model,
 	weaponName: string,
-	attacker: Model
+	options: {
+		damageOverride: number?,
+		hitPosition: Vector3?,
+		bypassInvulnerability: boolean?,
+	}?
+): boolean
+	local opts = options or {}
+
+	-- Validate target has Humanoid
+	local targetHumanoid = target:FindFirstChildOfClass("Humanoid")
+	if not targetHumanoid or targetHumanoid.Health <= 0 then
+		return false
+	end
+
+	-- Check PvP rules (unless bypassed)
+	if not isPvPAllowed(attacker, target) then
+		print(`PvP blocked: {attacker.Name} cannot attack {target.Name}`)
+		return false
+	end
+
+	-- Check invulnerability (unless bypassed)
+	if not opts.bypassInvulnerability and checkInvulnerability(target, weaponName) then
+		print(`{target.Name} is invulnerable to {weaponName}`)
+		return false
+	end
+
+	-- Get weapon config
+	local weaponConfig = CombatSystem.getWeaponConfig(weaponName)
+	if not weaponConfig then
+		return false
+	end
+
+	-- Calculate damage via DamageCalculator
+	local damageResult = DamageCalculator.calculateDamage({
+		attacker = attacker,
+		target = target,
+		weaponName = weaponName,
+		hitPart = opts.hitPosition and target:FindFirstChild("HumanoidRootPart") :: BasePart? or nil,
+	})
+
+	if not damageResult.wasHit then
+		return false
+	end
+
+	-- Use override damage if provided, otherwise use calculated damage
+	local finalDamage = opts.damageOverride or damageResult.finalDamage
+
+	-- Apply damage/healing
+	if finalDamage < 0 then
+		-- Healing (negative damage)
+		targetHumanoid.Health = math.min(targetHumanoid.Health - finalDamage, targetHumanoid.MaxHealth)
+	else
+		-- Damage
+		targetHumanoid:TakeDamage(finalDamage)
+	end
+
+	-- Set invulnerability (unless bypassed)
+	if not opts.bypassInvulnerability then
+		setInvulnerability(target, weaponName, GameConfig.combat.invulnerabilityDuration or 0.5)
+	end
+
+	-- Determine damage type for feedback
+	local damageType: CombatFeedback.DamageType
+	local targetPlayer = Players:GetPlayerFromCharacter(target)
+	local attackingPlayer = Players:GetPlayerFromCharacter(attacker)
+
+	if targetPlayer then
+		damageType = "incoming"
+	else
+		if attackingPlayer then
+			damageType = "self"
+		else
+			damageType = "other_player"
+		end
+	end
+
+	-- Show damage feedback
+	CombatFeedback.showDamage(target, math.abs(finalDamage), weaponName, damageType, attacker)
+
+	-- Play hit sound
+	CombatFeedback.playHitSound(target, "Hit")
+
+	-- Notify entity it was damaged (for aggro) - lazy load to avoid circular dependency
+	if not targetPlayer then
+		local EntityController = require(script.Parent:WaitForChild("EntityController"))
+		EntityController.onEntityDamaged(target, attacker)
+	end
+
+	return true
+end
+
+-- Perform hitscan attack
+function CombatSystem.performHitscan(
+	origin: Vector3,
+	direction: Vector3,
+	weaponName: string,
+	attacker: Model,
+	attackingPlayer: Player?,
+	lockedTarget: Model?
 ): AttackResult
-	-- Phase 2 implementation
-	warn("Hitscan attacks not yet implemented - Phase 2")
-	return {
-		hit = false,
-		target = nil,
-		damage = nil,
-		wasInRange = false,
-		wasDodged = false,
-		blockedByInvulnerability = false
-	}
+	local weaponConfig = CombatSystem.getWeaponConfig(weaponName)
+	if not weaponConfig or weaponConfig.type ~= "hitscan" then
+		return {
+			hit = false,
+			target = nil,
+			damage = nil,
+			wasInRange = false,
+			wasDodged = false,
+			blockedByInvulnerability = false
+		}
+	end
+
+	local hitEntity: Model? = nil
+	local hitPosition: Vector3
+	local hitNormal = Vector3.new(0, 1, 0)
+
+	-- Determine target based on auto-aim mode
+	if GameConfig.combat.autoAim and lockedTarget then
+		-- Auto-aim mode: Check if locked target in range
+		local targetRoot = lockedTarget:FindFirstChild("HumanoidRootPart") :: BasePart?
+		if not targetRoot then
+			return {
+				hit = false,
+				target = lockedTarget,
+				damage = nil,
+				wasInRange = false,
+				wasDodged = false,
+				blockedByInvulnerability = false
+			}
+		end
+
+		local distance = getDistance(origin, targetRoot.Position)
+		if distance > weaponConfig.range then
+			-- Out of range
+			return {
+				hit = false,
+				target = lockedTarget,
+				damage = nil,
+				wasInRange = false,
+				wasDodged = true,
+				blockedByInvulnerability = false
+			}
+		end
+
+		hitEntity = lockedTarget
+		hitPosition = targetRoot.Position
+
+	else
+		-- Free-aim mode: Raycast in direction
+		local raycastParams = RaycastParams.new()
+		raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+		raycastParams.FilterDescendantsInstances = {attacker}
+
+		-- TODO: Add spread support for accuracy variance
+		-- local spreadDirection = applySpread(direction, weaponConfig.spread or 0)
+
+		local raycastResult = workspace:Raycast(origin, direction.Unit * weaponConfig.range, raycastParams)
+
+		if not raycastResult then
+			-- Complete miss - show beam to max range (shorter duration)
+			if weaponConfig.visualEffect == "beam" then
+				HitscanEffects.showBeam(
+					origin,
+					origin + (direction.Unit * weaponConfig.range),
+					weaponName,
+					0.15,
+					weaponConfig.damage and weaponConfig.damage < 0
+				)
+			end
+			return {
+				hit = false,
+				target = nil,
+				damage = nil,
+				wasInRange = false,
+				wasDodged = false,
+				blockedByInvulnerability = false
+			}
+		end
+
+		hitPosition = raycastResult.Position
+		hitNormal = raycastResult.Normal
+		hitEntity = findEntityFromPart(raycastResult.Instance)
+
+		if not hitEntity then
+			-- Hit terrain/wall
+			if weaponConfig.visualEffect == "beam" then
+				HitscanEffects.showBeam(origin, hitPosition, weaponName, 0.3, weaponConfig.damage and weaponConfig.damage < 0)
+				HitscanEffects.showHitEffect(hitPosition, hitNormal, weaponName, weaponConfig.damage and weaponConfig.damage < 0)
+			end
+			return {
+				hit = false,
+				target = nil,
+				damage = nil,
+				wasInRange = false,
+				wasDodged = false,
+				blockedByInvulnerability = false
+			}
+		end
+	end
+
+	-- Check target filter (allies/enemies)
+	if weaponConfig.targetFilter then
+		local targetPlayer = Players:GetPlayerFromCharacter(hitEntity)
+		local attackerPlayer = Players:GetPlayerFromCharacter(attacker)
+
+		if weaponConfig.targetFilter == "allies" then
+			-- Can only target allies (same player or teammates)
+			if targetPlayer ~= attackerPlayer then
+				-- TODO: Add team support when teams are implemented
+				if weaponConfig.visualEffect == "beam" then
+					HitscanEffects.showBeam(origin, hitPosition, weaponName, 0.3, weaponConfig.damage and weaponConfig.damage < 0)
+				end
+				print(`Target filter blocked: {weaponConfig.name} can only target allies`)
+				return {
+					hit = false,
+					target = hitEntity,
+					damage = nil,
+					wasInRange = true,
+					wasDodged = false,
+					blockedByInvulnerability = false
+				}
+			end
+		elseif weaponConfig.targetFilter == "enemies" then
+			-- Can only target enemies (different player or NPCs)
+			if targetPlayer == attackerPlayer then
+				if weaponConfig.visualEffect == "beam" then
+					HitscanEffects.showBeam(origin, hitPosition, weaponName, 0.3, weaponConfig.damage and weaponConfig.damage < 0)
+				end
+				print(`Target filter blocked: {weaponConfig.name} can only target enemies`)
+				return {
+					hit = false,
+					target = hitEntity,
+					damage = nil,
+					wasInRange = true,
+					wasDodged = false,
+					blockedByInvulnerability = false
+				}
+			end
+		end
+	end
+
+	-- Apply damage via central function
+	local success = CombatSystem.applyDamageToEntity(attacker, hitEntity, weaponName, {
+		hitPosition = hitPosition,
+	})
+
+	-- Show visual effects (even if damage failed due to invuln/PvP)
+	if weaponConfig.visualEffect == "beam" then
+		-- Beam lingers for 0.3s to show the path
+		HitscanEffects.showBeam(origin, hitPosition, weaponName, 0.3, weaponConfig.damage and weaponConfig.damage < 0)
+		if success then
+			HitscanEffects.showHitEffect(hitPosition, hitNormal, weaponName, weaponConfig.damage and weaponConfig.damage < 0)
+		end
+	end
+
+	if success then
+		-- AOE on impact (if configured)
+		if weaponConfig.aoeOnImpact then
+			-- Will be implemented in Phase 2
+			warn("Hitscan AOE not yet implemented - Phase 2")
+		end
+
+		return {
+			hit = true,
+			target = hitEntity,
+			damage = weaponConfig.damage,
+			wasInRange = true,
+			wasDodged = false,
+			blockedByInvulnerability = false
+		}
+	else
+		-- Damage was blocked (invulnerability or PvP)
+		return {
+			hit = false,
+			target = hitEntity,
+			damage = nil,
+			wasInRange = true,
+			wasDodged = false,
+			blockedByInvulnerability = true,
+		}
+	end
 end
 
 -- Perform projectile attack (validation only - spawning handled by caller)

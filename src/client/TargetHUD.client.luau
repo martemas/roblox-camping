@@ -268,45 +268,76 @@ local function updateHUDContent(hud: ScreenGui, targetInfo: TargetInfo)
 				borderColor = Color3.fromRGB(150, 150, 150)
 				statusText = "NO WEAPON"
 			else
-				-- Check distance
-				local distance = (targetRoot.Position - playerRoot.Position).Magnitude
-				local inRange = distance <= weaponConfig.range
+				-- Check target filter first (allies/enemies)
+				local targetPlayer = Players:GetPlayerFromCharacter(targetInfo.model)
+				local isValidTarget = true
 
-				if not inRange then
-					-- Out of range
-					borderColor = Color3.fromRGB(255, 150, 0) -- Orange
-					statusText = "OUT OF RANGE"
-				else
-					-- Check facing (if required)
-					local isFacing = true
-					if GameConfig.combat.requireFacingForDamage then
-						isFacing = CombatSystem.isFacingTarget(playerRoot, targetRoot, nil)
+				if weaponConfig.targetFilter then
+					if weaponConfig.targetFilter == "allies" then
+						-- Can only target allies (same player or teammates)
+						if targetPlayer ~= player then
+							-- TODO: Add team support when teams are implemented
+							isValidTarget = false
+						end
+					elseif weaponConfig.targetFilter == "enemies" then
+						-- Can only target enemies (different player or NPCs)
+						if targetPlayer == player then
+							isValidTarget = false
+						end
 					end
+				end
 
-					if not isFacing then
-						-- Not facing target
-						borderColor = Color3.fromRGB(255, 100, 0) -- Orange
-						statusText = "NOT FACING"
+				if not isValidTarget then
+					-- Invalid target for this weapon
+					borderColor = Color3.fromRGB(150, 150, 150) -- Gray
+					statusText = "INVALID TARGET"
+				else
+					-- Check distance
+					local distance = (targetRoot.Position - playerRoot.Position).Magnitude
+					local inRange = distance <= weaponConfig.range
+
+					if not inRange then
+						-- Out of range
+						borderColor = Color3.fromRGB(255, 150, 0) -- Orange
+						statusText = "OUT OF RANGE"
 					else
-						-- Check LOS (for projectile weapons only)
-						local hasLOS = true
-						if weaponConfig.type == "projectile" and weaponConfig.requiresLineOfSight then
-							local origin = playerRoot.Position + Vector3.new(0, 1, 0)
-							local targetPos = targetRoot.Position + Vector3.new(0, 1, 0)
-							local losResult = ProjectileLOS.validatePath(origin, targetPos, character)
-							hasLOS = losResult.hasLineOfSight
-
-							if not hasLOS then
-								-- Blocked by obstacle
-								borderColor = Color3.fromRGB(255, 50, 50) -- Red
-								statusText = "BLOCKED"
-							end
+						-- Check facing (if required)
+						-- Weapon can override global requireFacingForDamage setting
+						local requireFacing = weaponConfig.requireFacingForDamage
+						if requireFacing == nil then
+							requireFacing = GameConfig.combat.requireFacingForDamage
 						end
 
-						if hasLOS then
-							-- Can attack: Green
-							borderColor = Color3.fromRGB(0, 255, 0)
-							statusText = "READY"
+						local isFacing = true
+						if requireFacing then
+							isFacing = CombatSystem.isFacingTarget(playerRoot, targetRoot, nil)
+						end
+
+						if not isFacing then
+							-- Not facing target
+							borderColor = Color3.fromRGB(255, 100, 0) -- Orange
+							statusText = "NOT FACING"
+						else
+							-- Check LOS (for projectile and hitscan weapons)
+							local hasLOS = true
+							if weaponConfig.requiresLineOfSight and (weaponConfig.type == "projectile" or weaponConfig.type == "hitscan") then
+								local origin = playerRoot.Position + Vector3.new(0, 1, 0)
+								local targetPos = targetRoot.Position + Vector3.new(0, 1, 0)
+								local losResult = ProjectileLOS.validatePath(origin, targetPos, character)
+								hasLOS = losResult.hasLineOfSight
+
+								if not hasLOS then
+									-- Blocked by obstacle
+									borderColor = Color3.fromRGB(255, 50, 50) -- Red
+									statusText = "BLOCKED"
+								end
+							end
+
+							if hasLOS then
+								-- Can attack: Green
+								borderColor = Color3.fromRGB(0, 255, 0)
+								statusText = "READY"
+							end
 						end
 					end
 				end

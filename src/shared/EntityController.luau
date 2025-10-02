@@ -304,8 +304,44 @@ local function performAttack(entity: EntityInstance, target: Player)
 			print(`*** {entity.entityType} projectile attack failed`)
 		end
 
+	elseif weaponConfig.type == "hitscan" then
+		-- Hitscan attack (uses HitscanManager like players)
+		local HitscanManager = require(script.Parent:WaitForChild("HitscanManager"))
+
+		-- Play attack animation
+		playAnimation(entity, "attack")
+		playSound(entity, "attack")
+		updateEntityState(entity, "attacking")
+
+		-- Wait castDuration
+		task.wait(weaponConfig.castDuration)
+
+		-- Calculate origin and direction (auto-aim handles targeting)
+		local origin = entity.humanoidRootPart.Position + vector.create(0, 1, 0) -- Chest height
+		local direction = HitscanManager.calculateDirection(
+			entity.humanoidRootPart,
+			target.Character, -- Locked target
+			origin
+		)
+
+		-- Perform hitscan via HitscanManager
+		local result = HitscanManager.performHitscan(
+			origin,
+			direction,
+			weaponName,
+			entity.model,
+			nil, -- No attacking player (NPC)
+			target.Character -- Locked target
+		)
+
+		if result.hit then
+			print(`*** {entity.entityType} hit {target.Name} with {weaponName}`)
+		else
+			print(`*** {entity.entityType} missed {target.Name} with {weaponName}`)
+		end
+
 	else
-		-- Other weapon types (hitscan, AOE) will be added in Phase 2
+		-- Other weapon types (AOE) will be added in Phase 2
 		warn(`Weapon type {weaponConfig.type} not yet implemented for NPCs`)
 	end
 end

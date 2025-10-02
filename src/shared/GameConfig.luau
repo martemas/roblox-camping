@@ -1,11 +1,19 @@
 --!strict
 
+-- Combat Mode Enum
+export type CombatMode = "ACTION" | "TACTICAL"
+
+local CombatMode = {
+	ACTION = "ACTION" :: CombatMode, -- Can attack without target (shoots forward if no target)
+	TACTICAL = "TACTICAL" :: CombatMode, -- Must select target to attack
+}
+
 local GameConfig = {
 	-- Player Settings
 	player = {
 		maxHealth = 100,
 		inventorySize = 5,
-		startingTools = {"Axe", "Pickaxe", "Bow"},
+		startingTools = {"Axe", "Pickaxe", "Bow", "MagicMissile", "DirectHeal"},
 		healthRegenRate = 5, -- Percentage per interval
 		healthRegenInterval = 5, -- Seconds
 		respawnTimeout = 10, -- Seconds
@@ -139,6 +147,46 @@ local GameConfig = {
 				impactEffect = "WebSplat",
 			},
 		},
+
+		-- ========================================
+		-- HITSCAN WEAPONS (Phase 2)
+		-- ========================================
+		Crossbow = {
+			type = "hitscan",
+			name = "Crossbow",
+			range = 100,
+			damage = 40,
+			visualEffect = "beam", -- Show beam visual
+			requiresLineOfSight = true, -- Cannot shoot through walls
+			castDuration = 0.3,
+			cooldown = 2.0,
+			-- spread = 2, -- TODO: Future accuracy variance
+		},
+
+		DirectHeal = {
+			type = "hitscan",
+			name = "Direct Heal",
+			range = 50,
+			damage = -30, -- Negative = healing
+			visualEffect = "none", -- Silent/instant
+			targetFilter = "allies",
+			requiresTarget = true, -- Always requires target selection (even in free-aim mode)
+			requiresLineOfSight = false, -- Can heal through walls (support spell)
+			requireFacingForDamage = false, -- Don't need to face ally to heal
+			castDuration = 0.2,
+			cooldown = 3.0,
+		},
+
+		MagicMissile = {
+			type = "hitscan",
+			name = "Magic Missile",
+			range = 80,
+			damage = 25,
+			visualEffect = "beam",
+			requiresLineOfSight = true, -- Cannot shoot through walls
+			castDuration = 0.4,
+			cooldown = 1.0,
+		},
 	},
 
 	-- Tool Settings (for mining and resource gathering)
@@ -159,8 +207,16 @@ local GameConfig = {
 
 	-- Combat System Settings
 	combat = {
+		-- Combat Mode
+		combatMode = CombatMode.TACTICAL, -- ACTION = can attack without target, TACTICAL = must select target
+
 		-- Hit Detection Mode
 		damageTargetOnly = true, -- false = hit all entities in range, true = only hit targeted entity
+
+		-- Auto-Aim System (applies to projectile AND hitscan)
+		autoAim = true, -- true = aim at locked target automatically, false = free-aim (aim direction)
+		-- When true: projectiles/hitscans aim at target regardless of look direction (skill-based, combat action)
+		-- When false: projectiles/hitscans go in aim direction (precision, FPS-style)
 
 		-- Invulnerability Frames (prevent weapon spam)
 		invulnerabilityFrames = false,
@@ -414,6 +470,9 @@ local GameConfig = {
 			toolType = "BarrackL1",
 		},
 	},
+
+	-- Export CombatMode enum
+	CombatMode = CombatMode,
 }
 
 return GameConfig

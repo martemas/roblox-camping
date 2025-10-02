@@ -18,6 +18,8 @@ local Debris = game:GetService("Debris")
 
 local CombatSystem = require(script.Parent:WaitForChild("CombatSystem"))
 local ProjectilePhysics = require(script.Parent:WaitForChild("ProjectilePhysics"))
+local ProjectileLOS = require(script.Parent:WaitForChild("ProjectileLOS"))
+local GameConfig = require(script.Parent:WaitForChild("GameConfig"))
 
 type ProjectileInstance = CombatSystem.ProjectileInstance
 
@@ -39,6 +41,71 @@ local function getProjectileConfig(weaponName: string): CombatSystem.ProjectileC
 		return weaponConfig.projectileConfig
 	end
 	return nil
+end
+
+--[[
+	Validate projectile attack prerequisites
+
+	@param attacker - Entity attempting to attack
+	@param lockedTarget - Locked target (required for auto-aim)
+	@param weaponName - Name of weapon
+	@return boolean - True if valid, false otherwise
+	@return string? - Error message if invalid
+]]
+function ProjectileManager.validateAttack(
+	attacker: Model,
+	lockedTarget: Model?,
+	weaponName: string
+): (boolean, string?)
+	local weaponConfig = CombatSystem.getWeaponConfig(weaponName)
+	if not weaponConfig or weaponConfig.type ~= "projectile" then
+		return false, `Invalid weapon: {weaponName}`
+	end
+
+	-- Check combat mode
+	if GameConfig.combat.combatMode == GameConfig.CombatMode.TACTICAL then
+		-- TACTICAL mode: Must always have target to attack
+		if not lockedTarget then
+			return false, "No target selected"
+		end
+	elseif GameConfig.combat.combatMode == GameConfig.CombatMode.ACTION then
+		-- ACTION mode: Only require target if weapon specifically requires it
+		if weaponConfig.requiresTarget and not lockedTarget then
+			return false, "No target selected"
+		end
+	end
+
+	local attackerRoot = attacker:FindFirstChild("HumanoidRootPart") :: BasePart?
+	if not attackerRoot then
+		return false, "Attacker has no HumanoidRootPart"
+	end
+
+	-- Check facing requirement (auto-aim mode only)
+	-- Weapon can override global requireFacingForDamage setting
+	local requireFacing = weaponConfig.requireFacingForDamage
+	if requireFacing == nil then
+		requireFacing = GameConfig.combat.requireFacingForDamage
+	end
+
+	if GameConfig.combat.autoAim and requireFacing and lockedTarget then
+		local targetRoot = lockedTarget:FindFirstChild("HumanoidRootPart") or lockedTarget:FindFirstChild("Torso") :: BasePart?
+		if targetRoot and targetRoot:IsA("BasePart") then
+			if not CombatSystem.isFacingTarget(attackerRoot, targetRoot) then
+				return false, "Not facing target"
+			end
+		end
+	end
+
+	-- Check line of sight (if required)
+	if weaponConfig.requiresLineOfSight and lockedTarget then
+		local losResult = ProjectileLOS.canTargetEntity(attacker, lockedTarget)
+
+		if not losResult.hasLineOfSight then
+			return false, "No line of sight to target"
+		end
+	end
+
+	return true
 end
 
 --[[
