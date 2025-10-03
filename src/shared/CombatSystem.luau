@@ -23,13 +23,18 @@ export type WeaponConfig = {
 	projectileSpeed: number?,
 	projectileConfig: ProjectileConfig?,
 
+	-- Hitscan-specific
+	visualEffect: string?, -- "beam" or "none"
+
 	-- AOE-specific
+	aoeDamage: number?,
 	aoeRadius: number?,
 	aoeFalloff: boolean?,
 	maxTargets: number?,
 	duration: number?,
 	tickRate: number?,
 	targetFilter: string?,
+	aoeOnImpact: boolean?, -- For projectile/hitscan with AOE explosion
 
 	-- Combat validation properties (all weapon types)
 	requiresTarget: boolean?, -- Weapon always requires target regardless of mode
@@ -496,15 +501,149 @@ function CombatSystem.attemptMeleeAttack(
 	end
 end
 
--- Perform AOE attack (stub for Phase 2)
+-- Helper function to check if entity should be affected by AOE
+local function shouldAffectEntity(entity: Model, attacker: Model, targetFilter: string?): boolean
+	if not targetFilter or targetFilter == "all" then
+		return true
+	end
+
+	local entityPlayer = Players:GetPlayerFromCharacter(entity)
+	local attackerPlayer = Players:GetPlayerFromCharacter(attacker)
+
+	if targetFilter == "allies" then
+		-- Only affect allies (same player or self)
+		if entity == attacker then
+			return true
+		end
+		if entityPlayer and attackerPlayer and entityPlayer == attackerPlayer then
+			return true
+		end
+		-- TODO: Team support
+		return false
+
+	elseif targetFilter == "enemies" then
+		-- Only affect enemies (different player or NPCs)
+		if entity == attacker then
+			return false
+		end
+		if entityPlayer and attackerPlayer and entityPlayer == attackerPlayer then
+			return false
+		end
+		return true
+	end
+
+	return true
+end
+
+-- Perform AOE attack
 function CombatSystem.performAOEAttack(
 	attacker: Model,
-	targetPosition: vector,
-	weaponName: string
+	targetPosition: Vector3,
+	weaponName: string,
+	attackingPlayer: Player?,
+	options: {
+		damageOverride: number?,
+		radius: number?,
+		falloff: boolean?,
+		maxTargets: number?,
+	}?
 ): {AOEHitInfo}
-	-- Phase 2 implementation
-	warn("AOE attacks not yet implemented - Phase 2")
-	return {}
+	local AOEZoneManager = require(script.Parent:WaitForChild("AOEZoneManager"))
+	local opts = options or {}
+
+	local weaponConfig = CombatSystem.getWeaponConfig(weaponName)
+	if not weaponConfig then
+		warn(`performAOEAttack: Weapon {weaponName} not found`)
+		return {}
+	end
+
+	-- Get effective values (options override config)
+	local damage = opts.damageOverride or weaponConfig.aoeDamage or weaponConfig.damage or 10
+	local radius = opts.radius or weaponConfig.aoeRadius or 10
+	local falloff = if opts.falloff ~= nil then opts.falloff else (weaponConfig.aoeFalloff or false)
+	local maxTargets = opts.maxTargets or weaponConfig.maxTargets or 999
+
+	local hits: {AOEHitInfo} = {}
+
+	-- Find entities in radius
+	local params = OverlapParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = {attacker}
+
+	local parts = workspace:GetPartBoundsInRadius(targetPosition, radius, params)
+
+	-- Find unique entities
+	local hitEntities: {[Model]: boolean} = {}
+
+	for _, part in parts do
+		local entity = findEntityFromPart(part)
+		if entity and not hitEntities[entity] then
+			hitEntities[entity] = true
+
+			-- Check target filter
+			if not shouldAffectEntity(entity, attacker, weaponConfig.targetFilter) then
+				continue
+			end
+
+			-- Check PvP
+			if not isPvPAllowed(attacker, entity) then
+				continue
+			end
+
+			-- Check invulnerability
+			if checkInvulnerability(entity, weaponName) then
+				continue
+			end
+
+			local entityRoot = entity:FindFirstChild("HumanoidRootPart") :: BasePart?
+			if entityRoot then
+				local distance = (targetPosition - entityRoot.Position).Magnitude
+
+				-- Calculate damage with falloff
+				local damageMultiplier = 1.0
+				if falloff then
+					damageMultiplier = 1 - (distance / radius)
+					damageMultiplier = math.max(0, damageMultiplier)
+				end
+
+				local finalDamage = damage * damageMultiplier
+
+				-- Apply damage via central system
+				local success = CombatSystem.applyDamageToEntity(attacker, entity, weaponName, {
+					damageOverride = finalDamage,
+					hitPosition = targetPosition,
+				})
+
+				if success then
+					table.insert(hits, {
+						entity = entity,
+						damage = finalDamage,
+						distance = distance,
+					})
+
+					if #hits >= maxTargets then
+						break
+					end
+				end
+			end
+		end
+	end
+
+	-- Create persistent zone if configured
+	if weaponConfig.duration and weaponConfig.tickRate then
+		AOEZoneManager.createZone(
+			targetPosition,
+			radius,
+			weaponName,
+			attacker,
+			attackingPlayer,
+			weaponConfig.duration,
+			weaponConfig.tickRate
+		)
+	end
+
+	print(`AOE attack {weaponName} hit {#hits} entities at {targetPosition}`)
+	return hits
 end
 
 -- Apply damage to a single entity (low-level API for custom spells)
@@ -850,6 +989,11 @@ function CombatSystem.isFacingTarget(
 	customAngleDegrees: number?
 ): boolean
 	return isFacingTarget(attackerRoot, targetRoot, customAngleDegrees)
+end
+
+-- Export findEntityFromPart for use by AOE systems
+function CombatSystem.findEntityFromPart(part: BasePart): Model?
+	return findEntityFromPart(part)
 end
 
 return CombatSystem

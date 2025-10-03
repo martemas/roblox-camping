@@ -99,14 +99,61 @@ local function findEntityFromPart(part: BasePart): Model?
 end
 
 --[[
-	Show impact effect at position (future enhancement)
+	Show impact effect at position
 
 	@param projectile - Projectile instance
 	@param position - Impact position
 ]]
 local function showImpactEffect(projectile: ProjectileInstance, position: Vector3)
-	-- TODO: Spawn impact particle effect
-	-- For now, just a placeholder
+	local weaponConfig = CombatSystem.getWeaponConfig(projectile.weapon)
+	if not weaponConfig then
+		return
+	end
+
+	-- For AOE projectiles, show explosion visual
+	if weaponConfig.aoeOnImpact then
+		-- Create explosion sphere
+		local explosion = Instance.new("Part")
+		explosion.Shape = Enum.PartType.Ball
+		explosion.Size = Vector3.new(weaponConfig.aoeRadius or 10, weaponConfig.aoeRadius or 10, weaponConfig.aoeRadius or 10)
+		explosion.Position = position
+		explosion.Anchored = true
+		explosion.CanCollide = false
+		explosion.Material = Enum.Material.Neon
+		explosion.Color = Color3.fromRGB(255, 150, 50) -- Orange explosion
+		explosion.Transparency = 0.3
+		explosion.Parent = workspace
+
+		-- Animate explosion (expand and fade)
+		local initialSize = explosion.Size * 0.3
+		local finalSize = explosion.Size * 2 -- Calculate target size once
+		explosion.Size = initialSize
+
+		task.spawn(function()
+			local startTime = tick()
+			local duration = 0.3
+
+			while tick() - startTime < duration do
+				local progress = (tick() - startTime) / duration
+				explosion.Size = initialSize:Lerp(finalSize, progress)
+				explosion.Transparency = 0.3 + (progress * 0.7) -- Fade to 1.0
+				task.wait()
+			end
+
+			explosion:Destroy()
+		end)
+
+		-- Also show AOE radius circle briefly
+		local AOETelegraph = require(script.Parent:WaitForChild("AOETelegraph"))
+		local circle = AOETelegraph.showCircleTelegraph(
+			position,
+			weaponConfig.aoeRadius or 10,
+			0.5, -- Show for 0.5 seconds
+			"damage"
+		)
+	end
+
+	-- TODO: Add more impact effects (particles, sounds, etc.)
 end
 
 --[[
@@ -234,6 +281,30 @@ local function handleRaycastHit(
 	projectile: ProjectileInstance,
 	raycastResult: RaycastResult
 ): boolean
+	-- Check for AOE on impact (before handling normal collision)
+	local weaponConfig = CombatSystem.getWeaponConfig(projectile.weapon)
+	if weaponConfig and weaponConfig.aoeOnImpact then
+		-- Trigger AOE at impact position
+		local hits = CombatSystem.performAOEAttack(
+			projectile.attacker,
+			raycastResult.Position,
+			projectile.weapon,
+			projectile.attackingPlayer,
+			{
+				damageOverride = weaponConfig.aoeDamage,
+				radius = weaponConfig.aoeRadius,
+				falloff = weaponConfig.aoeFalloff,
+				maxTargets = weaponConfig.maxTargets,
+			}
+		)
+
+		print(`Projectile AOE {projectile.weapon} hit {#hits} entities at {raycastResult.Position}`)
+
+		-- Always destroy projectile after AOE explosion
+		showImpactEffect(projectile, raycastResult.Position)
+		return true
+	end
+
 	-- Find entity from hit part
 	local hitEntity = findEntityFromPart(raycastResult.Instance)
 
@@ -304,6 +375,27 @@ function ProjectilePhysics.updateProjectile(
 	-- Check max range
 	if projectile.distanceTraveled >= projectile.maxRange then
 		print(`Projectile {projectile.weapon} reached max range`)
+
+		-- Trigger AOE at final position if configured
+		local weaponConfig = CombatSystem.getWeaponConfig(projectile.weapon)
+		if weaponConfig and weaponConfig.aoeOnImpact then
+			local hits = CombatSystem.performAOEAttack(
+				projectile.attacker,
+				projectile.lastPosition,
+				projectile.weapon,
+				projectile.attackingPlayer,
+				{
+					damageOverride = weaponConfig.aoeDamage,
+					radius = weaponConfig.aoeRadius,
+					falloff = weaponConfig.aoeFalloff,
+					maxTargets = weaponConfig.maxTargets,
+				}
+			)
+
+			print(`Projectile AOE {projectile.weapon} hit {#hits} entities at max range`)
+			showImpactEffect(projectile, projectile.lastPosition)
+		end
+
 		return true -- Destroy
 	end
 

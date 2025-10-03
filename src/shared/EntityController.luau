@@ -340,8 +340,71 @@ local function performAttack(entity: EntityInstance, target: Player)
 			print(`*** {entity.entityType} missed {target.Name} with {weaponName}`)
 		end
 
+	elseif weaponConfig.type == "aoe" then
+		-- AOE attack
+		local AOETelegraph = require(script.Parent:WaitForChild("AOETelegraph"))
+
+		local targetPos: Vector3
+
+		if weaponConfig.range == 0 then
+			-- Self-centered AOE
+			targetPos = entity.humanoidRootPart.Position
+		else
+			-- Targeted at player position
+			targetPos = target.Character.HumanoidRootPart.Position
+		end
+
+		-- Play attack animation
+		playAnimation(entity, "attack")
+		playSound(entity, "attack")
+		updateEntityState(entity, "attacking")
+
+		-- Show telegraph (warning for players to dodge)
+		local telegraph = AOETelegraph.showCircleTelegraph(
+			targetPos,
+			weaponConfig.aoeRadius or 10,
+			weaponConfig.castDuration,
+			"damage"
+		)
+
+		-- Wait castDuration (players can dodge during this time)
+		task.wait(weaponConfig.castDuration)
+
+		-- Check if this is projectile AOE or instant AOE
+		if weaponConfig.projectileSpeed then
+			-- Projectile AOE: Spawn projectile that will explode on impact
+			local ProjectileManager = require(script.Parent:WaitForChild("ProjectileManager"))
+			local direction = (targetPos - entity.humanoidRootPart.Position).Unit
+			local origin = entity.humanoidRootPart.Position + (direction * 2)
+
+			local projectile = ProjectileManager.spawnProjectile(
+				origin,
+				direction,
+				weaponName,
+				entity.model,
+				nil, -- No attacking player
+				target.Character -- Locked target
+			)
+
+			if projectile then
+				print(`*** {entity.entityType} fired AOE projectile {weaponName} at {target.Name}`)
+			else
+				print(`*** {entity.entityType} AOE projectile attack failed`)
+			end
+		else
+			-- Instant AOE: Apply immediately at target position
+			local hits = CombatSystem.performAOEAttack(
+				entity.model,
+				targetPos,
+				weaponName,
+				nil -- No attacking player (NPC)
+			)
+
+			print(`*** {entity.entityType} hit {#hits} entities with {weaponName} AOE`)
+		end
+
 	else
-		-- Other weapon types (AOE) will be added in Phase 2
+		-- Unknown weapon type
 		warn(`Weapon type {weaponConfig.type} not yet implemented for NPCs`)
 	end
 end

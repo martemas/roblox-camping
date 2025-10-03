@@ -339,6 +339,107 @@ local function performCombatAttack(player: Player, toolType: ToolType)
 			end
 		end
 
+	elseif weaponConfig.type == "aoe" then
+		-- AOE attack
+		local AOETelegraph = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("AOETelegraph"))
+		local target = TargetingSystem.getTarget(player)
+
+		-- Determine target position
+		local targetPos: Vector3
+		local humanoidRootPart = character:FindFirstChild("HumanoidRootPart") :: BasePart?
+		if not humanoidRootPart then
+			return
+		end
+
+		if weaponConfig.range == 0 then
+			-- Self-centered AOE
+			targetPos = humanoidRootPart.Position
+		else
+			-- Targeted AOE - need target or use look direction
+			if target then
+				local targetRoot = target:FindFirstChild("HumanoidRootPart") or target:FindFirstChild("Torso") :: BasePart?
+				if targetRoot and targetRoot:IsA("BasePart") then
+					targetPos = targetRoot.Position
+				else
+					-- Target lost, use look direction at max range
+					targetPos = humanoidRootPart.Position + (humanoidRootPart.CFrame.LookVector * weaponConfig.range)
+				end
+			else
+				-- No target, use look direction at max range
+				targetPos = humanoidRootPart.Position + (humanoidRootPart.CFrame.LookVector * weaponConfig.range)
+			end
+		end
+
+		-- Play animation
+		playToolAnimation(player, toolType)
+
+		-- Show telegraph (warning for players to dodge)
+		local attackType: "damage" | "heal" = if weaponConfig.aoeDamage and weaponConfig.aoeDamage < 0 then "heal" else "damage"
+		AOETelegraph.showCircleTelegraph(
+			targetPos,
+			weaponConfig.aoeRadius or 10,
+			weaponConfig.castDuration,
+			attackType
+		)
+
+		-- Wait castDuration (players can dodge during this time)
+		task.wait(weaponConfig.castDuration)
+
+		-- Verify character still exists
+		humanoidRootPart = character:FindFirstChild("HumanoidRootPart") :: BasePart?
+		if not humanoidRootPart then
+			return
+		end
+
+		-- Check if this is projectile AOE or instant AOE
+		if weaponConfig.projectileSpeed then
+			-- Projectile AOE: Spawn projectile that will explode on impact
+			local ProjectileManager = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ProjectileManager"))
+
+			-- Recalculate direction in case target moved
+			local direction: Vector3
+			if target then
+				local targetRoot = target:FindFirstChild("HumanoidRootPart") or target:FindFirstChild("Torso") :: BasePart?
+				if targetRoot and targetRoot:IsA("BasePart") then
+					direction = (targetRoot.Position - humanoidRootPart.Position).Unit
+				else
+					direction = humanoidRootPart.CFrame.LookVector
+				end
+			else
+				direction = humanoidRootPart.CFrame.LookVector
+			end
+
+			local origin = humanoidRootPart.Position + (direction * 2)
+			local projectile = ProjectileManager.spawnProjectile(
+				origin,
+				direction,
+				weaponName,
+				character,
+				player,
+				target
+			)
+
+			if projectile then
+				playToolSound(player, toolType, "attack")
+				print(`{player.Name} fired AOE projectile {weaponName}`)
+			else
+				playToolSound(player, toolType, "swing")
+				print(`{player.Name} AOE projectile attack failed`)
+			end
+		else
+			-- Instant AOE: Apply immediately at target position
+			local CombatSystem = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("CombatSystem"))
+			local hits = CombatSystem.performAOEAttack(
+				character,
+				targetPos,
+				weaponName,
+				player
+			)
+
+			playToolSound(player, toolType, "attack")
+			print(`{player.Name} hit {#hits} entities with {weaponName} AOE`)
+		end
+
 	else
 		warn(`Weapon type {weaponConfig.type} not yet implemented`)
 	end
