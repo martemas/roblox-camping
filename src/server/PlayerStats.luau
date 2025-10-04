@@ -96,6 +96,9 @@ function PlayerStats.loadPlayerStats(player: Player)
 	humanoid.MaxHealth = GameConfig.player.maxHealth + derived.maxHealthBonus
 	humanoid.Health = humanoid.MaxHealth
 
+	-- Set Level attribute on character (health bar attached client-side)
+	character:SetAttribute("Level", profile.Data.level)
+
 	-- Send initial stats to client
 	StatsUpdated:FireClient(player, profile.Data.stats, profile.Data.unallocatedStatPoints)
 	XPUpdated:FireClient(player, profile.Data.xp, profile.Data.level)
@@ -184,6 +187,12 @@ function PlayerStats.awardXP(player: Player, victimType: string, victimLevel: nu
 		local levelsGained = newLevel - profile.Data.level
 		profile.Data.level = newLevel
 		profile.Data.unallocatedStatPoints = profile.Data.unallocatedStatPoints + (levelsGained * GameConfig.stats.statPointsPerLevel)
+
+		-- Update Level attribute on character
+		local character = player.Character
+		if character then
+			character:SetAttribute("Level", newLevel)
+		end
 
 		-- Notify client
 		print(`[PlayerStats] Firing LevelUpNotification to {player.Name}`)

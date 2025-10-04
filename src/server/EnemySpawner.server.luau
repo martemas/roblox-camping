@@ -114,6 +114,10 @@ local function createEnemy(enemyType: EnemyType, position: vector): EnemyEntity?
 		warn(`No entity configuration found for {enemyType}`)
 	end
 
+	-- Set Level attribute (default to 1, can be enhanced later)
+	-- Health bar will be attached client-side by HealthBarAttacher
+	enemyModel:SetAttribute("Level", 1)
+
 	-- Get warehouse as primary target
 	local warehouse = nil
 	if TownhallManager then

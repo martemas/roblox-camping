@@ -433,53 +433,32 @@ function CombatSystem.attemptMeleeAttack(
 			continue
 		end
 
-		-- Check PvP rules
-		if not isPvPAllowed(attacker, targetModel) then
-			print(`PvP blocked: {attacker.Name} cannot attack {targetModel.Name}`)
-			continue
-		end
-
-		-- Check invulnerability
-		if checkInvulnerability(targetModel, weaponName) then
-			print(`{targetModel.Name} is invulnerable to {weaponName}`)
-			if not hitAny and targetModel == target then
-				-- Return blocked result for primary target
-				return {
-					hit = false,
-					target = targetModel,
-					damage = nil,
-					wasInRange = true,
-					wasDodged = false,
-					blockedByInvulnerability = true
-				}
-			end
-			continue
-		end
-
-		-- Target is in range and not invulnerable - use centralized damage system
+		-- Use centralized damage system (handles PvP, invuln, calculation, damage, XP, feedback, aggro)
 		local targetHumanoid = targetModel:FindFirstChildOfClass("Humanoid")
 		if targetHumanoid and targetHumanoid.Health > 0 then
-			-- Use centralized damage system (handles calculation, damage, XP, feedback, aggro)
-			local success = CombatSystem.applyDamageToEntity(attacker, targetModel, weaponName, {
+			local result = CombatSystem.applyDamageToEntity(attacker, targetModel, weaponName, {
 				attackingPlayer = attackingPlayer,
 				hitPart = nil, -- Melee doesn't track specific part yet
 			})
 
-			if success then
-				-- Set invulnerability
-				setInvulnerability(
-					targetModel,
-					weaponName,
-					GameConfig.combat.invulnerabilityDuration or 0.5
-				)
-
+			if result.success then
 				hitAny = true
 				if not firstHit then
 					firstHit = targetModel
 				end
-				-- Note: Can't track exact damage here since applyDamageToEntity doesn't return it
-				-- This is fine - damage tracking is for display purposes
-				totalDamage = totalDamage + 1 -- Increment hit count
+				totalDamage = totalDamage + (result.damage or 0)
+			elseif targetModel == target then
+				-- Primary target - handle special failure cases for return value
+				if result.blockedByInvulnerability then
+					return {
+						hit = false,
+						target = targetModel,
+						damage = nil,
+						wasInRange = true,
+						wasDodged = false,
+						blockedByInvulnerability = true
+					}
+				end
 			end
 		end
 	end
@@ -614,15 +593,15 @@ function CombatSystem.performAOEAttack(
 				local finalDamage = damage * damageMultiplier
 
 				-- Apply damage via central system
-				local success = CombatSystem.applyDamageToEntity(attacker, entity, weaponName, {
+				local result = CombatSystem.applyDamageToEntity(attacker, entity, weaponName, {
 					damageOverride = finalDamage,
 					hitPosition = targetPosition,
 				})
 
-				if success then
+				if result.success then
 					table.insert(hits, {
 						entity = entity,
-						damage = finalDamage,
+						damage = result.damage or finalDamage,
 						distance = distance,
 					})
 
@@ -651,6 +630,17 @@ function CombatSystem.performAOEAttack(
 	return hits
 end
 
+-- Result type for damage application
+export type DamageApplicationResult = {
+	success: boolean,
+	damage: number?,
+	failureReason: string?, -- "no_humanoid" | "pvp_blocked" | "invulnerable" | "dodged" | "no_weapon_config"
+	wasDodged: boolean,
+	wasCritical: boolean,
+	blockedByInvulnerability: boolean,
+	blockedByPvP: boolean,
+}
+
 -- Apply damage to a single entity (low-level API for custom spells)
 function CombatSystem.applyDamageToEntity(
 	attacker: Model,
@@ -660,39 +650,74 @@ function CombatSystem.applyDamageToEntity(
 		damageOverride: number?,
 		hitPosition: Vector3?,
 		bypassInvulnerability: boolean?,
+		bypassPvP: boolean?,
+		attackingPlayer: Player?,
+		hitPart: BasePart?,
 	}?
-): boolean
+): DamageApplicationResult
 	local opts = options or {}
 
 	-- Validate target has Humanoid
 	local targetHumanoid = target:FindFirstChildOfClass("Humanoid")
 	if not targetHumanoid or targetHumanoid.Health <= 0 then
-		return false
+		return {
+			success = false,
+			damage = nil,
+			failureReason = "no_humanoid",
+			wasDodged = false,
+			wasCritical = false,
+			blockedByInvulnerability = false,
+			blockedByPvP = false,
+		}
 	end
 
 	-- Check PvP rules (unless bypassed)
-	if not isPvPAllowed(attacker, target) then
+	if not opts.bypassPvP and not isPvPAllowed(attacker, target) then
 		print(`PvP blocked: {attacker.Name} cannot attack {target.Name}`)
-		return false
+		return {
+			success = false,
+			damage = nil,
+			failureReason = "pvp_blocked",
+			wasDodged = false,
+			wasCritical = false,
+			blockedByInvulnerability = false,
+			blockedByPvP = true,
+		}
 	end
 
 	-- Check invulnerability (unless bypassed)
 	if not opts.bypassInvulnerability and checkInvulnerability(target, weaponName) then
 		print(`{target.Name} is invulnerable to {weaponName}`)
-		return false
+		return {
+			success = false,
+			damage = nil,
+			failureReason = "invulnerable",
+			wasDodged = false,
+			wasCritical = false,
+			blockedByInvulnerability = true,
+			blockedByPvP = false,
+		}
 	end
 
 	-- Get weapon config
 	local weaponConfig = CombatSystem.getWeaponConfig(weaponName)
 	if not weaponConfig then
-		return false
+		return {
+			success = false,
+			damage = nil,
+			failureReason = "no_weapon_config",
+			wasDodged = false,
+			wasCritical = false,
+			blockedByInvulnerability = false,
+			blockedByPvP = false,
+		}
 	end
 
 	-- Get stats for damage calculation (server-side only)
 	local attackerStats, targetStats
 	if RunService:IsServer() then
 		local targetPlayer = Players:GetPlayerFromCharacter(target)
-		local attackingPlayer = Players:GetPlayerFromCharacter(attacker)
+		local attackingPlayer = opts.attackingPlayer or Players:GetPlayerFromCharacter(attacker)
 
 		-- Get attacker stats
 		if attackingPlayer then
@@ -728,7 +753,7 @@ function CombatSystem.applyDamageToEntity(
 		attacker = attacker,
 		target = target,
 		weaponName = weaponName,
-		hitPart = opts.hitPosition and target:FindFirstChild("HumanoidRootPart") :: BasePart? or nil,
+		hitPart = opts.hitPart or (opts.hitPosition and target:FindFirstChild("HumanoidRootPart") :: BasePart? or nil),
 		attackerStats = attackerStats,  -- Pass stats
 		targetStats = targetStats,       -- Pass stats
 	})
@@ -738,7 +763,15 @@ function CombatSystem.applyDamageToEntity(
 		if damageResult.wasDodged then
 			CombatFeedback.showDamage(target, 0, weaponName, "dodge", attacker)
 		end
-		return false
+		return {
+			success = false,
+			damage = nil,
+			failureReason = "dodged",
+			wasDodged = true,
+			wasCritical = false,
+			blockedByInvulnerability = false,
+			blockedByPvP = false,
+		}
 	end
 
 	-- Use override damage if provided, otherwise use calculated damage
@@ -803,7 +836,15 @@ function CombatSystem.applyDamageToEntity(
 		EntityController.onEntityDamaged(target, attacker)
 	end
 
-	return true
+	return {
+		success = true,
+		damage = finalDamage,
+		failureReason = nil,
+		wasDodged = false,
+		wasCritical = damageResult.wasCritical or false,
+		blockedByInvulnerability = false,
+		blockedByPvP = false,
+	}
 end
 
 -- Perform hitscan attack
@@ -957,7 +998,7 @@ function CombatSystem.performHitscan(
 	end
 
 	-- Apply damage via central function
-	local success = CombatSystem.applyDamageToEntity(attacker, hitEntity, weaponName, {
+	local result = CombatSystem.applyDamageToEntity(attacker, hitEntity, weaponName, {
 		hitPosition = hitPosition,
 	})
 
@@ -965,12 +1006,12 @@ function CombatSystem.performHitscan(
 	if weaponConfig.visualEffect == "beam" then
 		-- Beam lingers for 0.3s to show the path
 		HitscanEffects.showBeam(origin, hitPosition, weaponName, 0.3, weaponConfig.damage and weaponConfig.damage < 0)
-		if success then
+		if result.success then
 			HitscanEffects.showHitEffect(hitPosition, hitNormal, weaponName, weaponConfig.damage and weaponConfig.damage < 0)
 		end
 	end
 
-	if success then
+	if result.success then
 		-- AOE on impact (if configured)
 		if weaponConfig.aoeOnImpact then
 			-- Will be implemented in Phase 2
@@ -980,20 +1021,20 @@ function CombatSystem.performHitscan(
 		return {
 			hit = true,
 			target = hitEntity,
-			damage = weaponConfig.damage,
+			damage = result.damage,
 			wasInRange = true,
-			wasDodged = false,
+			wasDodged = result.wasDodged,
 			blockedByInvulnerability = false
 		}
 	else
-		-- Damage was blocked (invulnerability or PvP)
+		-- Damage was blocked (invulnerability, PvP, or dodged)
 		return {
 			hit = false,
 			target = hitEntity,
 			damage = nil,
 			wasInRange = true,
-			wasDodged = false,
-			blockedByInvulnerability = true,
+			wasDodged = result.wasDodged,
+			blockedByInvulnerability = result.blockedByInvulnerability,
 		}
 	end
 end

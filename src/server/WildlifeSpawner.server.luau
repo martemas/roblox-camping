@@ -121,6 +121,10 @@ local function createWildlife(wildlifeType: WildlifeType, position: vector): Wil
 		wildlifeModel:SetAttribute("WildlifeType", wildlifeType)
 	end
 
+	-- Set Level attribute (default to 1, can be enhanced later)
+	-- Health bar will be attached client-side by HealthBarAttacher
+	wildlifeModel:SetAttribute("Level", 1)
+
 	return wildlifeEntity
 end
 

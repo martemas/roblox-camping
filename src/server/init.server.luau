@@ -56,18 +56,5 @@ waitForSystems()
 
 -- TODO: Initialize additional systems as they are added
 -- - Building system
--- - Combat system improvements
 -- - Leaderboard system
 -- - Anti-cheat systems
-
-print("All server systems initialized successfully!")
-print("Phase 0 camping game is ready to play")
-print(string.rep("=", 50))
-print("READY FOR TESTING:")
-print("- Resource mining (wood/stone/metal)")
-print("- Inventory management (5-item limit)")
-print("- Townhall deposits")
-print("- Day/night cycle")
-print("- Wildlife encounters")
-print("- Enemy waves during night")
-print(string.rep("=", 50))
