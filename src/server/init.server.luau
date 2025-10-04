@@ -22,6 +22,10 @@ local serverFolder = ServerScriptService:FindFirstChild("Server")
 if serverFolder then
 	local AnimationCache = require(serverFolder:WaitForChild("AnimationCache"))
 	AnimationCache.Initialize()
+
+	-- Initialize PlayerStats (sets up ProfileStore and PlayerAdded connection)
+	local PlayerStats = require(serverFolder:WaitForChild("PlayerStats"))
+	print("✓ PlayerStats initialized")
 else
 	warn("Server folder not found in ServerScriptService")
 end

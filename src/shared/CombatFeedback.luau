@@ -9,7 +9,7 @@ local PlayerSettingsManager = require(script.Parent:WaitForChild("PlayerSettings
 local CombatFeedback = {}
 
 -- Damage type for color coding
-export type DamageType = "self" | "other_player" | "incoming" | "dodge" | "miss" | "blocked"
+export type DamageType = "self" | "other_player" | "incoming" | "dodge" | "miss" | "blocked" | "critical"
 
 -- Create floating damage/feedback text above any entity (player or NPC)
 function CombatFeedback.showDamage(
@@ -27,8 +27,13 @@ function CombatFeedback.showDamage(
 	-- Determine color and text based on damage type
 	local textColor: Color3
 	local displayText: string
+	local isCritical = damageType == "critical"
 
-	if damageType == "dodge" then
+	if isCritical then
+		-- CRITICAL HIT! (special display)
+		textColor = Color3.fromRGB(255, 215, 0) -- Gold
+		displayText = "CRITICAL! -" .. tostring(math.floor(damage or 0))
+	elseif damageType == "dodge" then
 		-- Target dodged the attack
 		textColor = Color3.fromRGB(255, 255, 100) -- Yellow
 		displayText = "DODGED!"
@@ -138,6 +143,11 @@ function CombatFeedback.showDamage(
 		-- Get animation duration from player settings
 		local animDuration = settings.ui.damage.animationDuration or 1.5
 		local scale = settings.ui.damage.damageNumberScale or 1.0
+
+		-- Make critical hits 50% larger
+		if isCritical then
+			scale = scale * 1.5
+		end
 
 		-- Adjust size based on scale
 		billboardGui.Size = UDim2.new(0, 200 * scale, 0, 50 * scale)

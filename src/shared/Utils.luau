@@ -19,7 +19,6 @@ function Utils.findGroundLevel(position: vector): vector
 	local raycastResult = workspace:Raycast(rayOrigin, rayDirection, raycastParams)
 
 	if raycastResult then
-		print(`Ground found at position: {raycastResult.Position.Y}`) -- DEBUG
 		-- Found ground, place slightly above it
 		return raycastResult.Position + vector.create(0, 1, 0)
 	else

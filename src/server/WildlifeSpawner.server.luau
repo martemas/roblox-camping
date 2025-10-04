@@ -113,7 +113,6 @@ local function createWildlife(wildlifeType: WildlifeType, position: vector): Wil
 		wildlifeModel:SetAttribute("CanTakeDamage", entityConfig.canTakeDamage)
 		wildlifeModel:SetAttribute("MaxHealth", entityConfig.health)
 		wildlifeModel:SetAttribute("CurrentHealth", entityConfig.health)
-		print(`DEBUG: Set entity attributes for {wildlifeType}`) -- DEBUG
 	else
 		warn(`No entity configuration found for {wildlifeType}`)
 		-- Fallback to old system

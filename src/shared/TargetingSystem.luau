@@ -167,14 +167,12 @@ local function updateEntityHighlight(model: Model, player: Player, shouldHighlig
 			highlight.OutlineTransparency = 0
 			highlight.Parent = model
 			targetHighlights[model][player] = highlight
-			print(`Created highlight for {model.Name} for player {player.Name}`)
 		end
 	else
 		if existingHighlight then
 			-- Remove highlight
 			existingHighlight:Destroy()
 			targetHighlights[model][player] = nil
-			print(`Removed highlight for {model.Name} for player {player.Name}`)
 
 			-- Clean up empty highlight table
 			local hasHighlights = false
@@ -222,7 +220,6 @@ function TargetingSystem.setTarget(player: Player, targetModel: Model?): boolean
 		-- Set new target
 		playerTargets[player] = targetModel
 		updateEntityHighlight(targetModel, player, true)
-		print(`{player.Name} targeted {targetModel.Name}`)
 		return true
 	else
 		-- Clear target

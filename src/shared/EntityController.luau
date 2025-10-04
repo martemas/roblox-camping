@@ -5,12 +5,33 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Debris = game:GetService("Debris")
 local PathfindingService = game:GetService("PathfindingService")
+local ServerScriptService = game:GetService("ServerScriptService")
 
 local GameConfig = require(script.Parent:WaitForChild("GameConfig"))
 local CombatSystem = require(script.Parent:WaitForChild("CombatSystem"))
 local CombatFeedback = require(script.Parent:WaitForChild("CombatFeedback"))
 local ProjectileLOS = require(script.Parent:WaitForChild("ProjectileLOS"))
 local DamageCalculator = require(script.Parent:WaitForChild("DamageCalculator"))
+local Stats = require(script.Parent:WaitForChild("Stats"))
+
+-- Lazy-loaded server modules
+local XPRewardManager
+
+local function getXPRewardManager()
+	if not XPRewardManager and RunService:IsServer() then
+		-- Use WaitForChild with timeout (5 seconds)
+		local success, xpRewardModule = pcall(function()
+			return ServerScriptService:WaitForChild("Server"):WaitForChild("XPRewardManager", 5)
+		end)
+
+		if success and xpRewardModule then
+			XPRewardManager = require(xpRewardModule)
+		else
+			warn("[EntityController] Failed to load XPRewardManager - module not found in ServerScriptService.Server")
+		end
+	end
+	return XPRewardManager
+end
 
 -- Entity runtime state
 export type EntityState = "idle" | "wandering" | "chasing" | "attacking" | "jumping"
@@ -27,6 +48,13 @@ export type EntityInstance = {
 	lastWanderTime: number,
 	isAggro: boolean,
 	animationTracks: {[string]: AnimationTrack},
+
+	-- Stats system
+	level: number,
+	xp: number,
+	baseStats: Stats.Stats,    -- Base stats from config
+	scaledStats: Stats.Stats,  -- Scaled stats (baseStats * level scaling)
+	config: any,  -- Store config reference for easy access
 }
 
 local EntityController = {}
@@ -603,10 +631,33 @@ function EntityController.initializeEntity(model: Model, entityType: string): En
 		return nil
 	end
 
-	-- Set up humanoid properties from config
-	humanoid.MaxHealth = config.health or 50
-	humanoid.Health = config.health or 50
+	-- Get level from model attribute (defaults to 1)
+	local level = model:GetAttribute("Level") or 1
+
+	-- Get base stats from config or use defaults
+	local baseStats = config.baseStats or {
+		strength = 3,
+		magic = 0,
+		stamina = 2,
+		accuracy = 3,
+		level = level,
+		xp = 0,
+	}
+
+	-- Scale stats based on level
+	local scaledStats = Stats.scaleStatsForLevel(baseStats, level)
+
+	-- Calculate derived stats for HP bonus
+	local derived = Stats.getDerivedStats(scaledStats)
+
+	-- Set up humanoid properties from config + stats
+	humanoid.MaxHealth = (config.health or 50) + derived.maxHealthBonus
+	humanoid.Health = humanoid.MaxHealth
 	humanoid.WalkSpeed = config.walkSpeed or 12
+
+	-- Store level on model for other systems
+	model:SetAttribute("Level", level)
+	model:SetAttribute("EntityType", entityType)
 
 	-- Create entity instance
 	local entity: EntityInstance = {
@@ -621,6 +672,13 @@ function EntityController.initializeEntity(model: Model, entityType: string): En
 		lastWanderTime = 0,
 		isAggro = false,
 		animationTracks = {},
+
+		-- Stats system
+		level = level,
+		xp = 0,
+		baseStats = baseStats,
+		scaledStats = scaledStats,
+		config = config,
 	}
 
 	-- Load animations
@@ -632,13 +690,26 @@ function EntityController.initializeEntity(model: Model, entityType: string): En
 	-- Handle death
 	humanoid.Died:Connect(function()
 		playSound(entity, "died") -- Play death sound if it exists
+
+		-- Award XP to last attacker (server-side only)
+		if RunService:IsServer() then
+			print(`[EntityController] {entityType} died, attempting to award XP...`)
+			local XPRewardModule = getXPRewardManager()
+			if XPRewardModule then
+				print(`[EntityController] XPRewardModule loaded, calling awardXPForKill`)
+				XPRewardModule.awardXPForKill(model)
+			else
+				warn(`[EntityController] XPRewardModule not loaded!`)
+			end
+		end
+
 		EntityController.removeEntity(model)
 	end)
 
 	-- Register entity
 	activeEntities[model] = entity
 
-	print(`Initialized {entityType} entity with centralized controller`)
+	print(`Initialized {entityType} entity (Level {level}) with centralized controller`)
 	return entity
 end
 
@@ -735,6 +806,7 @@ function EntityController.cleanup()
 end
 
 -- Public API for external systems (like ToolManager hitting entities)
+-- DEPRECATED: Use CombatSystem.applyDamageToEntity() instead for centralized damage handling
 function EntityController.handleDamage(
 	model: Model,
 	damage: number,
@@ -743,44 +815,113 @@ function EntityController.handleDamage(
 	hitPart: BasePart?
 )
 	local entity = activeEntities[model]
-	if entity then
-		-- If attacker is provided, use DamageCalculator; otherwise use direct damage
-		local finalDamage = damage
-		local hitLocation = "unknown"
+	if not entity then
+		return
+	end
 
-		if attackerModel and damageSource then
-			-- Use DamageCalculator for proper damage calculation
-			local damageResult = DamageCalculator.calculateDamage({
-				attacker = attackerModel,
-				target = model,
-				weaponName = damageSource,
-				hitPart = hitPart,
-			})
+	-- Use centralized damage system for proper XP tracking and stats
+	if attackerModel and damageSource then
+		-- Delegate to CombatSystem for full damage handling (XP, stats, feedback, aggro)
+		local CombatSystem = require(script.Parent:WaitForChild("CombatSystem"))
+		CombatSystem.applyDamageToEntity(attackerModel, model, damageSource, {
+			hitPart = hitPart,
+		})
+	else
+		-- Direct damage (environmental damage, no attacker)
+		-- This bypasses XP system since there's no attacker
+		entity.humanoid:TakeDamage(damage)
 
-			if damageResult.wasHit then
-				finalDamage = damageResult.finalDamage
-				hitLocation = damageResult.hitLocation
-			else
-				return -- Miss, no damage
-			end
-		end
-
-		-- Apply damage
-		entity.humanoid:TakeDamage(finalDamage)
-
-		-- Determine damage type for feedback
-		local attackingPlayer = if attackerModel
-			then Players:GetPlayerFromCharacter(attackerModel)
-			else nil
-		local damageType: CombatFeedback.DamageType = if attackingPlayer then "self" else "other_player"
-
-		-- Show floating damage number via CombatFeedback
-		CombatFeedback.showDamage(model, finalDamage, damageSource, damageType, attackerModel)
+		-- Show feedback for environmental damage
+		local CombatFeedback = require(script.Parent:WaitForChild("CombatFeedback"))
+		CombatFeedback.showDamage(model, damage, damageSource or "environmental", "other_player", nil)
 
 		-- Play damage sound
 		playSound(entity, "damage")
 
-		print(`{entity.entityType} took {finalDamage} damage from {damageSource or "unknown"} (location: {hitLocation})`)
+		print(`{entity.entityType} took {damage} environmental damage`)
+	end
+end
+
+--[[
+	Stats System Public API
+	Used by CombatSystem and XPRewardManager
+]]
+
+-- Get entity stats (scaled for current level)
+function EntityController.getEntityStats(model: Model): Stats.Stats?
+	local entity = activeEntities[model]
+	if not entity then
+		return nil
+	end
+
+	return entity.scaledStats
+end
+
+-- Get entity level
+function EntityController.getEntityLevel(model: Model): number
+	local entity = activeEntities[model]
+	if not entity then
+		return 1
+	end
+
+	return entity.level
+end
+
+-- Set entity level and scale stats
+function EntityController.setEntityLevel(model: Model, level: number)
+	local entity = activeEntities[model]
+	if not entity then
+		return
+	end
+
+	entity.level = level
+	entity.scaledStats = Stats.scaleStatsForLevel(entity.baseStats, level)
+
+	-- Update HP based on new stamina
+	local derived = Stats.getDerivedStats(entity.scaledStats)
+	entity.humanoid.MaxHealth = entity.config.health + derived.maxHealthBonus
+
+	-- Store level on model
+	model:SetAttribute("Level", level)
+
+	print(`{entity.entityType} leveled up to {level}!`)
+end
+
+-- Award XP to entity (uses centralized Stats.calculateXPReward)
+function EntityController.awardEntityXP(model: Model, victimType: string, victimLevel: number)
+	local entity = activeEntities[model]
+	if not entity then
+		return
+	end
+
+	-- Check if this entity type can earn XP
+	if not GameConfig.stats.entityCanEarnXP[entity.entityType] then
+		return
+	end
+
+	-- SECURITY: Use centralized calculation
+	local xpAmount = Stats.calculateXPReward(victimType, victimLevel)
+
+	entity.xp = entity.xp + xpAmount
+
+	-- Check for level-up
+	local newLevel = Stats.calculateLevelFromXP(entity.xp)
+	if newLevel > entity.level then
+		-- Auto-allocate stat points evenly (0.5 per stat for 2 points total)
+		local pointsGained = (newLevel - entity.level) * GameConfig.stats.statPointsPerLevel
+		local perStat = pointsGained / 4
+
+		entity.baseStats.strength = entity.baseStats.strength + perStat
+		entity.baseStats.magic = entity.baseStats.magic + perStat
+		entity.baseStats.stamina = entity.baseStats.stamina + perStat
+		entity.baseStats.accuracy = entity.baseStats.accuracy + perStat
+
+		-- Apply scaling
+		EntityController.setEntityLevel(model, newLevel)
+
+		print(`{entity.entityType} earned {xpAmount} XP and leveled up to {newLevel}!`)
+	else
+		print(`{entity.entityType} earned {xpAmount} XP ({entity.xp} total)`)
 	end
 end
 

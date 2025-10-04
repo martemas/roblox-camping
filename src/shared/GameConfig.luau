@@ -313,7 +313,7 @@ local GameConfig = {
 		-- When false: projectiles/hitscans go in aim direction (precision, FPS-style)
 
 		-- Invulnerability Frames (prevent weapon spam)
-		invulnerabilityFrames = false,
+		invulnerabilityFrames = true,
 		invulnerabilityDuration = 0.5, -- Seconds of immunity per weapon type
 
 		-- Directional Combat
@@ -377,6 +377,43 @@ local GameConfig = {
 		defenseReduction = 0.015,          -- -1.5% damage taken per defense point
 	},
 
+	-- Stats & Leveling System
+	stats = {
+		-- Starting stats (4-stat system: Strength, Magic, Stamina, Accuracy)
+		defaultStartingStats = {
+			strength = 5,
+			magic = 5,
+			stamina = 5,
+			accuracy = 5,
+		},
+
+		-- Stat caps
+		maxStatValue = 50,          -- Maximum value for any stat
+		statPointsPerLevel = 2,     -- Points players get per level
+
+		-- Entity scaling (automatic for NPCs)
+		entityStatScalingPerLevel = 0.1,  -- 10% increase per level
+
+		-- XP rewards (base values, scale with victim level)
+		xpRewards = {
+			Wolf = 15,
+			Bear = 30,
+			Zombie = 20,
+			Player = 50,  -- PvP base XP
+		},
+		xpLevelMultiplier = 1.5,  -- XP = baseXP * (1 + victimLevel * multiplier)
+
+		-- Entity XP earning (configurable per entity type)
+		entityCanEarnXP = {
+			Wolf = false,   -- Wildlife doesn't level up
+			Bear = false,
+			Zombie = true,  -- Zombies can level up over time
+		},
+
+		-- Last attacker tracking
+		lastAttackerExpiry = 10,  -- Seconds before attacker credit expires
+	},
+
 	-- Time Settings
 	time = {
 		dayDuration = 60, -- 5 minutes
@@ -411,6 +448,7 @@ local GameConfig = {
 			drops = {"Food", "Hide", "Bones"},
 			targetPriority = "players", -- "players", "structures", "both"
 			primaryWeapon = "WolfClaw", -- References weapons.WolfClaw
+			baseStats = { strength = 3, magic = 0, stamina = 2, accuracy = 6 },
 			animations = {
 				walk = "rbxassetid://125448487250472",
 				run = "rbxassetid://70972717905830",
@@ -431,6 +469,7 @@ local GameConfig = {
 			drops = {"Meat", "Hide", "Bones"},
 			targetPriority = "players",
 			primaryWeapon = "BearClaw", -- References weapons.BearClaw
+			baseStats = { strength = 6, magic = 0, stamina = 4, accuracy = 2 },
 			animations = {
 				walk = "rbxassetid://97593039109435",
 				attack = "rbxassetid://97384715486637",
@@ -451,6 +490,7 @@ local GameConfig = {
 			canJump = false,
 			targetPriority = "both", -- Attack both players and structures
 			primaryWeapon = "ZombieBite", -- References weapons.ZombieBite
+			baseStats = { strength = 4, magic = 0, stamina = 3, accuracy = 3 },
 			animations = {
 				walk = "rbxassetid://125448487250472",
 				run = "rbxassetid://70972717905830",

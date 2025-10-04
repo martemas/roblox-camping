@@ -130,7 +130,6 @@ local function createResourceNode(resourceType: ResourceType, position: vector):
 		nodeModel:SetAttribute("CanTakeDamage", entityConfig.canTakeDamage)
 		nodeModel:SetAttribute("MaxHealth", entityConfig.health)
 		nodeModel:SetAttribute("CurrentHealth", entityConfig.health)
-		print(`DEBUG: Set entity attributes for {entityNodeName}`) -- DEBUG
 	else
 		warn(`No entity configuration found for {entityNodeName}`)
 	end
@@ -245,9 +244,7 @@ local function spawnResourceNodes()
 			local position = Utils.getRandomGroundPosition(centerPosition, 50, spawnRadius)
 			local node = createResourceNode(resourceType :: ResourceType, position)
 
-			if node then
-				print(`Created {resourceType} node at {position}`) -- DEBUG
-			else
+			if not node then
 				warn(`Failed to create {resourceType} node {i}`)
 			end
 		end

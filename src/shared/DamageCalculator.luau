@@ -4,51 +4,39 @@
 	DamageCalculator - Centralized Damage Calculation System
 
 	Provides server-authoritative damage calculations for all combat interactions.
-	Supports body part multipliers, future stat-based combat, and extensibility.
+	Supports body part multipliers, stat-based combat, and extensibility.
 
 	Security: All calculations server-side, client cannot manipulate results.
+	All stat formulas are centralized in Stats module for easy balance adjustments.
 ]]
 
 local GameConfig = require(script.Parent:WaitForChild("GameConfig"))
+local Stats = require(script.Parent:WaitForChild("Stats"))
 
 local DamageCalculator = {}
 
--- Export types
+-- Export types (use centralized Stats type)
+export type Stats = Stats.Stats
+
 export type DamageInput = {
 	attacker: Model,           -- Attacker's character/NPC model
 	target: Model,             -- Target's character/NPC model
 	weaponName: string,        -- Weapon identifier (from GameConfig)
 	hitPart: BasePart?,        -- Body part hit (optional, used for multipliers)
 
-	-- Future: Stats system (Phase 2)
+	-- Stats system
 	attackerStats: Stats?,     -- Attacker's combat stats
 	targetStats: Stats?,       -- Target's combat stats
 }
 
 export type DamageResult = {
 	finalDamage: number,       -- Calculated damage to apply
-	wasHit: boolean,           -- Did attack land (future: miss system)
-	wasCritical: boolean,      -- Was it a critical hit (future)
+	wasHit: boolean,           -- Did attack land (considers dodge)
+	wasCritical: boolean,      -- Was it a critical hit
+	wasDodged: boolean,        -- Did target dodge the attack
 	hitLocation: string,       -- Body part name: "head", "torso", "limb", "unknown"
 	damageMultiplier: number,  -- Total multiplier applied (for feedback)
 	baseDamage: number,        -- Original weapon damage (for debugging)
-}
-
--- Future: Stats system (Phase 2)
-export type Stats = {
-	-- Offensive
-	strength: number?,         -- Increases physical damage
-	dexterity: number?,        -- Increases hit chance
-	intelligence: number?,     -- Increases magical damage (future)
-
-	-- Defensive
-	defense: number?,          -- Reduces incoming physical damage
-	resistance: number?,       -- Reduces incoming magical damage (future)
-	evasion: number?,          -- Increases dodge chance
-
-	-- Special
-	critChance: number?,       -- Critical hit chance (0.0 - 1.0)
-	critDamage: number?,       -- Critical damage multiplier (e.g., 1.5)
 }
 
 -- Debug logging
@@ -88,7 +76,8 @@ local function getBodyPartMultiplier(hitPart: BasePart?): (number, string)
 end
 
 --[[
-	Apply stat modifiers to base damage (Future - Phase 2)
+	Apply stat modifiers to base damage
+	Uses centralized Stats.getDerivedStats() for all calculations
 
 	@param baseDamage - Base weapon damage
 	@param attackerStats - Attacker's combat stats
@@ -100,79 +89,80 @@ local function applyStatModifiers(
 	attackerStats: Stats?,
 	targetStats: Stats?
 ): number
-	-- Phase 1: No stat modifiers yet, return base damage
 	if not attackerStats and not targetStats then
 		return baseDamage
 	end
 
-	-- Phase 2: Apply stat-based modifiers
 	local damage = baseDamage
 
-	-- Apply attacker strength bonus
-	if attackerStats and attackerStats.strength then
-		local strengthBonus = 1.0 + (attackerStats.strength * (GameConfig.combat.strengthDamageBonus or 0.02))
-		damage = damage * strengthBonus
+	-- Apply attacker's physical damage bonus (centralized calculation)
+	if attackerStats then
+		local derived = Stats.getDerivedStats(attackerStats)
+		damage = damage * derived.physicalDamageBonus
 	end
 
-	-- Apply defender defense reduction
-	if targetStats and targetStats.defense then
-		local defenseReduction = 1.0 - (targetStats.defense * (GameConfig.combat.defenseReduction or 0.015))
-		defenseReduction = math.max(defenseReduction, 0.1) -- Minimum 10% damage gets through
-		damage = damage * defenseReduction
+	-- Apply target's defense reduction (centralized calculation)
+	if targetStats then
+		local derived = Stats.getDerivedStats(targetStats)
+		local damageReduction = 1.0 - derived.defense
+		damage = damage * math.max(damageReduction, 0.1)  -- Min 10% damage gets through
 	end
 
 	return damage
 end
 
 --[[
-	Roll for hit or miss (Future - Phase 2)
+	Roll for hit or miss (considers accuracy vs dodge)
+	Uses centralized Stats.getDerivedStats() for all calculations
 
 	@param attackerStats - Attacker's combat stats
 	@param targetStats - Target's combat stats
-	@return true if hit, false if miss
+	@return wasHit (boolean), wasDodged (boolean)
 ]]
-local function rollHitChance(attackerStats: Stats?, targetStats: Stats?): boolean
-	-- Phase 1: Always hit (no miss chance yet)
+local function rollHitChance(attackerStats: Stats?, targetStats: Stats?): (boolean, boolean)
 	if not attackerStats and not targetStats then
-		return true
+		return true, false  -- Always hit if no stats
 	end
 
-	-- Phase 2: Calculate hit chance based on stats
-	local baseHitChance = GameConfig.combat.baseHitChance or 0.95
+	-- Get hit chance from attacker (centralized calculation)
+	local hitChance = 0.95  -- Default
+	if attackerStats then
+		local derived = Stats.getDerivedStats(attackerStats)
+		hitChance = derived.hitChance
+	end
 
-	local attackerDex = (attackerStats and attackerStats.dexterity) or 0
-	local targetEvasion = (targetStats and targetStats.evasion) or 0
+	-- Subtract target's dodge chance (centralized calculation)
+	if targetStats then
+		local derived = Stats.getDerivedStats(targetStats)
+		hitChance = hitChance - derived.dodgeChance
+	end
 
-	local hitChance = baseHitChance
-		+ (attackerDex * (GameConfig.combat.dexterityHitBonus or 0.01))
-		- (targetEvasion * (GameConfig.combat.evasionDodgeBonus or 0.01))
+	-- Clamp between 5% and 99%
+	hitChance = math.clamp(hitChance, 0.05, 0.99)
 
-	-- Clamp between 5% and 95%
-	hitChance = math.clamp(hitChance, 0.05, 0.95)
+	local wasHit = math.random() <= hitChance
+	local wasDodged = not wasHit and targetStats ~= nil  -- Only count as dodge if target has stats
 
-	return math.random() <= hitChance
+	return wasHit, wasDodged
 end
 
 --[[
-	Roll for critical hit (Future - Phase 2)
+	Roll for critical hit
+	Uses centralized Stats.getDerivedStats() for all calculations
 
 	@param attackerStats - Attacker's combat stats
-	@return true if critical, false if normal
+	@return wasCritical (boolean), critMultiplier (number)
 ]]
-local function rollCriticalHit(attackerStats: Stats?): boolean
-	-- Phase 1: No critical hits yet
+local function rollCriticalHit(attackerStats: Stats?): (boolean, number)
 	if not attackerStats then
-		return false
+		return false, 1.0
 	end
 
-	-- Phase 2: Calculate crit chance based on stats
-	local critChance = GameConfig.combat.criticalHitChance or 0.05
+	-- Get crit chance and multiplier (centralized calculation)
+	local derived = Stats.getDerivedStats(attackerStats)
+	local wasCritical = math.random() <= derived.criticalChance
 
-	if attackerStats.critChance then
-		critChance = critChance + attackerStats.critChance
-	end
-
-	return math.random() <= critChance
+	return wasCritical, derived.critMultiplier
 end
 
 --[[
@@ -185,6 +175,7 @@ local function createMissResult(): DamageResult
 		finalDamage = 0,
 		wasHit = false,
 		wasCritical = false,
+		wasDodged = false,
 		hitLocation = "unknown",
 		damageMultiplier = 0,
 		baseDamage = 0,
@@ -229,31 +220,25 @@ function DamageCalculator.calculateDamage(input: DamageInput): DamageResult
 	-- Get body part multiplier
 	local bodyMultiplier, hitLocation = getBodyPartMultiplier(input.hitPart)
 
-	-- Roll for hit/miss (Phase 2 - currently always hits)
-	local wasHit = rollHitChance(input.attackerStats, input.targetStats)
+	-- Roll for hit/miss (considers accuracy vs dodge)
+	local wasHit, wasDodged = rollHitChance(input.attackerStats, input.targetStats)
 	if not wasHit then
 		if DEBUG then
-			print(`DamageCalculator: {input.attacker.Name} missed {input.target.Name}`)
+			print(`DamageCalculator: {input.attacker.Name} missed {input.target.Name} (dodged={wasDodged})`)
 		end
 		return {
 			finalDamage = 0,
 			wasHit = false,
 			wasCritical = false,
+			wasDodged = wasDodged,
 			hitLocation = hitLocation,
 			damageMultiplier = 0,
 			baseDamage = baseDamage,
 		}
 	end
 
-	-- Roll for critical hit (Phase 2 - currently no crits)
-	local wasCritical = rollCriticalHit(input.attackerStats)
-	local critMultiplier = 1.0
-	if wasCritical then
-		critMultiplier = GameConfig.combat.criticalDamageMultiplier or 1.5
-		if input.attackerStats and input.attackerStats.critDamage then
-			critMultiplier = input.attackerStats.critDamage
-		end
-	end
+	-- Roll for critical hit (uses centralized crit calculation)
+	local wasCritical, critMultiplier = rollCriticalHit(input.attackerStats)
 
 	-- Calculate damage with all modifiers
 	local damage = baseDamage
@@ -286,6 +271,7 @@ function DamageCalculator.calculateDamage(input: DamageInput): DamageResult
 		finalDamage = finalDamage,
 		wasHit = true,
 		wasCritical = wasCritical,
+		wasDodged = false,  -- Not dodged if we got here
 		hitLocation = hitLocation,
 		damageMultiplier = totalMultiplier,
 		baseDamage = baseDamage,

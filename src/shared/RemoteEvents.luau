@@ -85,6 +85,12 @@ local RemoteEvents = {
 	DeselectTarget = createRemoteEvent("DeselectTarget"),
 	RequestClosestTarget = createRemoteEvent("RequestClosestTarget"),
 	TargetUpdated = createRemoteEvent("TargetUpdated"), -- For real-time health updates
+
+	-- Stats & Leveling System
+	RequestStatIncrease = createRemoteEvent("RequestStatIncrease"),  -- Client → Server: Request stat allocation
+	LevelUpNotification = createRemoteEvent("LevelUpNotification"),  -- Server → Client: Notify level-up
+	XPUpdated = createRemoteEvent("XPUpdated"),                      -- Server → Client: Update XP bar
+	StatsUpdated = createRemoteEvent("StatsUpdated"),                -- Server → Client: Update stats panel
 }
 
 -- Export RemoteFunctions

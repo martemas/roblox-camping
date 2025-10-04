@@ -1,9 +1,19 @@
 # Roblox Camping Game - Project Instructions
 
 ## Project Overview
-This is a Roblox camping game project using Rojo for development workflow. The project follows standard Roblox/Luau conventions and uses Rojo for syncing code between the filesystem and Roblox Studio.
+This is a Roblox project using Rojo for development workflow. The project follows standard Roblox/Luau conventions and uses Rojo for syncing code between the filesystem and Roblox Studio.
 
 ## Game Concept
+This game will be used as the base for many games in the future. This will be the framework and platform to build other Roblox games. The platform will provide:
+- Combat mechanics - action (first person like, skill based) vs tactical (stats based damage calculations)
+- Weapons mechanics - melee, aoe, hitscan, projectile, etc
+- PVP/NPC support - fair system that allows fair damage calculation against/from NPCs and other players.
+- Build and Create mechanics - allowing player to buy items and place those items in the game
+- Data storing/state management - store players data
+- Secure implementation - prevent clients from manipulating data
+- Highly configurable (GameConfig for server side settings and PlayerSettings for UI related settings)
+- And more ...
+
 A cooperative survival game where 5+ players must defend their campsite against increasingly dangerous enemies that emerge from another dimension each night. Success requires teamwork, strategic planning, and resource management across multiple in-game days.
 
 ## Technology Stack

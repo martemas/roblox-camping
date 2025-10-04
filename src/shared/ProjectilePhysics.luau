@@ -164,63 +164,16 @@ end
 	@param hitPart - The specific body part that was hit
 ]]
 local function applyDamage(projectile: ProjectileInstance, entity: Model, hitPart: BasePart?)
-	local humanoid = entity:FindFirstChildOfClass("Humanoid")
-	if not humanoid or humanoid.Health <= 0 then
-		return
-	end
-
-	-- Check PvP rules
-	if not CombatSystem.isPvPAllowed(projectile.attacker, entity) then
-		print(`PvP blocked: {projectile.attacker.Name} cannot damage {entity.Name}`)
-		return
-	end
-
-	-- Calculate damage using DamageCalculator
-	local damageResult = DamageCalculator.calculateDamage({
-		attacker = projectile.attacker,
-		target = entity,
-		weaponName = projectile.weapon,
-		hitPart = hitPart, -- Use actual hit part from raycast
+	-- Use centralized damage system which handles:
+	-- - PvP rules
+	-- - Damage calculation
+	-- - XP tracking
+	-- - Feedback
+	-- - Entity aggro
+	CombatSystem.applyDamageToEntity(projectile.attacker, entity, projectile.weapon, {
+		hitPart = hitPart,
+		attackingPlayer = projectile.attackingPlayer,
 	})
-
-	if damageResult.wasHit then
-		-- Apply damage
-		humanoid:TakeDamage(damageResult.finalDamage)
-
-		-- Determine damage type for feedback
-		local damageType: CombatFeedback.DamageType
-		local entityPlayer = Players:GetPlayerFromCharacter(entity)
-
-		if entityPlayer then
-			-- Damage to a player
-			damageType = "incoming"
-		else
-			-- Damage to an NPC
-			if projectile.attackingPlayer then
-				damageType = "self"
-			else
-				damageType = "other_player"
-			end
-		end
-
-		-- Show damage feedback
-		CombatFeedback.showDamage(
-			entity,
-			damageResult.finalDamage,
-			projectile.weapon,
-			damageType,
-			projectile.attacker -- Changed from attackingPlayer to attacker model
-		)
-
-		-- Notify entity it was damaged (for aggro/retargeting) - lazy load to avoid circular dependency
-		if not entityPlayer then
-			-- Only trigger for NPCs (wildlife/enemies)
-			local EntityController = require(script.Parent:WaitForChild("EntityController"))
-			EntityController.onEntityDamaged(entity, projectile.attacker)
-		end
-
-		print(`Projectile {projectile.weapon} hit {entity.Name} for {damageResult.finalDamage} damage (location: {damageResult.hitLocation}, multiplier: {damageResult.damageMultiplier}x)`)
-	end
 end
 
 --[[

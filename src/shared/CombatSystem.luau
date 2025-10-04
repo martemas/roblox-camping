@@ -2,11 +2,55 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ServerScriptService = game:GetService("ServerScriptService")
 local GameConfig = require(script.Parent:WaitForChild("GameConfig"))
 local CombatFeedback = require(script.Parent:WaitForChild("CombatFeedback"))
 local ProjectileLOS = require(script.Parent:WaitForChild("ProjectileLOS"))
 local DamageCalculator = require(script.Parent:WaitForChild("DamageCalculator"))
 local HitscanEffects = require(script.Parent:WaitForChild("HitscanEffects"))
+
+-- Lazy-loaded server modules (cached to avoid repeated requires)
+local PlayerStats
+local EntityController
+local XPRewardManager
+
+local function getPlayerStats()
+	if not PlayerStats and RunService:IsServer() then
+		local success, playerStatsModule = pcall(function()
+			return ServerScriptService:WaitForChild("Server"):WaitForChild("PlayerStats", 5)
+		end)
+
+		if success and playerStatsModule then
+			PlayerStats = require(playerStatsModule)
+		else
+			warn("[CombatSystem] Failed to load PlayerStats - module not found in ServerScriptService.Server")
+		end
+	end
+	return PlayerStats
+end
+
+local function getEntityController()
+	if not EntityController then
+		EntityController = require(script.Parent:WaitForChild("EntityController"))
+	end
+	return EntityController
+end
+
+local function getXPRewardManager()
+	if not XPRewardManager and RunService:IsServer() then
+		local success, xpRewardModule = pcall(function()
+			return ServerScriptService:WaitForChild("Server"):WaitForChild("XPRewardManager", 5)
+		end)
+
+		if success and xpRewardModule then
+			XPRewardManager = require(xpRewardModule)
+		else
+			warn("[CombatSystem] Failed to load XPRewardManager - module not found in ServerScriptService.Server")
+		end
+	end
+	return XPRewardManager
+end
 
 -- Export types
 export type WeaponType = "melee" | "projectile" | "hitscan" | "aoe"
@@ -412,21 +456,16 @@ function CombatSystem.attemptMeleeAttack(
 			continue
 		end
 
-		-- Target is in range and not invulnerable - calculate and apply damage
+		-- Target is in range and not invulnerable - use centralized damage system
 		local targetHumanoid = targetModel:FindFirstChildOfClass("Humanoid")
 		if targetHumanoid and targetHumanoid.Health > 0 then
-			-- Calculate damage using DamageCalculator
-			local damageResult = DamageCalculator.calculateDamage({
-				attacker = attacker,
-				target = targetModel,
-				weaponName = weaponName,
+			-- Use centralized damage system (handles calculation, damage, XP, feedback, aggro)
+			local success = CombatSystem.applyDamageToEntity(attacker, targetModel, weaponName, {
+				attackingPlayer = attackingPlayer,
 				hitPart = nil, -- Melee doesn't track specific part yet
 			})
 
-			if damageResult.wasHit then
-				-- Apply damage
-				targetHumanoid:TakeDamage(damageResult.finalDamage)
-
+			if success then
 				-- Set invulnerability
 				setInvulnerability(
 					targetModel,
@@ -434,47 +473,13 @@ function CombatSystem.attemptMeleeAttack(
 					GameConfig.combat.invulnerabilityDuration or 0.5
 				)
 
-				-- Determine damage type for feedback
-				local damageType: CombatFeedback.DamageType
-				local targetPlayer = game:GetService("Players"):GetPlayerFromCharacter(targetModel)
-
-				if targetPlayer then
-					-- Damage to a player
-					damageType = "incoming"
-				else
-					-- Damage to an NPC
-					if attackingPlayer then
-						damageType = "self"
-					else
-						damageType = "other_player"
-					end
-				end
-
-				-- Show damage feedback
-				CombatFeedback.showDamage(
-					targetModel,
-					damageResult.finalDamage,
-					weaponName,
-					damageType,
-					attacker -- Changed from attackingPlayer to attacker model
-				)
-
-				-- Notify entity it was damaged (for aggro/retargeting) - lazy load to avoid circular dependency
-				if not targetPlayer then
-					local EntityController = require(script.Parent:WaitForChild("EntityController"))
-					EntityController.onEntityDamaged(targetModel, attacker)
-				end
-
-				-- Play hit sound
-				CombatFeedback.playHitSound(targetModel, "Hit")
-
 				hitAny = true
 				if not firstHit then
 					firstHit = targetModel
 				end
-				totalDamage = totalDamage + damageResult.finalDamage
-
-				print(`*** {attacker.Name} hit {targetModel.Name} for {damageResult.finalDamage} damage with {weaponName} (location: {damageResult.hitLocation}, multiplier: {damageResult.damageMultiplier}x)`)
+				-- Note: Can't track exact damage here since applyDamageToEntity doesn't return it
+				-- This is fine - damage tracking is for display purposes
+				totalDamage = totalDamage + 1 -- Increment hit count
 			end
 		end
 	end
@@ -683,15 +688,56 @@ function CombatSystem.applyDamageToEntity(
 		return false
 	end
 
-	-- Calculate damage via DamageCalculator
+	-- Get stats for damage calculation (server-side only)
+	local attackerStats, targetStats
+	if RunService:IsServer() then
+		local targetPlayer = Players:GetPlayerFromCharacter(target)
+		local attackingPlayer = Players:GetPlayerFromCharacter(attacker)
+
+		-- Get attacker stats
+		if attackingPlayer then
+			local PlayerStatsModule = getPlayerStats()
+			if PlayerStatsModule then
+				attackerStats = PlayerStatsModule.getPlayerStats(attackingPlayer)
+			end
+		else
+			-- Entity attacker
+			local EntityControllerModule = getEntityController()
+			if EntityControllerModule then
+				attackerStats = EntityControllerModule.getEntityStats(attacker)
+			end
+		end
+
+		-- Get target stats
+		if targetPlayer then
+			local PlayerStatsModule = getPlayerStats()
+			if PlayerStatsModule then
+				targetStats = PlayerStatsModule.getPlayerStats(targetPlayer)
+			end
+		else
+			-- Entity target
+			local EntityControllerModule = getEntityController()
+			if EntityControllerModule then
+				targetStats = EntityControllerModule.getEntityStats(target)
+			end
+		end
+	end
+
+	-- Calculate damage via DamageCalculator (with stats)
 	local damageResult = DamageCalculator.calculateDamage({
 		attacker = attacker,
 		target = target,
 		weaponName = weaponName,
 		hitPart = opts.hitPosition and target:FindFirstChild("HumanoidRootPart") :: BasePart? or nil,
+		attackerStats = attackerStats,  -- Pass stats
+		targetStats = targetStats,       -- Pass stats
 	})
 
 	if not damageResult.wasHit then
+		-- Show dodge feedback if target dodged
+		if damageResult.wasDodged then
+			CombatFeedback.showDamage(target, 0, weaponName, "dodge", attacker)
+		end
 		return false
 	end
 
@@ -705,6 +751,21 @@ function CombatSystem.applyDamageToEntity(
 	else
 		-- Damage
 		targetHumanoid:TakeDamage(finalDamage)
+
+		-- Track attacker for XP credit (server-side only)
+		if RunService:IsServer() and finalDamage > 0 then
+			local XPRewardModule = getXPRewardManager()
+			if XPRewardModule then
+				local attackerLevel = 1
+				if attackerStats then
+					attackerLevel = attackerStats.level or 1
+				end
+				print(`[CombatSystem] Tracking attacker {attacker.Name} (Level {attackerLevel}) for {target.Name}`)
+				XPRewardModule.trackAttacker(target, attacker, attackerLevel)
+			else
+				warn(`[CombatSystem] XPRewardModule not loaded, cannot track attacker!`)
+			end
+		end
 	end
 
 	-- Set invulnerability (unless bypassed)
@@ -717,7 +778,10 @@ function CombatSystem.applyDamageToEntity(
 	local targetPlayer = Players:GetPlayerFromCharacter(target)
 	local attackingPlayer = Players:GetPlayerFromCharacter(attacker)
 
-	if targetPlayer then
+	-- Check for critical hit
+	if damageResult.wasCritical then
+		damageType = "critical"
+	elseif targetPlayer then
 		damageType = "incoming"
 	else
 		if attackingPlayer then

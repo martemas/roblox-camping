@@ -1,5 +1,11 @@
 --!strict
 
+local Stats = require(script.Parent:WaitForChild("Stats"))
+
+-- Export Stats types (centralized from Stats module)
+export type Stats = Stats.Stats
+export type DerivedStats = Stats.DerivedStats
+
 export type ResourceType = "Wood" | "Stone" | "Metal"
 
 export type ToolType = "Axe" | "Pickaxe"
