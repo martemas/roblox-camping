@@ -16,7 +16,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local CombatSystem = require(script.Parent:WaitForChild("CombatSystem"))
 local HitscanEffects = require(script.Parent:WaitForChild("HitscanEffects"))
-local GameConfig = require(script.Parent:WaitForChild("GameConfig"))
+local GameConfig = require(script.Parent:WaitForChild("config"))
 
 local HitscanManager = {}
 

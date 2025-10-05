@@ -7,7 +7,7 @@ local Debris = game:GetService("Debris")
 local PathfindingService = game:GetService("PathfindingService")
 local ServerScriptService = game:GetService("ServerScriptService")
 
-local GameConfig = require(script.Parent:WaitForChild("GameConfig"))
+local GameConfig = require(script.Parent:WaitForChild("config"))
 local CombatSystem = require(script.Parent:WaitForChild("CombatSystem"))
 local CombatFeedback = require(script.Parent:WaitForChild("CombatFeedback"))
 local ProjectileLOS = require(script.Parent:WaitForChild("ProjectileLOS"))

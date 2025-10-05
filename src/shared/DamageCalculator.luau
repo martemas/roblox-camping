@@ -10,7 +10,7 @@
 	All stat formulas are centralized in Stats module for easy balance adjustments.
 ]]
 
-local GameConfig = require(script.Parent:WaitForChild("GameConfig"))
+local GameConfig = require(script.Parent:WaitForChild("config"))
 local Stats = require(script.Parent:WaitForChild("Stats"))
 
 local DamageCalculator = {}

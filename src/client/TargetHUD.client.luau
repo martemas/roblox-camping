@@ -23,7 +23,7 @@ local PlayerSettings = require(ReplicatedStorage:WaitForChild("Shared"):WaitForC
 local Types = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Types"))
 local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RemoteEvents"))
 local CombatSystem = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("CombatSystem"))
-local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("GameConfig"))
+local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("config"))
 local ProjectileLOS = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ProjectileLOS"))
 
 -- Import TargetHUD component

@@ -17,7 +17,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ProfileStore = require(script.Parent:WaitForChild("ProfileStore"))
 local Stats = require(ReplicatedStorage.Shared:WaitForChild("Stats"))
-local GameConfig = require(ReplicatedStorage.Shared:WaitForChild("GameConfig"))
+local GameConfig = require(ReplicatedStorage.Shared:WaitForChild("config"))
 
 -- Initialize RemoteEvents
 local RemoteEventsModule = require(ReplicatedStorage.Shared:WaitForChild("RemoteEvents"))

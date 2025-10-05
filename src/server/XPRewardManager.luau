@@ -17,7 +17,7 @@ local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Stats = require(ReplicatedStorage.Shared:WaitForChild("Stats"))
-local GameConfig = require(ReplicatedStorage.Shared:WaitForChild("GameConfig"))
+local GameConfig = require(ReplicatedStorage.Shared:WaitForChild("config"))
 
 local XPRewardManager = {}
 

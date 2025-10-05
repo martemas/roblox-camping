@@ -7,7 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local TargetingSystem = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("TargetingSystem"))
 local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RemoteEvents"))
-local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("GameConfig"))
+local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("config"))
 local PlayerSettingsManager = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("PlayerSettingsManager"))
 
 local player = Players.LocalPlayer

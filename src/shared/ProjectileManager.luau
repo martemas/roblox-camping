@@ -19,7 +19,7 @@ local Debris = game:GetService("Debris")
 local CombatSystem = require(script.Parent:WaitForChild("CombatSystem"))
 local ProjectilePhysics = require(script.Parent:WaitForChild("ProjectilePhysics"))
 local ProjectileLOS = require(script.Parent:WaitForChild("ProjectileLOS"))
-local GameConfig = require(script.Parent:WaitForChild("GameConfig"))
+local GameConfig = require(script.Parent:WaitForChild("config"))
 
 type ProjectileInstance = CombatSystem.ProjectileInstance
 

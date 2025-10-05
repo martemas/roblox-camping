@@ -9,7 +9,7 @@ local ServerScriptService = game:GetService("ServerScriptService")
 print("Server initializing...")
 
 -- Wait for shared modules to load
-local GameConfig = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("GameConfig")
+local GameConfig = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("config")
 local Types = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Types")
 local RemoteEvents = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RemoteEvents")
 

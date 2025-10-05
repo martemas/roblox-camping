@@ -10,7 +10,7 @@
 	Client can read formulas but cannot manipulate stats.
 ]]
 
-local GameConfig = require(script.Parent:WaitForChild("GameConfig"))
+local GameConfig = require(script.Parent:WaitForChild("config"))
 
 -- Export types
 export type Stats = {

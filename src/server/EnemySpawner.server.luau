@@ -6,7 +6,7 @@ local Players = game:GetService("Players")
 local PathfindingService = game:GetService("PathfindingService")
 local Debris = game:GetService("Debris")
 
-local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("GameConfig"))
+local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("config"))
 local Types = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Types"))
 local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RemoteEvents"))
 local Utils = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Utils"))

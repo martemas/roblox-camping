@@ -5,7 +5,7 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("GameConfig"))
+local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("config"))
 local Types = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Types"))
 local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RemoteEvents"))
 

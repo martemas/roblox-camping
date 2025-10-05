@@ -1,0 +1,44 @@
+--!strict
+
+-- Main config entry point that re-exports all config modules
+-- Maintains identical API structure to original GameConfig.luau
+
+local GameSettings = require(script.GameSettings)
+local DayNightCycleConfig = require(script.DayNightCycleConfig)
+local WeaponsConfig = require(script.WeaponsConfig)
+local ToolsConfig = require(script.ToolsConfig)
+local ResourcesConfig = require(script.ResourcesConfig)
+local WildlifeConfig = require(script.WildlifeConfig)
+local EnemiesConfig = require(script.EnemiesConfig)
+local EntitiesConfig = require(script.EntitiesConfig)
+local ShopConfig = require(script.ShopConfig)
+
+-- Export CombatMode type for external use
+export type CombatMode = GameSettings.CombatMode
+
+local GameConfig = {
+	-- Core Framework Settings
+	gameplay = GameSettings.gameplay,
+	player = GameSettings.player,
+	combat = GameSettings.combat,
+	targeting = GameSettings.targeting,
+	stats = GameSettings.stats,
+	map = GameSettings.map,
+	CombatMode = GameSettings.CombatMode,
+
+	-- Day/Night Cycle & Waves
+	time = DayNightCycleConfig.time,
+	nightWaves = DayNightCycleConfig.nightWaves,
+
+	-- Extensible Content (Frequently Modified)
+	weapons = WeaponsConfig.weapons,
+	toolCategories = ToolsConfig.toolCategories,
+	tools = ToolsConfig.tools,
+	resources = ResourcesConfig.resources,
+	wildlife = WildlifeConfig.wildlife,
+	enemies = EnemiesConfig.enemies,
+	entities = EntitiesConfig.entities,
+	shop = ShopConfig.shop,
+}
+
+return GameConfig
