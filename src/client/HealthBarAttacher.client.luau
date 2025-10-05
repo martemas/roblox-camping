@@ -72,6 +72,18 @@ local function setupHealthBarUpdates(healthBar: BillboardGui, model: Model, huma
 		if healthBarInner then
 			local healthPercent = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
 			healthBarInner.Size = UDim2.new(healthPercent, 0, 1, 0)
+
+			-- Update color based on health percentage
+			if healthPercent <= 0.25 then
+				-- Below 25% - Red
+				healthBarInner.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+			elseif healthPercent <= 0.5 then
+				-- Below 50% - Orange
+				healthBarInner.BackgroundColor3 = Color3.fromRGB(255, 165, 0)
+			else
+				-- Above 50% - Green
+				healthBarInner.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+			end
 		end
 	end
 
