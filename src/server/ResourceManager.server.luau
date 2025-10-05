@@ -3,6 +3,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
 
 local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("GameConfig"))
 local Types = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Types"))
@@ -509,10 +510,64 @@ local function startAutoMining(player: Player, node: ResourceNode)
 
 	local startPosition = hrp.Position
 
-	-- Make player face the resource node
+	-- Anchor HumanoidRootPart to prevent movement during rotation
+	local originalAnchored = hrp.Anchored
+	hrp.Anchored = true
+
+	-- Make player face the resource node with smooth rotation
 	local nodePosition = node.part.Position
 	local targetCFrame = CFrame.lookAt(hrp.Position, nodePosition)
-	hrp.CFrame = targetCFrame
+
+	-- Create tween for smooth rotation
+	local rotationTweenInfo = TweenInfo.new(
+		1, -- Duration: 0.3 seconds
+		Enum.EasingStyle.Quad, -- Smooth easing
+		Enum.EasingDirection.Out
+	)
+
+	local rotationTween = TweenService:Create(hrp, rotationTweenInfo, {
+		CFrame = targetCFrame
+	})
+
+	-- Monitor for player movement to cancel tween
+	local tweenCancelled = false
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	local moveConnection
+
+	if humanoid then
+		moveConnection = humanoid:GetPropertyChangedSignal("MoveDirection"):Connect(function()
+			if humanoid.MoveDirection.Magnitude > 0 then
+				tweenCancelled = true
+				rotationTween:Cancel()
+				hrp.Anchored = originalAnchored
+				if moveConnection then
+					moveConnection:Disconnect()
+				end
+			end
+		end)
+	end
+
+	rotationTween:Play()
+	rotationTween.Completed:Wait() -- Wait for rotation to complete before mining
+
+	-- Cleanup movement detection
+	if moveConnection then
+		moveConnection:Disconnect()
+	end
+
+	-- Unanchor HumanoidRootPart after tween
+	if not tweenCancelled then
+		hrp.Anchored = originalAnchored
+	end
+
+	-- If tween was cancelled by movement, exit early
+	if tweenCancelled then
+		-- Re-enable ProximityPrompt
+		if prompt then
+			prompt.Enabled = true
+		end
+		return
+	end
 
 	-- Create progress bar
 	local progressBar = createProgressBar(node)
