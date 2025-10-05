@@ -9,6 +9,13 @@ local CombatMode = {
 }
 
 local GameConfig = {
+	-- Gameplay Settings
+	gameplay = {
+		miningMode = "auto", -- "manual" or "auto"
+		miningInteraction = "hold", -- "tap" or "hold"
+		miningHoldDuration = 1.0, -- seconds (if hold mode)
+	},
+
 	-- Player Settings
 	player = {
 		maxHealth = 100,
@@ -26,28 +33,49 @@ local GameConfig = {
 		staminaRegenRate = 30, -- Per second while not sprinting
 	},
 
+	-- Tool Categories (for mining and combat)
+	toolCategories = {
+		Pickaxe = {"Pickaxe"},
+		Axe = {"Axe"},
+	},
+
 	-- Resource Settings
 	resources = {
 		Wood = {
-			nodesCount = 10,
-			hitsRequired = 3,
+			spawnMode = "random", -- "random" or "manual"
+			nodesCount = 10, -- Only used if spawnMode = "random"
+			hitsRequired = 3, -- Total mines before depleted
 			respawnTime = 30,
-			yieldPerHit = 1,
-			requiredTool = "Axe",
+			yieldPerMine = 1, -- Items given per successful mine
+			miningDuration = 3.0, -- Base seconds per auto-mine
+			requiredToolCategory = "Axe", -- Any tool in Axe category works
 		},
 		Stone = {
+			spawnMode = "random",
 			nodesCount = 6,
 			hitsRequired = 5,
 			respawnTime = 45,
-			yieldPerHit = 1,
-			requiredTool = "Pickaxe",
+			yieldPerMine = 2,
+			miningDuration = 4.0,
+			requiredToolCategory = "Pickaxe",
 		},
 		Metal = {
+			spawnMode = "random",
 			nodesCount = 3,
 			hitsRequired = 8,
 			respawnTime = 60,
-			yieldPerHit = 1,
-			requiredTool = "Pickaxe",
+			yieldPerMine = 1,
+			miningDuration = 5.0,
+			requiredToolCategory = "Pickaxe",
+		},
+		RockyHill = {
+			spawnMode = "manual", -- Must be placed manually in Studio
+			nodesCount = 0, -- Not spawned randomly
+			hitsRequired = 20,
+			respawnTime = 120,
+			yieldPerMine = 3,
+			miningDuration = 6.0,
+			requiredToolCategory = "Pickaxe",
 		},
 	},
 
@@ -285,18 +313,39 @@ local GameConfig = {
 
 	-- Tool Settings (for mining and resource gathering)
 	tools = {
-		Axe = {
-			miningEfficiency = 1.0,
-			canMine = {"Wood"},
+		-- Axes
+		BasicAxe = {
+			category = "Axe",
+			miningSpeed = 1.0, -- Base mining speed
 			swingCooldown = 0.2,
 			weaponRef = "Axe", -- References weapons.Axe for combat
 		},
-		Pickaxe = {
-			miningEfficiency = 1.0,
-			canMine = {"Stone", "Metal"},
+		SteelAxe = {
+			category = "Axe",
+			miningSpeed = 1.4, -- 40% faster mining
+			swingCooldown = 0.2,
+			weaponRef = "Axe",
+		},
+
+		-- Pickaxes
+		BasicPickaxe = {
+			category = "Pickaxe",
+			miningSpeed = 1.0, -- Base mining speed
 			swingCooldown = 0.5,
 			weaponRef = "Pickaxe", -- References weapons.Pickaxe for combat
-		}
+		},
+		SilverPickaxe = {
+			category = "Pickaxe",
+			miningSpeed = 1.3, -- 30% faster mining
+			swingCooldown = 0.4,
+			weaponRef = "Pickaxe",
+		},
+		GoldenPickaxe = {
+			category = "Pickaxe",
+			miningSpeed = 1.5, -- 50% faster mining
+			swingCooldown = 0.3,
+			weaponRef = "Pickaxe",
+		},
 	},
 
 	-- Combat System Settings

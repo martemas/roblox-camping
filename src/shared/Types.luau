@@ -6,9 +6,9 @@ local Stats = require(script.Parent:WaitForChild("Stats"))
 export type Stats = Stats.Stats
 export type DerivedStats = Stats.DerivedStats
 
-export type ResourceType = "Wood" | "Stone" | "Metal"
+export type ResourceType = "Wood" | "Stone" | "Metal" | "RockyHill"
 
-export type ToolType = "Axe" | "Pickaxe"
+export type ToolType = "BasicAxe" | "SteelAxe" | "BasicPickaxe" | "SilverPickaxe" | "GoldenPickaxe" | "Bow" | "MagicMissile" | "Fireball"
 
 export type WildlifeType = "Wolf" | "Bear"
 
@@ -73,6 +73,15 @@ export type PlayerTarget = {
 	player: Player,
 	targetModel: Model?,
 	lastUpdate: number,
+}
+
+export type MiningSession = {
+	player: Player,
+	resourceNode: ResourceNode,
+	startPosition: Vector3,
+	previousTool: ToolType?,
+	task: thread,
+	cancelled: boolean,
 }
 
 return {}

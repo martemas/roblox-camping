@@ -91,6 +91,11 @@ local RemoteEvents = {
 	LevelUpNotification = createRemoteEvent("LevelUpNotification"),  -- Server → Client: Notify level-up
 	XPUpdated = createRemoteEvent("XPUpdated"),                      -- Server → Client: Update XP bar
 	StatsUpdated = createRemoteEvent("StatsUpdated"),                -- Server → Client: Update stats panel
+
+	-- Mining System (Auto Mode)
+	MiningStarted = createRemoteEvent("MiningStarted"),              -- Server → Client: Mining started
+	MiningCancelled = createRemoteEvent("MiningCancelled"),          -- Server → Client: Mining cancelled
+	MiningCompleted = createRemoteEvent("MiningCompleted"),          -- Server → Client: Mining completed
 }
 
 -- Export RemoteFunctions
