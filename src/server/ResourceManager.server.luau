@@ -520,7 +520,7 @@ local function startAutoMining(player: Player, node: ResourceNode)
 
 	-- Create tween for smooth rotation
 	local rotationTweenInfo = TweenInfo.new(
-		1, -- Duration: 0.3 seconds
+		0.2, -- Duration: 0.2 seconds
 		Enum.EasingStyle.Quad, -- Smooth easing
 		Enum.EasingDirection.Out
 	)
