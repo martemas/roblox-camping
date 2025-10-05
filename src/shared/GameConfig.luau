@@ -11,7 +11,6 @@ local CombatMode = {
 local GameConfig = {
 	-- Gameplay Settings
 	gameplay = {
-		miningMode = "auto", -- "manual" or "auto"
 		miningInteraction = "hold", -- "tap" or "hold"
 		miningHoldDuration = 1.0, -- seconds (if hold mode)
 	},

@@ -130,27 +130,25 @@ local function createResourceNode(resourceType: ResourceType, position: vector):
 	-- TODO: Create HP indicator GUI when UI assets are ready
 	-- TODO: Add particle emitter when particle assets are ready
 
-	-- Add ProximityPrompt if auto mining mode
-	if GameConfig.gameplay.miningMode == "auto" then
-		local prompt = Instance.new("ProximityPrompt")
-		prompt.Name = "MiningPrompt"
-		prompt.ActionText = `Mine {resourceType}`
-		prompt.ObjectText = resourceType
-		prompt.KeyboardKeyCode = Enum.KeyCode.E
-		prompt.MaxActivationDistance = 10
+	-- Add ProximityPrompt for mining
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = "MiningPrompt"
+	prompt.ActionText = `Mine {resourceType}`
+	prompt.ObjectText = resourceType
+	prompt.KeyboardKeyCode = Enum.KeyCode.E
+	prompt.MaxActivationDistance = 10
 
-		-- Set hold duration based on config
-		if GameConfig.gameplay.miningInteraction == "tap" then
-			prompt.HoldDuration = 0
-		else
-			prompt.HoldDuration = GameConfig.gameplay.miningHoldDuration
-		end
-
-		prompt.RequiresLineOfSight = false
-		prompt.Parent = mainPart
-
-		print(`Created ProximityPrompt for {resourceType} node`) -- DEBUG
+	-- Set hold duration based on config
+	if GameConfig.gameplay.miningInteraction == "tap" then
+		prompt.HoldDuration = 0
+	else
+		prompt.HoldDuration = GameConfig.gameplay.miningHoldDuration
 	end
+
+	prompt.RequiresLineOfSight = false
+	prompt.Parent = mainPart
+
+	print(`Created ProximityPrompt for {resourceType} node`) -- DEBUG
 
 	resourceNodes[mainPart] = resourceNode
 	return resourceNode
@@ -286,12 +284,10 @@ local function showResourceNode(node: ResourceNode)
 		end
 	end
 
-	-- Show ProximityPrompt if in auto mode
-	if GameConfig.gameplay.miningMode == "auto" then
-		local prompt = node.part:FindFirstChild("MiningPrompt")
-		if prompt and prompt:IsA("ProximityPrompt") then
-			prompt.Enabled = true
-		end
+	-- Show ProximityPrompt
+	local prompt = node.part:FindFirstChild("MiningPrompt")
+	if prompt and prompt:IsA("ProximityPrompt") then
+		prompt.Enabled = true
 	end
 
 	print(`Showed {node.resourceType} node`) -- DEBUG
@@ -874,32 +870,30 @@ local function registerManualNodes()
 						part = mainPart,
 					}
 
-					-- Add ProximityPrompt if auto mode
-					if GameConfig.gameplay.miningMode == "auto" then
-						local prompt = Instance.new("ProximityPrompt")
-						prompt.Name = "MiningPrompt"
-						prompt.ActionText = `Mine {resourceType}`
-						prompt.ObjectText = resourceType
-						prompt.KeyboardKeyCode = Enum.KeyCode.E
-						prompt.MaxActivationDistance = 10
+					-- Add ProximityPrompt for mining
+					local prompt = Instance.new("ProximityPrompt")
+					prompt.Name = "MiningPrompt"
+					prompt.ActionText = `Mine {resourceType}`
+					prompt.ObjectText = resourceType
+					prompt.KeyboardKeyCode = Enum.KeyCode.E
+					prompt.MaxActivationDistance = 10
 
-						-- Set hold duration based on config
-						if GameConfig.gameplay.miningInteraction == "tap" then
-							prompt.HoldDuration = 0
-						else
-							prompt.HoldDuration = GameConfig.gameplay.miningHoldDuration
-						end
-
-						prompt.RequiresLineOfSight = false
-						prompt.Parent = mainPart
-
-						-- Connect ProximityPrompt event
-						prompt.Triggered:Connect(function(player)
-							startAutoMining(player, node)
-						end)
-
-						print(`Created ProximityPrompt for manual {resourceType} node`) -- DEBUG
+					-- Set hold duration based on config
+					if GameConfig.gameplay.miningInteraction == "tap" then
+						prompt.HoldDuration = 0
+					else
+						prompt.HoldDuration = GameConfig.gameplay.miningHoldDuration
 					end
+
+					prompt.RequiresLineOfSight = false
+					prompt.Parent = mainPart
+
+					-- Connect ProximityPrompt event
+					prompt.Triggered:Connect(function(player)
+						startAutoMining(player, node)
+					end)
+
+					print(`Created ProximityPrompt for manual {resourceType} node`) -- DEBUG
 
 					resourceNodes[mainPart] = node
 					print(`Registered manual node: {resourceType}`) -- DEBUG
@@ -913,10 +907,6 @@ end
 
 -- Connect ProximityPrompt.Triggered events for all nodes (called after spawning)
 local function connectProximityPrompts()
-	if GameConfig.gameplay.miningMode ~= "auto" then
-		return
-	end
-
 	for part, node in resourceNodes do
 		local prompt = part:FindFirstChild("MiningPrompt") :: ProximityPrompt?
 		if prompt then
