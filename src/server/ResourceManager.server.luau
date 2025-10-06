@@ -18,6 +18,7 @@ local resourceNodes: {[BasePart]: ResourceNode} = {}
 local playerInventories: {[Player]: Types.PlayerInventory} = {}
 local activeMiningTasks: {[Player]: Types.MiningSession} = {}
 
+local resourcesFolder = ReplicatedStorage:WaitForChild("Models"):WaitForChild("Resources")
 
 -- Initialize empty inventory for a player
 local function createEmptyInventory(): Types.PlayerInventory
@@ -67,16 +68,15 @@ end
 
 -- Create a resource node
 local function createResourceNode(resourceType: ResourceType, position: vector): ResourceNode?
-	local modelsFolder = ReplicatedStorage:FindFirstChild("Models")
-	if not modelsFolder then
-		warn("Models folder not found in ReplicatedStorage")
+	
+	if not resourcesFolder then
+		warn("Resources model folder not found in ReplicatedStorage")
 		return nil
 	end
 
-	local nodeModelName = resourceType .. "Node"
-	local nodeTemplate = modelsFolder:FindFirstChild(nodeModelName)
+	local nodeTemplate = resourcesFolder:FindFirstChild(resourceType)
 	if not nodeTemplate then
-		warn(`Resource node template '{nodeModelName}' not found in Models folder`)
+		warn(`Resource node template '{resourceType}' not found in Models folder`)
 		return nil
 	end
 
@@ -92,7 +92,7 @@ local function createResourceNode(resourceType: ResourceType, position: vector):
 		if firstPart then
 			firstPart.CFrame = CFrame.new(position)
 		else
-			warn(`No BasePart found in {nodeModelName} model for positioning`)
+			warn(`No BasePart found in {resourceType} model for positioning`)
 			nodeModel:Destroy()
 			return nil
 		end
@@ -101,7 +101,7 @@ local function createResourceNode(resourceType: ResourceType, position: vector):
 	-- Find the main part for the resource node
 	local mainPart = nodeModel.PrimaryPart or nodeModel:FindFirstChildOfClass("BasePart")
 	if not mainPart then
-		warn(`No BasePart found in {nodeModelName}`)
+		warn(`No BasePart found in {resourceType}`)
 		nodeModel:Destroy()
 		return nil
 	end
@@ -116,16 +116,15 @@ local function createResourceNode(resourceType: ResourceType, position: vector):
 	}
 
 	-- Set generic entity attributes for tool interaction system
-	local entityNodeName = resourceType .. "Node"
-	local entityConfig = GameConfig.entities[entityNodeName]
+	local entityConfig = GameConfig.resources[resourceType]
+	print(`Entity config for {resourceType}: {entityConfig}`) -- DEBUG
 	if entityConfig then
-		nodeModel:SetAttribute("EntityType", entityNodeName)
-		nodeModel:SetAttribute("EntityCategory", entityConfig.category)
-		nodeModel:SetAttribute("CanTakeDamage", entityConfig.canTakeDamage)
-		nodeModel:SetAttribute("MaxHealth", entityConfig.health)
-		nodeModel:SetAttribute("CurrentHealth", entityConfig.health)
+		nodeModel:SetAttribute("EntityType", resourceType :: ResourceType)
+		print("**** setting entity category to resource ****")
+		nodeModel:SetAttribute("EntityCategory", "resource" :: Types.EntityCategory)
+		print(`Set attributes for {resourceType} node: EntityType={resourceType}, EntityCategory=resource`)
 	else
-		warn(`No entity configuration found for {entityNodeName}`)
+		warn(`No entity configuration found for {resourceType}`)
 	end
 
 	-- TODO: Create HP indicator GUI when UI assets are ready

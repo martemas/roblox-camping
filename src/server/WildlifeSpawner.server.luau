@@ -23,7 +23,7 @@ local function onWildlifeDied(wildlife: WildlifeEntity)
 	print(`{wildlife.wildlifeType} died`)
 
 	-- TODO: Create drop items when item system is ready
-	local config = GameConfig.wildlife[wildlife.wildlifeType]
+	local config = GameConfig.entities[wildlife.wildlifeType]
 	for _, dropType in pairs(config.drops) do
 		print(`Would drop: {dropType}`)
 		-- Create drop item at wildlife position
@@ -82,7 +82,7 @@ local function createWildlife(wildlifeType: WildlifeType, position: vector): Wil
 		return nil
 	end
 
-	local config = GameConfig.wildlife[wildlifeType]
+	local config = GameConfig.entities[wildlifeType]
 	humanoid.MaxHealth = config.health
 	humanoid.Health = config.health
 	humanoid.WalkSpeed = config.walkSpeed
@@ -153,7 +153,7 @@ local function _updateWildlifeAI(wildlife: WildlifeEntity)
 		return
 	end
 
-	local config = GameConfig.wildlife[wildlife.wildlifeType]
+	local config = GameConfig.entities[wildlife.wildlifeType]
 	local primaryPart = wildlife.model.PrimaryPart
 	if not primaryPart then
 		return
@@ -236,7 +236,7 @@ local function checkWildlifeSpawning()
 	end
 	lastSpawnCheck = currentTime
 
-	for wildlifeType, config in pairs(GameConfig.wildlife) do
+	for wildlifeType, config in pairs(GameConfig.entities) do
 		local currentCount = 0
 		for _, wildlife in pairs(activeWildlife) do
 			if wildlife.wildlifeType == wildlifeType then
@@ -245,7 +245,7 @@ local function checkWildlifeSpawning()
 		end
 
 		-- Spawn more if below maximum
-		local neededCount = config.maxCount - currentCount
+		local neededCount = GameConfig.wildlife.maxActive - currentCount
 		for i = 1, neededCount do
 			spawnWildlifeAtRandomLocation(wildlifeType :: WildlifeType)
 		end

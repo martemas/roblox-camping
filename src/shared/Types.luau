@@ -6,13 +6,15 @@ local Stats = require(script.Parent:WaitForChild("Stats"))
 export type Stats = Stats.Stats
 export type DerivedStats = Stats.DerivedStats
 
-export type ResourceType = "Wood" | "Stone" | "Metal" | "RockyHill"
+export type EntityCategory = "resource" | "building" | "wildlife" | "creature" | "npc" | "player"
+
+export type ResourceType = "Wood" | "Stone" | "Metal" | "Rock" | "Gem"
 
 export type ToolType = "BasicAxe" | "SteelAxe" | "BasicPickaxe" | "SilverPickaxe" | "GoldenPickaxe" | "Bow" | "MagicMissile" | "Fireball"
 
 export type WildlifeType = "Wolf" | "Bear"
 
-export type EnemyType = "Zombie"
+export type CreatureType = "Zombie"
 
 export type GamePhase = "Day" | "Night" | "Transition"
 
@@ -40,8 +42,8 @@ export type WildlifeEntity = {
 	lastAttackTime: number,
 }
 
-export type EnemyEntity = {
-	enemyType: EnemyType,
+export type CreatureEntity = {
+	creatureType: CreatureType,
 	model: Model,
 	humanoid: Humanoid,
 	health: number,

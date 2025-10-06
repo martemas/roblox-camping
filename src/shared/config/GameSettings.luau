@@ -32,6 +32,12 @@ local GameSettings = {
 		staminaRegenRate = 30, -- Per second while not sprinting
 	},
 
+	-- Wildlife Settings
+	wildlife = {
+		maxActive = 20, -- Max total wildlife in world
+		respawnInterval = 10, -- Seconds between spawn attempts
+	},
+
 	-- Combat System Settings
 	combat = {
 		-- Combat Mode

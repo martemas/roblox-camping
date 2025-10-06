@@ -137,10 +137,10 @@ local function startPhase(newPhase: GamePhase)
 		-- Signal enemy spawner to start spawning
 		task.spawn(function()
 			-- Wait for EnemySpawner to be available in global scope
-			while not _G.EnemySpawner do
+			while not _G.CreatureSpawner do
 				task.wait(0.1)
 			end
-			_G.EnemySpawner.StartNightWave()
+			_G.CreatureSpawner.StartNightWave()
 		end)
 	end
 end

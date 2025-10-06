@@ -71,13 +71,8 @@ end
 -- Get entity configuration from GameConfig
 local function getEntityConfig(entityType: string)
 	-- First check wildlife
-	if GameConfig.wildlife[entityType] then
-		return GameConfig.wildlife[entityType]
-	end
-
-	-- Then check enemies
-	if GameConfig.enemies[entityType] then
-		return GameConfig.enemies[entityType]
+	if GameConfig.entities[entityType] then
+		return GameConfig.entities[entityType]
 	end
 
 	return nil
@@ -85,7 +80,7 @@ end
 
 -- Load animations for an entity from GameConfig
 local function loadAnimations(entity: EntityInstance)
-	local config = getEntityConfig(entity.entityType)
+	local config = GameConfig.entities[entity.entityType]
 	if not config or not config.animations then
 		return
 	end

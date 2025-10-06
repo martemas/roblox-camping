@@ -41,7 +41,7 @@ local function waitForSystems()
 		"InventoryManager",
 		"TownhallManager",
 		"DayNightCycle",
-		"EnemySpawner"
+		"CreatureSpawner"
 	}
 
 	for _, systemName in pairs(systems) do

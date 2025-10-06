@@ -1,10 +1,15 @@
 --!strict
+local SpawnMode = {
+	manual = "manual",
+	random = "random",
+}
 
 local ResourcesConfig = {
 	-- Resource Settings
 	resources = {
 		Wood = {
-			spawnMode = "random", -- "random" or "manual"
+			name = "Small Tree",
+			spawnMode = SpawnMode.random, -- "random" or "manual"
 			nodesCount = 10, -- Only used if spawnMode = "random"
 			hitsRequired = 3, -- Total mines before depleted
 			respawnTime = 30,
@@ -13,7 +18,8 @@ local ResourcesConfig = {
 			requiredToolCategory = "Axe", -- Any tool in Axe category works
 		},
 		Stone = {
-			spawnMode = "random",
+			name = "Stone",
+			spawnMode = SpawnMode.random,
 			nodesCount = 6,
 			hitsRequired = 5,
 			respawnTime = 45,
@@ -22,7 +28,8 @@ local ResourcesConfig = {
 			requiredToolCategory = "Pickaxe",
 		},
 		Metal = {
-			spawnMode = "random",
+			name = "Metal Ore",
+			spawnMode = SpawnMode.random,
 			nodesCount = 3,
 			hitsRequired = 8,
 			respawnTime = 60,
@@ -30,8 +37,9 @@ local ResourcesConfig = {
 			miningDuration = 5.0,
 			requiredToolCategory = "Pickaxe",
 		},
-		RockyHill = {
-			spawnMode = "manual", -- Must be placed manually in Studio
+		Gem = {
+			name = "Gem Mine",
+			spawnMode = SpawnMode.manual, -- Must be placed manually in Studio
 			nodesCount = 0, -- Not spawned randomly
 			hitsRequired = 20,
 			respawnTime = 120,

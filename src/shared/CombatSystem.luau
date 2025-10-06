@@ -145,16 +145,9 @@ end
 
 -- Get entity's weapon (for wildlife/enemies)
 function CombatSystem.getEntityWeapon(entityType: string): string?
-	-- Check wildlife
-	local wildlifeConfig = GameConfig.wildlife[entityType]
-	if wildlifeConfig and wildlifeConfig.primaryWeapon then
-		return wildlifeConfig.primaryWeapon
-	end
-
-	-- Check enemies
-	local enemyConfig = GameConfig.enemies[entityType]
-	if enemyConfig and enemyConfig.primaryWeapon then
-		return enemyConfig.primaryWeapon
+	local entityConfig = GameConfig.entities[entityType]
+	if entityConfig and entityConfig.primaryWeapon then
+		return entityConfig.primaryWeapon
 	end
 
 	return nil

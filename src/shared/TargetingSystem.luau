@@ -40,16 +40,7 @@ local function isTargetable(model: Model): boolean
 	end
 
 	-- Check if entity exists in GameConfig
-	local config = nil
-	if entityCategory == "wildlife" and GameConfig.wildlife[entityType] then
-		config = GameConfig.wildlife[entityType]
-	elseif entityCategory == "enemy" and GameConfig.enemies[entityType] then
-		config = GameConfig.enemies[entityType]
-	elseif entityCategory == "resource" and GameConfig.entities[entityType] then
-		config = GameConfig.entities[entityType]
-	elseif entityCategory == "building" and GameConfig.entities[entityType] then
-		config = GameConfig.entities[entityType]
-	end
+	local config = GameConfig.entities[entityType] or GameConfig.resources[entityType] or GameConfig.buildings[entityType]
 
 	return config ~= nil
 end
@@ -112,23 +103,23 @@ local function getTargetInfo(model: Model, playerPosition: vector?): TargetInfo?
 
 	-- Get configuration-based stats
 	local damage, walkSpeed, runSpeed = nil, nil, nil
-	if entityCategory == "wildlife" and GameConfig.wildlife[entityType] then
-		local config = GameConfig.wildlife[entityType]
-		local weaponConfig = GameConfig.weapons[config.primaryWeapon]
-		damage = weaponConfig and weaponConfig.damage or nil
-		walkSpeed = config.walkSpeed
-		runSpeed = config.runSpeed
-	elseif entityCategory == "enemy" and GameConfig.enemies[entityType] then
-		local config = GameConfig.enemies[entityType]
-		local weaponConfig = GameConfig.weapons[config.primaryWeapon]
-		damage = weaponConfig and weaponConfig.damage or nil
-		walkSpeed = config.walkSpeed
-		runSpeed = config.runSpeed
-	elseif entityCategory == "player" then
+
+	if entityCategory == ("player" :: Types.EntityCategory) then
 		-- For players, damage depends on equipped weapon
 		damage = nil -- Not static for players
 		walkSpeed = GameConfig.player.walkSpeed
 		runSpeed = GameConfig.player.sprintSpeed
+	elseif entityCategory == ("resource" :: Types.EntityCategory) or entityCategory == ("building" :: Types.EntityCategory) then
+		-- Resources and buildings have no damage or speed
+		damage = nil
+		walkSpeed = 0
+		runSpeed = 0
+	else
+		local config = GameConfig.entities[entityType]
+		local weaponConfig = GameConfig.weapons[config.primaryWeapon]
+		damage = weaponConfig and weaponConfig.damage or nil
+		walkSpeed = config.walkSpeed
+		runSpeed = config.runSpeed
 	end
 
 	-- Get current state from model attribute (set by EntityController)

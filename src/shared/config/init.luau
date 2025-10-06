@@ -8,9 +8,8 @@ local DayNightCycleConfig = require(script.DayNightCycleConfig)
 local WeaponsConfig = require(script.WeaponsConfig)
 local ToolsConfig = require(script.ToolsConfig)
 local ResourcesConfig = require(script.ResourcesConfig)
-local WildlifeConfig = require(script.WildlifeConfig)
-local EnemiesConfig = require(script.EnemiesConfig)
 local EntitiesConfig = require(script.EntitiesConfig)
+local BuildingsConfig = require(script.BuildingsConfig)
 local ShopConfig = require(script.ShopConfig)
 
 -- Export CombatMode type for external use
@@ -19,6 +18,7 @@ export type CombatMode = GameSettings.CombatMode
 local GameConfig = {
 	-- Core Framework Settings
 	gameplay = GameSettings.gameplay,
+	wildlife = GameSettings.wildlife,
 	player = GameSettings.player,
 	combat = GameSettings.combat,
 	targeting = GameSettings.targeting,
@@ -35,9 +35,8 @@ local GameConfig = {
 	toolCategories = ToolsConfig.toolCategories,
 	tools = ToolsConfig.tools,
 	resources = ResourcesConfig.resources,
-	wildlife = WildlifeConfig.wildlife,
-	enemies = EnemiesConfig.enemies,
 	entities = EntitiesConfig.entities,
+	buildings = BuildingsConfig.buildings,
 	shop = ShopConfig.shop,
 }
 
