@@ -26,7 +26,7 @@ local EntitiesConfig = {
 			},
 			maxCount = 5,
 			canTakeDamage = true,
-			manager = "EntitySpawner", -- Which manager handles this entity
+			-- manager = "EntitySpawner", -- Which manager handles this entity
 		},
 		Bear = {
 			category = "wildlife",
@@ -48,11 +48,11 @@ local EntitiesConfig = {
 			},
 			maxCount = 3,
 			canTakeDamage = true,
-			manager = "EntitySpawner",
+			-- manager = "EntitySpawner",
 		},
 		-- Enemies
 		Zombie = {
-			category = "enemy",
+			category = "creature",
 			health = 50,
 			walkSpeed = 8,
 			runSpeed = 12,
@@ -73,7 +73,7 @@ local EntitiesConfig = {
 				attack = "rbxassetid://83719559878946",
 			},
 			canTakeDamage = true,
-			manager = "EntitySpawner",
+			-- manager = "EntitySpawner",
 		},
 	},
 }

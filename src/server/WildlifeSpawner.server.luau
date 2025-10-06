@@ -148,71 +148,71 @@ local function findNearestPlayer(position: vector, maxDistance: number?): Player
 end
 
 -- Update wildlife AI behavior
-local function _updateWildlifeAI(wildlife: WildlifeEntity)
-	if not wildlife.model.Parent or wildlife.humanoid.Health <= 0 then
-		return
-	end
+-- local function _updateWildlifeAI(wildlife: WildlifeEntity)
+-- 	if not wildlife.model.Parent or wildlife.humanoid.Health <= 0 then
+-- 		return
+-- 	end
 
-	local config = GameConfig.entities[wildlife.wildlifeType]
-	local primaryPart = wildlife.model.PrimaryPart
-	if not primaryPart then
-		return
-	end
-	local position = primaryPart.Position
+-- 	local config = GameConfig.entities[wildlife.wildlifeType]
+-- 	local primaryPart = wildlife.model.PrimaryPart
+-- 	if not primaryPart then
+-- 		return
+-- 	end
+-- 	local position = primaryPart.Position
 
-	-- Check for nearby players
-	local nearestPlayer = findNearestPlayer(position, config.aggroRange)
+-- 	-- Check for nearby players
+-- 	local nearestPlayer = findNearestPlayer(position, config.aggroRange)
 
-	if nearestPlayer and nearestPlayer.Character then
-		-- Player in aggro range - become aggressive
-		if not wildlife.isAggro then
-			wildlife.isAggro = true
-			wildlife.target = nearestPlayer
-			print(`{wildlife.wildlifeType} is now aggressive toward {nearestPlayer.Name}`)
-		end
+-- 	if nearestPlayer and nearestPlayer.Character then
+-- 		-- Player in aggro range - become aggressive
+-- 		if not wildlife.isAggro then
+-- 			wildlife.isAggro = true
+-- 			wildlife.target = nearestPlayer
+-- 			print(`{wildlife.wildlifeType} is now aggressive toward {nearestPlayer.Name}`)
+-- 		end
 
-		-- Attack if close enough and not on cooldown
-		local targetPrimaryPart = nearestPlayer.Character.PrimaryPart
-		if not targetPrimaryPart then
-			return
-		end
-		local targetPosition = targetPrimaryPart.Position
-		local distance = (position - targetPosition).Magnitude
+-- 		-- Attack if close enough and not on cooldown
+-- 		local targetPrimaryPart = nearestPlayer.Character.PrimaryPart
+-- 		if not targetPrimaryPart then
+-- 			return
+-- 		end
+-- 		local targetPosition = targetPrimaryPart.Position
+-- 		local distance = (position - targetPosition).Magnitude
 
-		if distance <= 8 and tick() - wildlife.lastAttackTime >= 2 then
-			-- Attack the player
-			local damage = config.damage
-			RemoteEvents.Events.TakeDamage:FireClient(nearestPlayer, damage, wildlife.wildlifeType)
-			wildlife.lastAttackTime = tick()
+-- 		if distance <= 8 and tick() - wildlife.lastAttackTime >= 2 then
+-- 			-- Attack the player
+-- 			local damage = config.damage
+-- 			RemoteEvents.Events.TakeDamage:FireClient(nearestPlayer, damage, wildlife.wildlifeType)
+-- 			wildlife.lastAttackTime = tick()
 
-			print(`{wildlife.wildlifeType} attacked {nearestPlayer.Name} for {damage} damage`)
+-- 			print(`{wildlife.wildlifeType} attacked {nearestPlayer.Name} for {damage} damage`)
 
-			-- TODO: Play attack animation when animation assets are ready
-			-- TODO: Play attack sound when sound assets are ready
-		else
-			-- Move toward the player
-			wildlife.humanoid:MoveTo(targetPosition)
-		end
+-- 			-- TODO: Play attack animation when animation assets are ready
+-- 			-- TODO: Play attack sound when sound assets are ready
+-- 		else
+-- 			-- Move toward the player
+-- 			wildlife.humanoid:MoveTo(targetPosition)
+-- 		end
 
-	else
-		-- No players nearby - return to wandering
-		if wildlife.isAggro then
-			wildlife.isAggro = false
-			wildlife.target = nil
-			print(`{wildlife.wildlifeType} is no longer aggressive`)
-		end
+-- 	else
+-- 		-- No players nearby - return to wandering
+-- 		if wildlife.isAggro then
+-- 			wildlife.isAggro = false
+-- 			wildlife.target = nil
+-- 			print(`{wildlife.wildlifeType} is no longer aggressive`)
+-- 		end
 
-		-- Random wandering behavior
-		if (wildlife.humanoid.MoveToFinished:Wait() or math.random() < 0.1) then
-			local wanderRange = 50
-			local randomX = position.X + math.random(-wanderRange, wanderRange)
-			local randomZ = position.Z + math.random(-wanderRange, wanderRange)
-			local wanderTarget = vector.create(randomX, position.Y, randomZ)
+-- 		-- Random wandering behavior
+-- 		if (wildlife.humanoid.MoveToFinished:Wait() or math.random() < 0.1) then
+-- 			local wanderRange = 50
+-- 			local randomX = position.X + math.random(-wanderRange, wanderRange)
+-- 			local randomZ = position.Z + math.random(-wanderRange, wanderRange)
+-- 			local wanderTarget = vector.create(randomX, position.Y, randomZ)
 
-			wildlife.humanoid:MoveTo(wanderTarget)
-		end
-	end
-end
+-- 			wildlife.humanoid:MoveTo(wanderTarget)
+-- 		end
+-- 	end
+-- end
 
 -- Spawn wildlife at a random location
 function spawnWildlifeAtRandomLocation(wildlifeType: WildlifeType)
@@ -238,6 +238,10 @@ local function checkWildlifeSpawning()
 
 	for wildlifeType, config in pairs(GameConfig.entities) do
 		local currentCount = 0
+		if config.category ~= "wildlife" then
+			continue
+		end
+		
 		for _, wildlife in pairs(activeWildlife) do
 			if wildlife.wildlifeType == wildlifeType then
 				currentCount += 1

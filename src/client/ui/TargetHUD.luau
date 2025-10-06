@@ -166,7 +166,7 @@ local function createTargetHUDGui(playerGui: PlayerGui): ScreenGui
 	typeLabel.Size = UDim2.new(0.5, -5, 0, 20)
 	typeLabel.Position = UDim2.new(0.5, 5, 0, 25)
 	typeLabel.BackgroundTransparency = 1
-	typeLabel.Text = "Type: Enemy"
+	typeLabel.Text = "Type: Hostile"
 	typeLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 	typeLabel.TextScaled = true
 	typeLabel.Font = Enum.Font.SourceSans
