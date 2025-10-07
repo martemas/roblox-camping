@@ -212,7 +212,7 @@ local UIConfig = {
 		font = Enum.Font.PermanentMarker,
 
 		-- Resource types to display
-		resourceTypes = {"Wood", "Stone", "Metal"},
+		resourceTypes = {"Food", "Gem"},
 	},
 
 	--[[

@@ -44,7 +44,7 @@ local GameSettings = {
 		combatMode = CombatMode.TACTICAL, -- ACTION = can attack without target, TACTICAL = must select target
 
 		-- Hit Detection Mode
-		damageTargetOnly = true, -- false = hit all entities in range, true = only hit targeted entity
+		damageTargetOnly = false, -- false = hit all entities in range, true = only hit targeted entity
 
 		-- Auto-Aim System (applies to projectile AND hitscan)
 		autoAim = true, -- true = aim at locked target automatically, false = free-aim (aim direction)
@@ -56,7 +56,7 @@ local GameSettings = {
 		invulnerabilityDuration = 0.5, -- Seconds of immunity per weapon type
 
 		-- Directional Combat
-		requireFacingForDamage = true, -- Must be facing target to deal damage
+		requireFacingForDamage = false, -- Must be facing target to deal damage
 		facingAngleDegrees = 210, -- Total cone angle (180 = full front hemisphere, 120 = narrow cone)
 		showFacingIndicator = true, -- Show visual feedback in target HUD
 

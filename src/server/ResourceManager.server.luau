@@ -6,12 +6,13 @@ local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 
 local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("config"))
+local ResourcesConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("config"):WaitForChild("ResourcesConfig"))
 local Types = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Types"))
 local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RemoteEvents"))
 local Utils = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Utils"))
 
 type ResourceNode = Types.ResourceNode
-type ResourceType = Types.ResourceType
+type ResourceType = ResourcesConfig.ResourceType
 
 local ResourceManager = {}
 local resourceNodes: {[BasePart]: ResourceNode} = {}
@@ -22,11 +23,14 @@ local resourcesFolder = ReplicatedStorage:WaitForChild("Models"):WaitForChild("R
 
 -- Initialize empty inventory for a player
 local function createEmptyInventory(): Types.PlayerInventory
-	return {
-		Wood = 0,
-		Stone = 0,
-		Metal = 0,
-	}
+	-- iterate over each resource type in GameConfig.resourceTypes and set amount to 0
+	local resources = {}
+	for _, resourceType in pairs(GameConfig.Types.ResourceTypes) do
+		-- This loop is just to ensure all resource types are included
+		resources[resourceType] = 0
+	end
+	
+	return resources :: Types.PlayerInventory
 end
 
 -- Get player's current inventory count
@@ -117,12 +121,12 @@ local function createResourceNode(resourceType: ResourceType, position: vector):
 
 	-- Set generic entity attributes for tool interaction system
 	local entityConfig = GameConfig.resources[resourceType]
-	print(`Entity config for {resourceType}: {entityConfig}`) -- DEBUG
+	
 	if entityConfig then
 		nodeModel:SetAttribute("EntityType", resourceType :: ResourceType)
 		print("**** setting entity category to resource ****")
-		nodeModel:SetAttribute("EntityCategory", "resource" :: Types.EntityCategory)
-		print(`Set attributes for {resourceType} node: EntityType={resourceType}, EntityCategory=resource`)
+		nodeModel:SetAttribute("EntityCategory", GameConfig.Types.EntityCategories.Resource)
+		print(`Set attributes for {resourceType} node: EntityType={resourceType}`)
 	else
 		warn(`No entity configuration found for {resourceType}`)
 	end
@@ -645,8 +649,13 @@ local function startAutoMining(player: Player, node: ResourceNode)
 			local progressPercent = math.floor(progress * 100)
 
 			if progressBar and progressBar.Parent then
-				local bar = progressBar:FindFirstChild("Background"):FindFirstChild("Bar") :: Frame?
-				local text = progressBar:FindFirstChild("Background"):FindFirstChild("Text") :: TextLabel?
+				local background = progressBar:FindFirstChild("Background")
+				local bar: Frame? = nil
+				local text: TextLabel? = nil
+				if background then
+					bar = background:FindFirstChild("Bar") :: Frame?
+					text = background:FindFirstChild("Text") :: TextLabel?
+				end
 				if bar then
 					bar.Size = UDim2.new(progress, 0, 1, 0)
 				end
@@ -812,7 +821,7 @@ function ResourceManager.GetInventoryCount(player: Player): number
 end
 
 -- Handle tool hit on resource node (called from ToolManager)
-function ResourceManager.HandleToolHit(player: Player, hitPart: BasePart, resourceType: Types.ResourceType)
+function ResourceManager.HandleToolHit(player: Player, hitPart: BasePart, resourceType: ResourceType)
 	print(`HandleToolHit called for {player.Name} hitting {resourceType}`) -- DEBUG
 
 	-- Find the resource node
@@ -908,9 +917,13 @@ end
 -- Register manually placed resource nodes (e.g., RockyHill)
 local function registerManualNodes()
 	-- Scan workspace for manually placed resource nodes
-	for _, model in workspace:GetDescendants() do
-		if model:IsA("Model") and model:GetAttribute("ResourceType") then
-			local resourceType = model:GetAttribute("ResourceType") :: ResourceType
+	-- Scan for Models under workspace folder called 'Resources'
+	local resourcesFolder = workspace:FindFirstChild("Resources")
+
+	for _, model in resourcesFolder:GetChildren() do
+		
+		if model:IsA("Model") and model:GetAttribute("EntityType") then
+			local resourceType : ResourceType = model:GetAttribute("EntityType") :: ResourceType
 			local config = GameConfig.resources[resourceType]
 
 			if config and config.spawnMode == "manual" then
@@ -923,7 +936,9 @@ local function registerManualNodes()
 						isActive = true,
 						part = mainPart,
 					}
-
+					
+					model:SetAttribute("EntityCategory", GameConfig.Types.EntityCategories.Resource)
+					
 					-- Add ProximityPrompt for mining
 					local prompt = Instance.new("ProximityPrompt")
 					prompt.Name = "MiningPrompt"
@@ -943,16 +958,17 @@ local function registerManualNodes()
 					prompt.Parent = mainPart
 
 					-- Connect ProximityPrompt event
-					prompt.Triggered:Connect(function(player)
-						startAutoMining(player, node)
-					end)
+					-- prompt.Triggered:Connect(function(player)
+					-- 	startAutoMining(player, node)
+					-- end)
 
 					print(`Created ProximityPrompt for manual {resourceType} node`) -- DEBUG
 
 					resourceNodes[mainPart] = node
+					
 					print(`Registered manual node: {resourceType}`) -- DEBUG
 				else
-					warn(`Manual {resourceType} node has no BasePart`)
+					error(`Manual {resourceType} node has no BasePart`)
 				end
 			end
 		end

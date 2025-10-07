@@ -88,8 +88,8 @@ local function getTargetInfo(model: Model, playerPosition: vector?): TargetInfo?
 	local modelPosition = nil
 	local primaryPart = model.PrimaryPart or model:FindFirstChildOfClass("BasePart")
 	if primaryPart and playerPosition then
-		modelPosition = primaryPart.Position
-		distance = (modelPosition - playerPosition).Magnitude
+		modelPosition = vector.create(primaryPart.Position.X, primaryPart.Position.Y, primaryPart.Position.Z)
+		distance = vector.magnitude(modelPosition - playerPosition)
 	end
 
 	-- Get health information
@@ -104,12 +104,12 @@ local function getTargetInfo(model: Model, playerPosition: vector?): TargetInfo?
 	-- Get configuration-based stats
 	local damage, walkSpeed, runSpeed = nil, nil, nil
 
-	if entityCategory == ("player" :: Types.EntityCategory) then
+	if entityCategory == GameConfig.Types.EntityCategories.Player then
 		-- For players, damage depends on equipped weapon
 		damage = nil -- Not static for players
 		walkSpeed = GameConfig.player.walkSpeed
 		runSpeed = GameConfig.player.sprintSpeed
-	elseif entityCategory == ("resource" :: Types.EntityCategory) or entityCategory == ("building" :: Types.EntityCategory) then
+	elseif entityCategory == GameConfig.Types.EntityCategories.Resource or entityCategory == GameConfig.Types.EntityCategories.Building then
 		-- Resources and buildings have no damage or speed
 		damage = nil
 		walkSpeed = 0
@@ -123,7 +123,7 @@ local function getTargetInfo(model: Model, playerPosition: vector?): TargetInfo?
 	end
 
 	-- Get current state from model attribute (set by EntityController)
-	local state = model:GetAttribute("EntityState") or "unknown"
+	local state = (model:GetAttribute("EntityState") :: string) or "unknown"
 
 	return {
 		model = model,

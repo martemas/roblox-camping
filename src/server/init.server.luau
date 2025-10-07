@@ -54,6 +54,8 @@ end
 
 waitForSystems()
 
+print("All systems initialized. Server is ready.")
+
 -- TODO: Initialize additional systems as they are added
 -- - Building system
 -- - Leaderboard system

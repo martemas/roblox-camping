@@ -4,21 +4,27 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 
 local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("config"))
+local ResourcesConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("config"):WaitForChild("ResourcesConfig"))
 local Types = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Types"))
 local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RemoteEvents"))
 
 type PlayerInventory = Types.PlayerInventory
-type ResourceType = Types.ResourceType
+type ResourceType = ResourcesConfig.ResourceType
 
 local InventoryManager = {}
 local playerInventories: {[Player]: PlayerInventory} = {}
 
 -- Initialize empty inventory
 local function createEmptyInventory(): PlayerInventory
+	-- for each resource type, set amount to 0
+	for _, resourceType in pairs(ResourcesConfig.Types :: {ResourceType}) do
+		-- This loop is just to ensure all resource types are included
+	end
 	return {
 		Wood = 0,
 		Stone = 0,
 		Metal = 0,
+		Gem = 0,
 	}
 end
 
@@ -83,11 +89,11 @@ local function clearInventory(player: Player): PlayerInventory?
 	local clearedInventory = {}
 	for resourceType, amount in pairs(inventory) do
 		clearedInventory[resourceType] = amount
-		inventory[resourceType] = 0
+		inventory[resourceType :: ResourceType] = 0
 	end
 
 	RemoteEvents.Events.UpdateInventory:FireClient(player, inventory)
-	return clearedInventory
+	return clearedInventory :: PlayerInventory
 end
 
 -- Initialize player inventory when they join

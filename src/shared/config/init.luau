@@ -34,10 +34,20 @@ local GameConfig = {
 	weapons = WeaponsConfig.weapons,
 	toolCategories = ToolsConfig.toolCategories,
 	tools = ToolsConfig.tools,
-	resources = ResourcesConfig.resources,
-	entities = EntitiesConfig.entities,
+	resources = ResourcesConfig.Resources,
+	entities = EntitiesConfig.Entities,
 	buildings = BuildingsConfig.buildings,
 	shop = ShopConfig.shop,
 }
+
+GameConfig.Types = {
+	-- CombatMode = GameSettings.CombatMode,
+	ResourceTypes = ResourcesConfig.Types,
+	EntityCategories = EntitiesConfig.Categories,
+	-- ToolType = ToolsConfig.ToolType,
+	-- WildlifeType = EntitiesConfig.WildlifeType,
+	-- CreatureType = EntitiesConfig.CreatureType,
+}
+
 
 return GameConfig

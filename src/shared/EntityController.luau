@@ -180,7 +180,11 @@ local function repositionForClearShot(entity: EntityInstance, target: Player)
 	end
 
 	local entityPos = entity.humanoidRootPart.Position
+	local entityVector = vector.create(entityPos.X, entityPos.Y, entityPos.Z)
+	
 	local targetPos = target.Character.HumanoidRootPart.Position
+	local targetVector = vector.create(targetPos.X, targetPos.Y, targetPos.Z)
+
 	local toTarget = (targetPos - entityPos).Unit
 
 	-- Calculate perpendicular directions (left and right)
@@ -189,12 +193,12 @@ local function repositionForClearShot(entity: EntityInstance, target: Player)
 
 	-- Test both sidestep positions
 	local sideStepDist = 8
-	local leftPos = entityPos + (leftDir * sideStepDist)
-	local rightPos = entityPos + (rightDir * sideStepDist)
+	local leftPos = entityVector + (leftDir * sideStepDist)
+	local rightPos = entityVector + (rightDir * sideStepDist)
 
 	-- Check which side gives clearer LOS
-	local leftLOS = ProjectileLOS.validatePath(leftPos, targetPos, entity.model)
-	local rightLOS = ProjectileLOS.validatePath(rightPos, targetPos, entity.model)
+	local leftLOS = ProjectileLOS.validatePath(leftPos, targetVector, entity.model)
+	local rightLOS = ProjectileLOS.validatePath(rightPos, targetVector, entity.model)
 
 	-- Pick best direction
 	local moveDir
@@ -209,7 +213,7 @@ local function repositionForClearShot(entity: EntityInstance, target: Player)
 
 	-- Calculate new goal position
 	local moveDistance = math.random(5, 10)
-	local newGoal = entityPos + (moveDir * moveDistance)
+	local newGoal = entityVector + (moveDir * moveDistance)
 
 	-- Move toward new position (simple approach, no pathfinding)
 	entity.humanoid:MoveTo(newGoal)
@@ -627,7 +631,7 @@ function EntityController.initializeEntity(model: Model, entityType: string): En
 	end
 
 	-- Get level from model attribute (defaults to 1)
-	local level = model:GetAttribute("Level") or 1
+	local level = (model:GetAttribute("Level") :: number) or 1
 
 	-- Get base stats from config or use defaults
 	local baseStats = config.baseStats or {

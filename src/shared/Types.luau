@@ -1,14 +1,14 @@
 --!strict
+local Types = {}
 
 local Stats = require(script.Parent:WaitForChild("Stats"))
+
+local ResoucesConfig = require(script.Parent:WaitForChild("config"):WaitForChild("ResourcesConfig"))
+local EntityConfig = require(script.Parent:WaitForChild("config"):WaitForChild("EntitiesConfig"))
 
 -- Export Stats types (centralized from Stats module)
 export type Stats = Stats.Stats
 export type DerivedStats = Stats.DerivedStats
-
-export type EntityCategory = "resource" | "building" | "wildlife" | "creature" | "npc" | "player"
-
-export type ResourceType = "Wood" | "Stone" | "Metal" | "Rock" | "Gem"
 
 export type ToolType = "BasicAxe" | "SteelAxe" | "BasicPickaxe" | "SilverPickaxe" | "GoldenPickaxe" | "Bow" | "MagicMissile" | "Fireball"
 
@@ -19,11 +19,11 @@ export type CreatureType = "Zombie"
 export type GamePhase = "Day" | "Night" | "Transition"
 
 export type PlayerInventory = {
-	[ResourceType]: number
+	[ResoucesConfig.ResourceType]: number
 }
 
 export type ResourceNode = {
-	resourceType: ResourceType,
+	resourceType: ResoucesConfig.ResourceType,
 	currentHits: number,
 	maxHits: number,
 	isActive: boolean,
@@ -56,6 +56,7 @@ export type TeamResources = {
 	Wood: number,
 	Stone: number,
 	Metal: number,
+	Gem: number
 }
 
 export type TargetInfo = {
@@ -86,4 +87,4 @@ export type MiningSession = {
 	cancelled: boolean,
 }
 
-return {}
+return Types
