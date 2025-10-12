@@ -77,7 +77,7 @@ local function getTargetInfo(model: Model, playerPosition: vector?): TargetInfo?
 
 	if targetPlayer then
 		entityType = "Player"
-		entityCategory = "player"
+		entityCategory = GameConfig.Types.EntityCategories.Player
 	else
 		entityType = tostring(model:GetAttribute("EntityType"))
 		entityCategory = tostring(model:GetAttribute("EntityCategory"))

@@ -611,7 +611,7 @@ local function startAutoMining(player: Player, node: ResourceNode)
 			end
 
 			local currentPos = currentHrp.Position
-			if (currentPos - startPosition).Magnitude > 0.1 then
+			if (currentPos - startPosition).Magnitude > 3 then
 				session.cancelled = true
 				RemoteEvents.Events.MiningCancelled:FireClient(player, "Mining cancelled - you moved!")
 				RemoteEvents.Events.ShowNotification:FireClient(player, "Mining cancelled - you moved!")
