@@ -10,6 +10,7 @@ local Utils = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Uti
 local CombatSystem = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("CombatSystem"))
 local TargetingSystem = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("TargetingSystem"))
 local HitscanManager = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("HitscanManager"))
+local StatsProvider = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("StatsProvider"))
 local AnimationManager = require(script.Parent:WaitForChild("AnimationManager"))
 
 type ToolType = Types.ToolType
@@ -179,8 +180,15 @@ local function performCombatAttack(player: Player, toolType: ToolType)
 		-- Wait for castDuration (telegraph window)
 		task.wait(weaponConfig.castDuration)
 
+		-- Get stats for damage calculation
+		local attackerStats = StatsProvider.getStats(character)
+		local targetStats = StatsProvider.getStats(target)
+
 		-- Attempt attack on target
-		local result = CombatSystem.attemptMeleeAttack(character, target, weaponName, player)
+		local result = CombatSystem.attemptMeleeAttack(character, target, weaponName, player, {
+			attackerStats = attackerStats,
+			targetStats = targetStats,
+		})
 
 		if result.hit then
 			-- Hit! Damage already applied by CombatSystem
@@ -428,12 +436,15 @@ local function performCombatAttack(player: Player, toolType: ToolType)
 			end
 		else
 			-- Instant AOE: Apply immediately at target position
-			local CombatSystem = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("CombatSystem"))
+			local attackerStats = StatsProvider.getStats(character)
 			local hits = CombatSystem.performAOEAttack(
 				character,
 				targetPos,
 				weaponName,
-				player
+				player,
+				{
+					attackerStats = attackerStats,
+				}
 			)
 
 			playToolSound(player, toolType, "attack")

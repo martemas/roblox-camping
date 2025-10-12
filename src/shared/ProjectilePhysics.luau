@@ -14,6 +14,7 @@ local Players = game:GetService("Players")
 local CombatSystem = require(script.Parent:WaitForChild("CombatSystem"))
 local CombatFeedback = require(script.Parent:WaitForChild("CombatFeedback"))
 local DamageCalculator = require(script.Parent:WaitForChild("DamageCalculator"))
+local StatsProvider = require(script.Parent:WaitForChild("StatsProvider"))
 
 type ProjectileInstance = CombatSystem.ProjectileInstance
 type DamageMode = CombatSystem.DamageMode
@@ -164,6 +165,10 @@ end
 	@param hitPart - The specific body part that was hit
 ]]
 local function applyDamage(projectile: ProjectileInstance, entity: Model, hitPart: BasePart?)
+	-- Get stats for damage calculation
+	local attackerStats = StatsProvider.getStats(projectile.attacker)
+	local targetStats = StatsProvider.getStats(entity)
+
 	-- Use centralized damage system which handles:
 	-- - PvP rules
 	-- - Damage calculation
@@ -173,6 +178,8 @@ local function applyDamage(projectile: ProjectileInstance, entity: Model, hitPar
 	CombatSystem.applyDamageToEntity(projectile.attacker, entity, projectile.weapon, {
 		hitPart = hitPart,
 		attackingPlayer = projectile.attackingPlayer,
+		attackerStats = attackerStats,
+		targetStats = targetStats,
 	})
 end
 
@@ -237,6 +244,9 @@ local function handleRaycastHit(
 	-- Check for AOE on impact (before handling normal collision)
 	local weaponConfig = CombatSystem.getWeaponConfig(projectile.weapon)
 	if weaponConfig and weaponConfig.aoeOnImpact then
+		-- Get attacker stats once for AOE
+		local attackerStats = StatsProvider.getStats(projectile.attacker)
+
 		-- Trigger AOE at impact position
 		local hits = CombatSystem.performAOEAttack(
 			projectile.attacker,
@@ -248,6 +258,7 @@ local function handleRaycastHit(
 				radius = weaponConfig.aoeRadius,
 				falloff = weaponConfig.aoeFalloff,
 				maxTargets = weaponConfig.maxTargets,
+				attackerStats = attackerStats,
 			}
 		)
 
@@ -332,6 +343,9 @@ function ProjectilePhysics.updateProjectile(
 		-- Trigger AOE at final position if configured
 		local weaponConfig = CombatSystem.getWeaponConfig(projectile.weapon)
 		if weaponConfig and weaponConfig.aoeOnImpact then
+			-- Get attacker stats once for AOE
+			local attackerStats = StatsProvider.getStats(projectile.attacker)
+
 			local hits = CombatSystem.performAOEAttack(
 				projectile.attacker,
 				projectile.lastPosition,
@@ -342,6 +356,7 @@ function ProjectilePhysics.updateProjectile(
 					radius = weaponConfig.aoeRadius,
 					falloff = weaponConfig.aoeFalloff,
 					maxTargets = weaponConfig.maxTargets,
+					attackerStats = attackerStats,
 				}
 			)
 

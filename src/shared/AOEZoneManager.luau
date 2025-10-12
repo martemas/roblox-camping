@@ -21,8 +21,9 @@ local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Debris = game:GetService("Debris")
 
--- Forward declare CombatSystem (loaded on first use to avoid circular dependency)
+-- Forward declare CombatSystem and StatsProvider (loaded on first use to avoid circular dependency)
 local CombatSystem = nil
+local StatsProvider = nil
 
 export type AOEZone = {
 	position: Vector3,
@@ -53,6 +54,18 @@ local function getCombatSystem()
 		CombatSystem = require(script.Parent:WaitForChild("CombatSystem"))
 	end
 	return CombatSystem
+end
+
+--[[
+	Get StatsProvider reference (lazy load)
+
+	@return StatsProvider module
+]]
+local function getStatsProvider()
+	if not StatsProvider then
+		StatsProvider = require(script.Parent:WaitForChild("StatsProvider"))
+	end
+	return StatsProvider
 end
 
 --[[
@@ -119,10 +132,14 @@ end
 ]]
 local function tickZone(zone: AOEZone)
 	local CS = getCombatSystem()
+	local SP = getStatsProvider()
 	local weaponConfig = CS.getWeaponConfig(zone.weaponName)
 	if not weaponConfig then
 		return
 	end
+
+	-- Get attacker stats ONCE for efficiency
+	local attackerStats = SP.getStats(zone.attacker)
 
 	-- Find entities in radius
 	local params = OverlapParams.new()
@@ -139,6 +156,9 @@ local function tickZone(zone: AOEZone)
 		if entity and not hitEntities[entity] then
 			hitEntities[entity] = true
 
+			-- Get target stats (per target)
+			local targetStats = SP.getStats(entity)
+
 			-- Apply damage via applyDamageToEntity (respects all rules)
 			local damage = weaponConfig.aoeDamage or weaponConfig.damage or 0
 
@@ -146,6 +166,8 @@ local function tickZone(zone: AOEZone)
 				damageOverride = damage,
 				hitPosition = zone.position,
 				bypassInvulnerability = false, -- Each tick respects invulnerability
+				attackerStats = attackerStats, -- Reused attacker stats
+				targetStats = targetStats, -- Per-target stats
 			})
 		end
 	end

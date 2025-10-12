@@ -8,14 +8,22 @@ local PathfindingService = game:GetService("PathfindingService")
 local ServerScriptService = game:GetService("ServerScriptService")
 
 local GameConfig = require(script.Parent:WaitForChild("config"))
-local CombatSystem = require(script.Parent:WaitForChild("CombatSystem"))
 local CombatFeedback = require(script.Parent:WaitForChild("CombatFeedback"))
 local ProjectileLOS = require(script.Parent:WaitForChild("ProjectileLOS"))
 local DamageCalculator = require(script.Parent:WaitForChild("DamageCalculator"))
 local Stats = require(script.Parent:WaitForChild("Stats"))
+local StatsProvider = require(script.Parent:WaitForChild("StatsProvider"))
 
--- Lazy-loaded server modules
+-- Lazy-loaded modules to avoid circular dependencies
+local CombatSystem
 local XPRewardManager
+
+local function getCombatSystem()
+	if not CombatSystem then
+		CombatSystem = require(script.Parent:WaitForChild("CombatSystem"))
+	end
+	return CombatSystem
+end
 
 local function getXPRewardManager()
 	if not XPRewardManager and RunService:IsServer() then
@@ -244,7 +252,8 @@ local function performAttack(entity: EntityInstance, target: Player)
 		return
 	end
 
-	local weaponConfig = CombatSystem.getWeaponConfig(weaponName)
+	local CS = getCombatSystem()
+	local weaponConfig = CS.getWeaponConfig(weaponName)
 	if not weaponConfig then
 		return
 	end
@@ -262,12 +271,20 @@ local function performAttack(entity: EntityInstance, target: Player)
 		-- Wait castDuration (telegraph window - player can dodge during this time)
 		task.wait(weaponConfig.castDuration)
 
+		-- Get stats for damage calculation
+		local attackerStats = entity.scaledStats
+		local targetStats = StatsProvider.getStats(target.Character)
+
 		-- After castDuration: Check if target still in range using CombatSystem
-		local result = CombatSystem.attemptMeleeAttack(
+		local result = CS.attemptMeleeAttack(
 			entity.model,
 			target.Character,
 			weaponName,
-			nil -- No attacking player (this is an NPC)
+			nil, -- No attacking player (this is an NPC)
+			{
+				attackerStats = attackerStats,
+				targetStats = targetStats,
+			}
 		)
 
 		if result.hit and result.damage then
@@ -420,11 +437,18 @@ local function performAttack(entity: EntityInstance, target: Player)
 			end
 		else
 			-- Instant AOE: Apply immediately at target position
-			local hits = CombatSystem.performAOEAttack(
+			local attackerStats = entity.scaledStats
+			local hits = CS.performAOEAttack(
 				entity.model,
 				targetPos,
 				weaponName,
-				nil -- No attacking player (NPC)
+				nil, -- No attacking player (NPC)
+				{
+					attackerStats = attackerStats,
+					onDamageCallback = function(target, attacker)
+						EntityController.onEntityDamaged(target, attacker)
+					end,
+				}
 			)
 
 			print(`*** {entity.entityType} hit {#hits} entities with {weaponName} AOE`)
@@ -541,7 +565,8 @@ local function updateEntityAI(entity: EntityInstance)
 
 		-- Get weapon config for range/cooldown
 		local weaponName = config.primaryWeapon
-		local weaponConfig = CombatSystem.getWeaponConfig(weaponName)
+		local CS = getCombatSystem()
+		local weaponConfig = CS.getWeaponConfig(weaponName)
 		if not weaponConfig then
 			warn(`Entity {entity.entityType} has no valid weapon config`)
 			return
@@ -821,9 +846,17 @@ function EntityController.handleDamage(
 	-- Use centralized damage system for proper XP tracking and stats
 	if attackerModel and damageSource then
 		-- Delegate to CombatSystem for full damage handling (XP, stats, feedback, aggro)
-		local CombatSystem = require(script.Parent:WaitForChild("CombatSystem"))
-		CombatSystem.applyDamageToEntity(attackerModel, model, damageSource, {
+		local CS = getCombatSystem()
+		local attackerStats = StatsProvider.getStats(attackerModel)
+		local targetStats = entity.scaledStats
+
+		CS.applyDamageToEntity(attackerModel, model, damageSource, {
 			hitPart = hitPart,
+			attackerStats = attackerStats,
+			targetStats = targetStats,
+			onDamageCallback = function(target, attacker)
+				EntityController.onEntityDamaged(target, attacker)
+			end,
 		})
 	else
 		-- Direct damage (environmental damage, no attacker)

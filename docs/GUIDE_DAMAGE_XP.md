@@ -9,9 +9,9 @@ The Roblox Camping game uses a **centralized damage and XP system** that handles
 ### Centralized Damage Flow
 
 ```
-Attack Source → CombatSystem.applyDamageToEntity() → Target
-    ↓
-  [Stats] → [DamageCalculator] → [XP Tracking] → [Feedback]
+Attack Source → StatsProvider.getStats() → CombatSystem.applyDamageToEntity() → Target
+    ↓                                              ↓
+  [Fetch Stats]                        [Stats] → [DamageCalculator] → [XP Tracking] → [Feedback]
 ```
 
 **All weapon types use the same centralized system:**
@@ -19,6 +19,33 @@ Attack Source → CombatSystem.applyDamageToEntity() → Target
 - ✅ Projectile attacks (Bow, Magic)
 - ✅ Hitscan attacks (Guns, lasers)
 - ✅ AOE attacks (Explosions, zones)
+
+### StatsProvider Module
+
+**Purpose:** Unified interface for retrieving stats from any entity (player or NPC)
+
+**Location:** `src/shared/StatsProvider.luau`
+
+**Why it exists:** Eliminates circular dependencies between combat systems and stat management
+
+```lua
+local StatsProvider = require(ReplicatedStorage.Shared.StatsProvider)
+
+-- Get stats for any entity (player character or NPC)
+local stats = StatsProvider.getStats(model)
+-- Returns: Stats? (nil if entity has no stats)
+
+-- Check if model is a player character
+local player = StatsProvider.getPlayerFromModel(model)
+-- Returns: Player? (nil if not a player character)
+```
+
+**How it works:**
+- For player characters: Fetches from `PlayerStats` module (server-side)
+- For NPC entities: Fetches from `EntityController` module
+- Returns `nil` for unknown/invalid entities
+
+**Performance:** O(1) hash table lookups, no performance impact even with hundreds of simultaneous attacks
 
 ## Stats System
 
@@ -309,22 +336,32 @@ criticalChance = 0.05 + (stats.accuracy * 0.005)
 
 ### Basic Damage Application
 
-**ALWAYS use the centralized function:**
+**ALWAYS use the centralized function with stats:**
 
 ```lua
 local CombatSystem = require(ReplicatedStorage.Shared.CombatSystem)
+local StatsProvider = require(ReplicatedStorage.Shared.StatsProvider)
+
+-- Get stats for both attacker and target
+local attackerStats = StatsProvider.getStats(attacker)
+local targetStats = StatsProvider.getStats(target)
 
 local result = CombatSystem.applyDamageToEntity(
     attacker,      -- Model: The attacking entity
     target,        -- Model: The target entity
     weaponName,    -- string: Weapon config name (e.g., "Sword")
     {
+        -- Stats (required for proper damage calculation):
+        attackerStats = attackerStats,     -- Stats?: Attacker's stats
+        targetStats = targetStats,         -- Stats?: Target's stats
+
         -- Optional parameters:
-        damageOverride = nil,          -- number?: Override calculated damage
-        hitPart = nil,                 -- BasePart?: Specific body part hit
-        bypassInvulnerability = false, -- boolean?: Skip invuln check
-        bypassPvP = false,             -- boolean?: Skip PvP check
-        attackingPlayer = nil,         -- Player?: Override attacker player
+        damageOverride = nil,              -- number?: Override calculated damage
+        hitPart = nil,                     -- BasePart?: Specific body part hit
+        bypassInvulnerability = false,     -- boolean?: Skip invuln check
+        bypassPvP = false,                 -- boolean?: Skip PvP check
+        attackingPlayer = nil,             -- Player?: Override attacker player
+        onDamageCallback = nil,            -- function?: Callback after damage applied
     }
 )
 
@@ -343,8 +380,16 @@ local result = CombatSystem.applyDamageToEntity(
 ### Example: Custom Spell with Bypass Options
 
 ```lua
+local StatsProvider = require(ReplicatedStorage.Shared.StatsProvider)
+
+-- Get stats
+local casterStats = StatsProvider.getStats(caster)
+local allyStats = StatsProvider.getStats(ally)
+
 -- Healing spell that bypasses PvP restrictions
 local result = CombatSystem.applyDamageToEntity(caster, ally, "HealingSpell", {
+    attackerStats = casterStats,
+    targetStats = allyStats,
     damageOverride = -50,  -- Negative damage = healing
     bypassPvP = true,      -- Allow healing allies even if PvP is disabled
     bypassInvulnerability = true,  -- Can heal through invulnerability
@@ -358,12 +403,19 @@ end
 ### Example: Environmental Damage
 
 ```lua
+local StatsProvider = require(ReplicatedStorage.Shared.StatsProvider)
+
 -- Lava damage (no attacker, no XP)
+-- attackerStats = nil since environment has no stats
+local targetStats = StatsProvider.getStats(player.Character)
+
 local result = CombatSystem.applyDamageToEntity(
     workspace.Lava,  -- Use environment as "attacker"
     player.Character,
     "Lava",
     {
+        attackerStats = nil,       -- No attacker stats (environmental)
+        targetStats = targetStats,  -- Target stats for defense calculation
         damageOverride = 10,
         bypassPvP = true,  -- Environmental damage ignores PvP
     }
@@ -373,7 +425,13 @@ local result = CombatSystem.applyDamageToEntity(
 ### Example: Checking Failure Reason
 
 ```lua
-local result = CombatSystem.applyDamageToEntity(attacker, target, "Sword", {})
+local attackerStats = StatsProvider.getStats(attacker)
+local targetStats = StatsProvider.getStats(target)
+
+local result = CombatSystem.applyDamageToEntity(attacker, target, "Sword", {
+    attackerStats = attackerStats,
+    targetStats = targetStats,
+})
 
 if not result.success then
     if result.blockedByPvP then
@@ -385,6 +443,30 @@ if not result.success then
     end
 end
 ```
+
+### Example: AOE Attack (Multi-Target Efficiency)
+
+```lua
+local StatsProvider = require(ReplicatedStorage.Shared.StatsProvider)
+
+-- Get attacker stats ONCE for efficiency (reused across all targets)
+local attackerStats = StatsProvider.getStats(attacker)
+
+local hits = CombatSystem.performAOEAttack(
+    attacker,
+    targetPosition,
+    "Fireball",
+    player,
+    {
+        attackerStats = attackerStats,  -- Fetched once, reused for all targets
+        -- CombatSystem fetches target stats per-target automatically
+    }
+)
+
+print(`Hit {#hits} entities with Fireball`)
+```
+
+**Performance Note:** In AOE attacks, attacker stats are fetched once and reused across all targets. Target stats are fetched per-target (necessary since each target is different). This pattern ensures optimal performance even with large AOE radius hitting many targets.
 
 ## Invulnerability System
 
@@ -964,6 +1046,7 @@ Currently only the last attacker gets XP. To implement sharing:
 | File | Purpose |
 |------|---------|
 | `src/shared/CombatSystem.luau` | Centralized damage application |
+| `src/shared/StatsProvider.luau` | **NEW:** Unified stats retrieval for all entities |
 | `src/shared/Stats.luau` | Stat calculations and XP formulas |
 | `src/shared/DamageCalculator.luau` | Hit/dodge/crit rolls and damage calculation |
 | `src/server/PlayerStats.luau` | Player data persistence and stat allocation |

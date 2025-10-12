@@ -10,32 +10,8 @@ local ProjectileLOS = require(script.Parent:WaitForChild("ProjectileLOS"))
 local DamageCalculator = require(script.Parent:WaitForChild("DamageCalculator"))
 local HitscanEffects = require(script.Parent:WaitForChild("HitscanEffects"))
 
--- Lazy-loaded server modules (cached to avoid repeated requires)
-local PlayerStats
-local EntityController
+-- Lazy-loaded server modules
 local XPRewardManager
-
-local function getPlayerStats()
-	if not PlayerStats and RunService:IsServer() then
-		local success, playerStatsModule = pcall(function()
-			return ServerScriptService:WaitForChild("Server"):WaitForChild("PlayerStats", 5)
-		end)
-
-		if success and playerStatsModule then
-			PlayerStats = require(playerStatsModule)
-		else
-			warn("[CombatSystem] Failed to load PlayerStats - module not found in ServerScriptService.Server")
-		end
-	end
-	return PlayerStats
-end
-
-local function getEntityController()
-	if not EntityController then
-		EntityController = require(script.Parent:WaitForChild("EntityController"))
-	end
-	return EntityController
-end
 
 local function getXPRewardManager()
 	if not XPRewardManager and RunService:IsServer() then
@@ -349,8 +325,14 @@ function CombatSystem.attemptMeleeAttack(
 	attacker: Model,
 	target: Model?,
 	weaponName: string,
-	attackingPlayer: Player?
+	attackingPlayer: Player?,
+	options: {
+		attackerStats: any?,
+		targetStats: any?,
+		onDamageCallback: ((target: Model, attacker: Model) -> ())?
+	}?
 ): AttackResult
+	local opts = options or {}
 	local weaponConfig = CombatSystem.getWeaponConfig(weaponName)
 	if not weaponConfig then
 		return {
@@ -432,6 +414,9 @@ function CombatSystem.attemptMeleeAttack(
 			local result = CombatSystem.applyDamageToEntity(attacker, targetModel, weaponName, {
 				attackingPlayer = attackingPlayer,
 				hitPart = nil, -- Melee doesn't track specific part yet
+				attackerStats = opts.attackerStats,
+				targetStats = opts.targetStats,
+				onDamageCallback = opts.onDamageCallback,
 			})
 
 			if result.success then
@@ -523,9 +508,12 @@ function CombatSystem.performAOEAttack(
 		radius: number?,
 		falloff: boolean?,
 		maxTargets: number?,
+		attackerStats: any?, -- Stats.Stats? (optional - fetched once for efficiency)
+		onDamageCallback: ((target: Model, attacker: Model) -> ())?, -- Optional callback per target
 	}?
 ): {AOEHitInfo}
 	local AOEZoneManager = require(script.Parent:WaitForChild("AOEZoneManager"))
+	local StatsProvider = require(script.Parent:WaitForChild("StatsProvider"))
 	local opts = options or {}
 
 	local weaponConfig = CombatSystem.getWeaponConfig(weaponName)
@@ -539,6 +527,9 @@ function CombatSystem.performAOEAttack(
 	local radius = opts.radius or weaponConfig.aoeRadius or 10
 	local falloff = if opts.falloff ~= nil then opts.falloff else (weaponConfig.aoeFalloff or false)
 	local maxTargets = opts.maxTargets or weaponConfig.maxTargets or 999
+
+	-- Get attacker stats ONCE (efficiency for multi-target)
+	local attackerStats = opts.attackerStats or StatsProvider.getStats(attacker)
 
 	local hits: {AOEHitInfo} = {}
 
@@ -585,10 +576,16 @@ function CombatSystem.performAOEAttack(
 
 				local finalDamage = damage * damageMultiplier
 
+				-- Get target stats (per target - necessary since each is different)
+				local targetStats = StatsProvider.getStats(entity)
+
 				-- Apply damage via central system
 				local result = CombatSystem.applyDamageToEntity(attacker, entity, weaponName, {
 					damageOverride = finalDamage,
 					hitPosition = targetPosition,
+					attackerStats = attackerStats, -- Reused attacker stats
+					targetStats = targetStats, -- Per-target stats
+					onDamageCallback = opts.onDamageCallback, -- Pass callback through
 				})
 
 				if result.success then
@@ -646,6 +643,9 @@ function CombatSystem.applyDamageToEntity(
 		bypassPvP: boolean?,
 		attackingPlayer: Player?,
 		hitPart: BasePart?,
+		attackerStats: any?, -- Stats.Stats? (optional - for damage calculation)
+		targetStats: any?, -- Stats.Stats? (optional - for damage calculation)
+		onDamageCallback: ((target: Model, attacker: Model) -> ())?, -- Optional callback after damage
 	}?
 ): DamageApplicationResult
 	local opts = options or {}
@@ -706,40 +706,9 @@ function CombatSystem.applyDamageToEntity(
 		}
 	end
 
-	-- Get stats for damage calculation (server-side only)
-	local attackerStats, targetStats
-	if RunService:IsServer() then
-		local targetPlayer = Players:GetPlayerFromCharacter(target)
-		local attackingPlayer = opts.attackingPlayer or Players:GetPlayerFromCharacter(attacker)
-
-		-- Get attacker stats
-		if attackingPlayer then
-			local PlayerStatsModule = getPlayerStats()
-			if PlayerStatsModule then
-				attackerStats = PlayerStatsModule.getPlayerStats(attackingPlayer)
-			end
-		else
-			-- Entity attacker
-			local EntityControllerModule = getEntityController()
-			if EntityControllerModule then
-				attackerStats = EntityControllerModule.getEntityStats(attacker)
-			end
-		end
-
-		-- Get target stats
-		if targetPlayer then
-			local PlayerStatsModule = getPlayerStats()
-			if PlayerStatsModule then
-				targetStats = PlayerStatsModule.getPlayerStats(targetPlayer)
-			end
-		else
-			-- Entity target
-			local EntityControllerModule = getEntityController()
-			if EntityControllerModule then
-				targetStats = EntityControllerModule.getEntityStats(target)
-			end
-		end
-	end
+	-- Use provided stats (from caller) for damage calculation
+	local attackerStats = opts.attackerStats
+	local targetStats = opts.targetStats
 
 	-- Calculate damage via DamageCalculator (with stats)
 	local damageResult = DamageCalculator.calculateDamage({
@@ -747,8 +716,8 @@ function CombatSystem.applyDamageToEntity(
 		target = target,
 		weaponName = weaponName,
 		hitPart = opts.hitPart or (opts.hitPosition and target:FindFirstChild("HumanoidRootPart") :: BasePart? or nil),
-		attackerStats = attackerStats,  -- Pass stats
-		targetStats = targetStats,       -- Pass stats
+		attackerStats = attackerStats,
+		targetStats = targetStats,
 	})
 
 	if not damageResult.wasHit then
@@ -823,10 +792,9 @@ function CombatSystem.applyDamageToEntity(
 	-- Play hit sound
 	CombatFeedback.playHitSound(target, "Hit")
 
-	-- Notify entity it was damaged (for aggro) - lazy load to avoid circular dependency
-	if not targetPlayer then
-		local EntityController = require(script.Parent:WaitForChild("EntityController"))
-		EntityController.onEntityDamaged(target, attacker)
+	-- Call damage callback if provided (for aggro, events, etc.)
+	if opts.onDamageCallback then
+		opts.onDamageCallback(target, attacker)
 	end
 
 	return {
