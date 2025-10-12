@@ -1,6 +1,17 @@
 --!strict
 
+-- Game phase enum
+local GamePhases = {
+	Day = "Day",
+	Night = "Night",
+	Transition = "Transition",
+}
+
+export type GamePhase = "Day" | "Night" | "Transition"
+
 local DayNightCycleConfig = {
+	-- Game phase enum
+	GamePhases = GamePhases,
 	-- Time Settings
 	time = {
 		dayDuration = 60, -- 5 minutes

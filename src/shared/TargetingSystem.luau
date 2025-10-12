@@ -4,6 +4,7 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
 local GameConfig = require(script.Parent:WaitForChild("config"))
+local EntityConfig = require(script.Parent:WaitForChild("config"):WaitForChild("EntitiesConfig"))
 local Types = require(script.Parent:WaitForChild("Types"))
 
 type TargetInfo = Types.TargetInfo
@@ -77,7 +78,7 @@ local function getTargetInfo(model: Model, playerPosition: vector?): TargetInfo?
 
 	if targetPlayer then
 		entityType = "Player"
-		entityCategory = GameConfig.Types.EntityCategories.Player
+		entityCategory = EntityConfig.Categories.Player
 	else
 		entityType = tostring(model:GetAttribute("EntityType"))
 		entityCategory = tostring(model:GetAttribute("EntityCategory"))
@@ -104,12 +105,12 @@ local function getTargetInfo(model: Model, playerPosition: vector?): TargetInfo?
 	-- Get configuration-based stats
 	local damage, walkSpeed, runSpeed = nil, nil, nil
 
-	if entityCategory == GameConfig.Types.EntityCategories.Player then
+	if entityCategory == EntityConfig.Categories.Player then
 		-- For players, damage depends on equipped weapon
 		damage = nil -- Not static for players
 		walkSpeed = GameConfig.player.walkSpeed
 		runSpeed = GameConfig.player.sprintSpeed
-	elseif entityCategory == GameConfig.Types.EntityCategories.Resource or entityCategory == GameConfig.Types.EntityCategories.Building then
+	elseif entityCategory == EntityConfig.Categories.Resource or entityCategory == EntityConfig.Categories.Structure then
 		-- Resources and buildings have no damage or speed
 		damage = nil
 		walkSpeed = 0

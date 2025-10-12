@@ -40,14 +40,4 @@ local GameConfig = {
 	shop = ShopConfig.shop,
 }
 
-GameConfig.Types = {
-	-- CombatMode = GameSettings.CombatMode,
-	ResourceTypes = ResourcesConfig.Types,
-	EntityCategories = EntitiesConfig.Categories,
-	-- ToolType = ToolsConfig.ToolType,
-	-- WildlifeType = EntitiesConfig.WildlifeType,
-	-- CreatureType = EntitiesConfig.CreatureType,
-}
-
-
 return GameConfig

@@ -1,6 +1,23 @@
 --!strict
 
+-- Tool type enum (includes mining tools and weapon tools)
+local Tools = {
+	BasicAxe = "BasicAxe",
+	SteelAxe = "SteelAxe",
+	BasicPickaxe = "BasicPickaxe",
+	SilverPickaxe = "SilverPickaxe",
+	GoldenPickaxe = "GoldenPickaxe",
+	Bow = "Bow",
+	MagicMissile = "MagicMissile",
+	Fireball = "Fireball",
+}
+
+export type Tool = "BasicAxe" | "SteelAxe" | "BasicPickaxe" | "SilverPickaxe" | "GoldenPickaxe" | "Bow" | "MagicMissile" | "Fireball"
+
 local ToolsConfig = {
+	-- Tool type enum
+	Tools = Tools,
+
 	-- Tool Categories (for mining and combat)
 	toolCategories = {
 		Pickaxe = {"Pickaxe"},

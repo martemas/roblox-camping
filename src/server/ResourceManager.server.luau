@@ -7,6 +7,7 @@ local TweenService = game:GetService("TweenService")
 
 local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("config"))
 local ResourcesConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("config"):WaitForChild("ResourcesConfig"))
+local EntityConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("config"):WaitForChild("EntitiesConfig"))
 local Types = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Types"))
 local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RemoteEvents"))
 local Utils = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Utils"))
@@ -23,13 +24,13 @@ local resourcesFolder = ReplicatedStorage:WaitForChild("Models"):WaitForChild("R
 
 -- Initialize empty inventory for a player
 local function createEmptyInventory(): Types.PlayerInventory
-	-- iterate over each resource type in GameConfig.resourceTypes and set amount to 0
+	-- iterate over each resource type in ResourcesConfig.Types and set amount to 0
 	local resources = {}
-	for _, resourceType in pairs(GameConfig.Types.ResourceTypes) do
+	for _, resourceType in ResourcesConfig.Types do
 		-- This loop is just to ensure all resource types are included
 		resources[resourceType] = 0
 	end
-	
+
 	return resources :: Types.PlayerInventory
 end
 
@@ -121,11 +122,11 @@ local function createResourceNode(resourceType: ResourceType, position: vector):
 
 	-- Set generic entity attributes for tool interaction system
 	local entityConfig = GameConfig.resources[resourceType]
-	
+
 	if entityConfig then
 		nodeModel:SetAttribute("EntityType", resourceType :: ResourceType)
 		print("**** setting entity category to resource ****")
-		nodeModel:SetAttribute("EntityCategory", GameConfig.Types.EntityCategories.Resource)
+		nodeModel:SetAttribute("EntityCategory", EntityConfig.Categories.Resource)
 		print(`Set attributes for {resourceType} node: EntityType={resourceType}`)
 	else
 		warn(`No entity configuration found for {resourceType}`)
@@ -936,8 +937,8 @@ local function registerManualNodes()
 						isActive = true,
 						part = mainPart,
 					}
-					
-					model:SetAttribute("EntityCategory", GameConfig.Types.EntityCategories.Resource)
+
+					model:SetAttribute("EntityCategory", EntityConfig.Categories.Resource)
 					
 					-- Add ProximityPrompt for mining
 					local prompt = Instance.new("ProximityPrompt")

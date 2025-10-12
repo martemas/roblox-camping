@@ -3,27 +3,27 @@ local Types = {}
 
 local Stats = require(script.Parent:WaitForChild("Stats"))
 
-local ResoucesConfig = require(script.Parent:WaitForChild("config"):WaitForChild("ResourcesConfig"))
+local ResourcesConfig = require(script.Parent:WaitForChild("config"):WaitForChild("ResourcesConfig"))
 local EntityConfig = require(script.Parent:WaitForChild("config"):WaitForChild("EntitiesConfig"))
+local ToolsConfig = require(script.Parent:WaitForChild("config"):WaitForChild("ToolsConfig"))
+local DayNightCycleConfig = require(script.Parent:WaitForChild("config"):WaitForChild("DayNightCycleConfig"))
 
 -- Export Stats types (centralized from Stats module)
 export type Stats = Stats.Stats
 export type DerivedStats = Stats.DerivedStats
 
-export type ToolType = "BasicAxe" | "SteelAxe" | "BasicPickaxe" | "SilverPickaxe" | "GoldenPickaxe" | "Bow" | "MagicMissile" | "Fireball"
-
-export type WildlifeType = "Wolf" | "Bear"
-
-export type CreatureType = "Zombie"
-
-export type GamePhase = "Day" | "Night" | "Transition"
+-- Re-export types from config modules
+export type Tool = ToolsConfig.Tool
+export type Category = EntityConfig.Category
+export type StructureType = EntityConfig.StructureType
+export type GamePhase = DayNightCycleConfig.GamePhase
 
 export type PlayerInventory = {
-	[ResoucesConfig.ResourceType]: number
+	[ResourcesConfig.ResourceType]: number
 }
 
 export type ResourceNode = {
-	resourceType: ResoucesConfig.ResourceType,
+	resourceType: ResourcesConfig.ResourceType,
 	currentHits: number,
 	maxHits: number,
 	isActive: boolean,
@@ -32,7 +32,7 @@ export type ResourceNode = {
 }
 
 export type WildlifeEntity = {
-	wildlifeType: WildlifeType,
+	wildlifeType: string,
 	model: Model,
 	humanoid: Humanoid,
 	health: number,
@@ -43,7 +43,7 @@ export type WildlifeEntity = {
 }
 
 export type CreatureEntity = {
-	creatureType: CreatureType,
+	creatureType: string,
 	model: Model,
 	humanoid: Humanoid,
 	health: number,
@@ -82,7 +82,7 @@ export type MiningSession = {
 	player: Player,
 	resourceNode: ResourceNode,
 	startPosition: Vector3,
-	previousTool: ToolType?,
+	previousTool: Tool?,
 	task: thread,
 	cancelled: boolean,
 }
