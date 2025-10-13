@@ -4,3 +4,16 @@
 # Roblox Studio lock files
 /*.rbxlx.lock
 /*.rbxl.lock
+
+# Rojo
+sourcemap.json
+
+# Wally
+Packages/
+DevPackages/
+
+# MkDocs documentation
+site/
+
+# Workflow builds
+builds/

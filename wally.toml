@@ -1,0 +1,8 @@
+[package]
+name = "martemas/roblox-camping"
+version = "0.1.0"
+registry = "https://github.com/UpliftGames/wally-index"
+realm = "shared"
+
+[dependencies]
+satchel = "ryanlua/satchel@1.4.1"
