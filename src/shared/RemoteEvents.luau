@@ -55,6 +55,7 @@ local RemoteEvents = {
 	-- Tool Management
 	EquipTool = createRemoteEvent("EquipTool"),
 	SwingTool = createRemoteEvent("SwingTool"),
+	SwingToolWithTarget = createRemoteEvent("SwingToolWithTarget"), -- Tool swing with optional click target
 
 	-- Phase Management
 	PhaseChanged = createRemoteEvent("PhaseChanged"),

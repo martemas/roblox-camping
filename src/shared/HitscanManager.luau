@@ -53,29 +53,60 @@ function HitscanManager.performHitscan(
 end
 
 --[[
-	Calculate hitscan direction based on auto-aim setting
+	Calculate hitscan direction based on auto-aim setting and click targeting
 
 	@param attackerRoot - Attacker's HumanoidRootPart
 	@param lockedTarget - Locked target (if any)
+	@param clickTarget - Click target (if any)
+	@param clickPosition - Click position (if any)
 	@param origin - Origin position of hitscan
 	@return Vector3 - Direction vector
 ]]
 function HitscanManager.calculateDirection(
 	attackerRoot: BasePart,
 	lockedTarget: Model?,
+	clickTarget: Model?,
+	clickPosition: Vector3?,
 	origin: Vector3
 ): Vector3
-	-- Check auto-aim setting
+	-- NEW BEHAVIOR:
+	-- - Default: Aim at tap position (or target near tap)
+	-- - autoAim=true + locked target: Override with locked target
+	-- - autoAim=false: Always use tap position (ignore locked target)
+
 	if GameConfig.combat.autoAim and lockedTarget then
-		-- Auto-aim mode: Aim at locked target
+		-- AUTO-AIM ON + LOCKED TARGET: Aim at locked target (override tap)
 		local targetRoot = lockedTarget:FindFirstChild("HumanoidRootPart") or lockedTarget:FindFirstChild("Torso") :: BasePart?
 		if targetRoot and targetRoot:IsA("BasePart") then
 			return (targetRoot.Position - origin).Unit
+		else
+			-- Target lost, fallback to tap position or look direction
+			if clickPosition then
+				return (clickPosition - origin).Unit
+			else
+				return attackerRoot.CFrame.LookVector
+			end
 		end
+	elseif clickTarget then
+		-- DEFAULT BEHAVIOR: Target found near tap - aim at it
+		local targetRoot = clickTarget:FindFirstChild("HumanoidRootPart") or clickTarget:FindFirstChild("Torso") :: BasePart?
+		if targetRoot and targetRoot:IsA("BasePart") then
+			return (targetRoot.Position - origin).Unit
+		else
+			-- Click target lost, fallback to tap position or look direction
+			if clickPosition then
+				return (clickPosition - origin).Unit
+			else
+				return attackerRoot.CFrame.LookVector
+			end
+		end
+	elseif clickPosition then
+		-- DEFAULT BEHAVIOR: No target near tap - aim at tap position
+		return (clickPosition - origin).Unit
+	else
+		-- FALLBACK: No tap registered - use look direction
+		return attackerRoot.CFrame.LookVector
 	end
-
-	-- Free-aim mode: Use look direction
-	return attackerRoot.CFrame.LookVector
 end
 
 --[[

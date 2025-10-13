@@ -134,13 +134,13 @@ local function startPhase(newPhase: GamePhase)
 		-- Night phase started - danger time
 		print("Night has fallen - enemies will spawn soon")
 
-		-- Signal enemy spawner to start spawning
+		-- Signal SpawnManager to start spawning
 		task.spawn(function()
-			-- Wait for EnemySpawner to be available in global scope
-			while not _G.CreatureSpawner do
+			-- Wait for SpawnManager to be available in global scope
+			while not _G.SpawnManager do
 				task.wait(0.1)
 			end
-			_G.CreatureSpawner.StartNightWave()
+			_G.SpawnManager.startNightWave()
 		end)
 	end
 end

@@ -12,11 +12,20 @@ Welcome to the Roblox Camping Game documentation!
 | **[UI_ARCHITECTURE.md](./UI_ARCHITECTURE.md)** | System architecture & diagrams | Understanding how the UI system works |
 | **[EXAMPLE_GUI_EDITOR_INTEGRATION.md](./EXAMPLE_GUI_EDITOR_INTEGRATION.md)** | GUI editor integration | Building UI in Roblox Studio and integrating it |
 
-### For Stats & Combat System
+### For Combat & Weapon Systems
 
 | Document | Purpose | Use When |
 |----------|---------|----------|
 | **[GUIDE_DAMAGE_XP.md](./GUIDE_DAMAGE_XP.md)** | Stats, XP, and damage system | Understanding or modifying combat mechanics |
+| **[GUIDE_PROJECTILE.md](./GUIDE_PROJECTILE.md)** | Projectile weapons & targeting | Setting up arrows, spells, or click-targeting |
+| **[GUIDE_HITSCAN.md](./GUIDE_HITSCAN.md)** | Hitscan weapons | Setting up instant-hit weapons like guns |
+| **[GUIDE_AOE.md](./GUIDE_AOE.md)** | AOE weapons & attacks | Setting up area-of-effect abilities |
+
+### For Entity Spawning System
+
+| Document | Purpose | Use When |
+|----------|---------|----------|
+| **[GUIDE_SPAWNER.md](./GUIDE_SPAWNER.md)** | Entity spawning and AI configuration | Adding entities, configuring AI behavior, or spawning waves |
 
 ## 🎯 Common Tasks
 
@@ -40,6 +49,18 @@ Welcome to the Roblox Camping Game documentation!
 
 ### "I want to add new stats"
 → Read [GUIDE_DAMAGE_XP.md - Customization](./GUIDE_DAMAGE_XP.md#customization)
+
+### "I want to add projectile weapons (bow, arrows, spells)"
+→ Read [GUIDE_PROJECTILE.md - Quick Start](./GUIDE_PROJECTILE.md#quick-start)
+
+### "I want to configure click-targeting or auto-aim"
+→ Read [GUIDE_PROJECTILE.md - Auto-aim Configuration](./GUIDE_PROJECTILE.md#quick-start)
+
+### "I want to spawn entities or configure AI"
+→ Read [GUIDE_SPAWNER.md - Quick Start](./GUIDE_SPAWNER.md#quick-start)
+
+### "I want to add a new creature/wildlife type"
+→ Read [GUIDE_SPAWNER.md - Configuring Entities](./GUIDE_SPAWNER.md#configuring-entities)
 
 ## 📖 Documentation Overview
 
@@ -68,6 +89,19 @@ Server-authoritative stats and XP system with centralized damage calculation.
 - XP rewards with level scaling
 - Stats affect damage, health, hit chance, dodge, crit
 
+### Entity Spawning System
+
+Unified spawning system with custom AI behaviors and flexible spawn configurations.
+
+**Key Features**:
+- Stateless spawning architecture
+- Custom AI behavior profiles per entity
+- Priority-based targeting (Player, Structure, Wildlife, etc.)
+- Flexible spawn locations (point, area, perimeter, random)
+- Spawn memory (entities return to spawn when idle)
+- Auto-population maintenance for wildlife
+- Wave-based spawning for night creatures
+
 ## 🗂️ File Organization
 
 ```
@@ -76,7 +110,8 @@ docs/
 ├── GUIDE_UI.md                            ← Complete UI guide
 ├── UI_ARCHITECTURE.md                     ← UI system architecture
 ├── EXAMPLE_GUI_EDITOR_INTEGRATION.md      ← GUI editor integration
-└── GUIDE_DAMAGE_XP.md                     ← Stats & combat guide
+├── GUIDE_DAMAGE_XP.md                     ← Stats & combat guide
+└── GUIDE_SPAWNER.md                       ← Entity spawning & AI guide
 
 src/
 ├── client/
@@ -98,9 +133,12 @@ src/
 │
 ├── server/
 │   ├── PlayerStats.luau                   ← Stats & XP backend
-│   └── XPRewardManager.luau               ← XP tracking
+│   ├── XPRewardManager.luau               ← XP tracking
+│   └── SpawnManager.server.luau           ← High-level spawning logic
 │
 └── shared/
+    ├── EntitySpawner.luau                 ← Stateless spawning facade
+    ├── EntityController.luau              ← AI & entity management
     ├── UIConfig.luau                      ← UI configuration
     ├── Stats.luau                         ← Stats calculations
     ├── DamageCalculator.luau              ← Damage calculations
@@ -125,6 +163,7 @@ src/
 3. **Learn the systems**:
    - Read [GUIDE_UI.md](./GUIDE_UI.md) for UI system
    - Read [GUIDE_DAMAGE_XP.md](./GUIDE_DAMAGE_XP.md) for combat system
+   - Read [GUIDE_SPAWNER.md](./GUIDE_SPAWNER.md) for spawning system
 
 ### Quick Examples
 
@@ -154,6 +193,21 @@ function Stats.getDerivedStats(stats: Stats): DerivedStats
         -- ...
     }
 end
+```
+
+**Add a new entity**:
+```lua
+-- EntitiesConfig.luau
+Deer = {
+    category = "Wildlife",
+    health = 40,
+    primaryWeapon = "DeerHoof",
+    ai = {
+        behaviors = { idle = "wander" },
+        targetPriority = {},  -- Passive
+        wanderRadius = 60,
+    },
+}
 ```
 
 ## 🔧 Common Workflows

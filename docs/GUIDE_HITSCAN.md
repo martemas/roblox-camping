@@ -58,7 +58,7 @@ combat = {
 
 - **ACTION Mode** (`CombatMode.ACTION`): Players can attack at any time
   - If target selected: Uses auto-aim or free-aim (based on `autoAim` setting)
-  - If no target: Shoots in look direction (unless weapon has `requiresTarget = true`)
+  - If no target: Uses click-targeting or shoots in look direction
   - Best for: Fast-paced action gameplay, free-form combat
 
 - **TACTICAL Mode** (`CombatMode.TACTICAL`): Players must select target to attack
@@ -67,15 +67,43 @@ combat = {
   - Best for: Strategic gameplay, turn-based combat feel
 
 **Auto-aim Configuration:**
-Set `combat.autoAim` in GameConfig to control how attacks aim when target is selected:
+Set `combat.autoAim` in GameConfig to control targeting behavior:
 
 ```lua
 combat = {
-    autoAim = true, -- true = aim at locked target, false = free-aim (aim direction)
-    -- When true: attacks auto-aim at locked target when one is selected
-    -- When false: attacks use look direction (even when target selected)
+    autoAim = false, -- true = locked target override, false = always use tap position
+    -- When true: Locked target overrides tap position (tab-target style)
+    -- When false: Always uses tap position (click-to-aim style)
 }
 ```
+
+**Targeting System Behavior:**
+
+**Default Behavior (applies to both autoAim ON/OFF):**
+1. Player taps/clicks to fire weapon
+2. System searches 8-stud radius around tap point for targetable entities
+3. If entity found near tap: Weapon aims at that entity
+4. If no entity near tap: Weapon aims at 3D tap position
+5. Fallback (no tap): Weapon uses look direction
+
+**autoAim = true (Tab-Target Override):**
+- **With locked target**: Aims at locked target (ignores tap position completely)
+- **Without locked target**: Uses default behavior (aims at tap position)
+
+**autoAim = false (Pure Click-to-Aim):**
+- **Always** uses tap position (locked target ignored for aiming)
+- Uses default behavior for all attacks
+
+**Example Scenarios:**
+- `autoAim=true` + locked target + tap ground → Aims at locked target
+- `autoAim=true` + no target + tap ground → Aims at tap position
+- `autoAim=false` + locked target + tap ground → Aims at tap position (ignores locked target)
+- `autoAim=false` + locked target + tap enemy → Aims at tapped enemy (ignores locked target)
+
+**Platform Support:**
+- **PC/Mac**: Click with mouse to aim
+- **Mobile/Tablet**: Tap on screen to aim
+- **Console**: Uses look direction (touch not available)
 
 **Force Target Selection (Optional):**
 Some weapons always need a target (e.g., healing allies) even in free-aim mode:

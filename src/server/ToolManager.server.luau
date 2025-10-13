@@ -137,7 +137,7 @@ end
 
 
 -- Perform combat attack using unified CombatSystem
-local function performCombatAttack(player: Player, toolType: ToolType)
+local function performCombatAttack(player: Player, toolType: ToolType, clickTarget: Model?, clickPosition: Vector3?)
 	local character = player.Character
 	if not character then
 		return
@@ -218,12 +218,15 @@ local function performCombatAttack(player: Player, toolType: ToolType)
 
 	elseif weaponConfig.type == "projectile" then
 		-- Projectile attack (follows hitscan pattern)
-		-- Get locked target
-		local target = TargetingSystem.getTarget(player)
+		-- Get locked target for validation and auto-aim
+		local lockedTarget = TargetingSystem.getTarget(player)
+
+		-- Determine which target to use for damage (locked or click target)
+		local damageTarget = lockedTarget or clickTarget
 
 		-- Validate attack BEFORE animation
 		local ProjectileManager = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ProjectileManager"))
-		local isValid, errorMsg = ProjectileManager.validateAttack(character, target, weaponName)
+		local isValid, errorMsg = ProjectileManager.validateAttack(character, damageTarget, weaponName)
 		if not isValid then
 			-- Validation failed - no animation, no sound
 			print(`{player.Name} fired {weaponName} but {errorMsg or "validation failed"}`)
@@ -245,35 +248,69 @@ local function performCombatAttack(player: Player, toolType: ToolType)
 		-- Calculate spawn position at chest height
 		local origin = humanoidRootPart.Position + Vector3.new(0, 1.5, 0)
 
-		-- Calculate direction (auto-aim at target or free-aim based on combat.autoAim)
+		-- Calculate direction based on autoAim setting and available targets
+		-- NEW BEHAVIOR:
+		-- - Default: Aim at tap position (or target near tap)
+		-- - autoAim=true + locked target: Override with locked target
+		-- - autoAim=false: Always use tap position (ignore locked target)
 		local direction: Vector3
-		if GameConfig.combat.autoAim and target then
-			-- Auto-aim mode: Aim at locked target
-			local targetRoot = target:FindFirstChild("HumanoidRootPart") or target:FindFirstChild("Torso") :: BasePart?
+
+		if GameConfig.combat.autoAim and lockedTarget then
+			-- AUTO-AIM ON + LOCKED TARGET: Aim at locked target (override tap)
+			local targetRoot = lockedTarget:FindFirstChild("HumanoidRootPart") or lockedTarget:FindFirstChild("Torso") :: BasePart?
 			if targetRoot and targetRoot:IsA("BasePart") then
 				direction = (targetRoot.Position - origin).Unit
 			else
-				-- Fallback to look direction if target lost
-				direction = humanoidRootPart.CFrame.LookVector
+				-- Target lost, fallback to tap position or look direction
+				if clickPosition then
+					direction = (clickPosition - origin).Unit
+				else
+					direction = humanoidRootPart.CFrame.LookVector
+				end
 			end
+		elseif clickTarget then
+			-- DEFAULT BEHAVIOR: Target found near tap - aim at it
+			local targetRoot = clickTarget:FindFirstChild("HumanoidRootPart") or clickTarget:FindFirstChild("Torso") :: BasePart?
+			if targetRoot and targetRoot:IsA("BasePart") then
+				direction = (targetRoot.Position - origin).Unit
+			else
+				-- Click target lost, fallback to tap position or look direction
+				if clickPosition then
+					direction = (clickPosition - origin).Unit
+				else
+					direction = humanoidRootPart.CFrame.LookVector
+				end
+			end
+		elseif clickPosition then
+			-- DEFAULT BEHAVIOR: No target near tap - aim at tap position
+			direction = (clickPosition - origin).Unit
 		else
-			-- Free-aim mode: Use look direction
+			-- FALLBACK: No tap registered - use look direction
 			direction = humanoidRootPart.CFrame.LookVector
 		end
 
 		-- Spawn projectile via ProjectileManager
+		-- Pass damageTarget (locked or click target) for damage validation
 		local projectile = ProjectileManager.spawnProjectile(
 			origin,
 			direction,
 			weaponName,
 			character,
 			player,
-			target -- Locked target
+			damageTarget -- Locked or click target for damage
 		)
 
 		if projectile then
 			playToolSound(player, toolType, "attack")
-			print(`{player.Name} fired {weaponName} at {target and target.Name or "unknown"}`)
+			if lockedTarget then
+				print(`{player.Name} fired {weaponName} at locked target {lockedTarget.Name}`)
+			elseif clickTarget then
+				print(`{player.Name} fired {weaponName} at click target {clickTarget.Name}`)
+			elseif clickPosition then
+				print(`{player.Name} fired {weaponName} at click position`)
+			else
+				print(`{player.Name} fired {weaponName} in look direction`)
+			end
 		else
 			playToolSound(player, toolType, "swing")
 			print(`{player.Name} projectile attack blocked`)
@@ -281,11 +318,14 @@ local function performCombatAttack(player: Player, toolType: ToolType)
 
 	elseif weaponConfig.type == "hitscan" then
 		-- Hitscan attack (follows projectile pattern)
-		-- Get locked target
-		local target = TargetingSystem.getTarget(player)
+		-- Get locked target for validation and auto-aim
+		local lockedTarget = TargetingSystem.getTarget(player)
+
+		-- Determine which target to use for damage (locked or click target)
+		local damageTarget = lockedTarget or clickTarget
 
 		-- Validate attack
-		local isValid, errorMsg = HitscanManager.validateAttack(character, target, weaponName)
+		local isValid, errorMsg = HitscanManager.validateAttack(character, damageTarget, weaponName)
 		if not isValid then
 			-- Validation failed - no animation, no sound
 			print(`{player.Name} fired {weaponName} but {errorMsg or "validation failed"}`)
@@ -322,8 +362,14 @@ local function performCombatAttack(player: Player, toolType: ToolType)
 			origin = humanoidRootPart.Position + Vector3.new(0, 1.5, 0)
 		end
 
-		-- Calculate aim direction (auto-aim or free-aim)
-		local direction = HitscanManager.calculateDirection(humanoidRootPart, target, origin)
+		-- Calculate aim direction with click targeting support
+		local direction = HitscanManager.calculateDirection(
+			humanoidRootPart,
+			lockedTarget,
+			clickTarget,
+			clickPosition,
+			origin
+		)
 
 		-- Perform hitscan via HitscanManager
 		local result = HitscanManager.performHitscan(
@@ -332,12 +378,18 @@ local function performCombatAttack(player: Player, toolType: ToolType)
 			weaponName,
 			character,
 			player,
-			target
+			damageTarget
 		)
 
 		if result.hit then
 			playToolSound(player, toolType, "attack")
-			print(`{player.Name} hit {target and target.Name or "unknown"} with {weaponName}`)
+			if lockedTarget then
+				print(`{player.Name} hit locked target {lockedTarget.Name} with {weaponName}`)
+			elseif clickTarget then
+				print(`{player.Name} hit click target {clickTarget.Name} with {weaponName}`)
+			else
+				print(`{player.Name} hit with {weaponName}`)
+			end
 		else
 			playToolSound(player, toolType, "swing")
 			if result.wasDodged then
@@ -574,10 +626,59 @@ local function onToolSwing(player: Player, toolType: ToolType)
 
 	-- Perform combat attack using CombatSystem (animation plays after validation)
 	task.spawn(function()
-		performCombatAttack(player, toolType)
+		performCombatAttack(player, toolType, nil, nil)
 	end)
 
 	print(`{player.Name} swung {toolType}`)
+end
+
+-- Handle tool swing with click target/position
+local function onToolSwingWithTarget(player: Player, toolType: ToolType, clickTarget: Model?, clickPosition: Vector3?)
+	print(`[ToolManager] Swinging {toolType} with click detection...`)
+	print(`[ToolManager] clickTarget: {clickTarget and clickTarget.Name or "nil"}`)
+	print(`[ToolManager] clickPosition: {clickPosition or "nil"}`)
+	print(`[ToolManager] autoAim: {GameConfig.combat.autoAim}`)
+
+	if isOnCooldown(player, "swing") then
+		return
+	end
+
+	local character = player.Character
+	if not character then
+		return
+	end
+
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if not humanoid then
+		return
+	end
+
+	local toolConfig = GameConfig.tools[toolType]
+
+	-- Get weapon name: use weaponRef if available, otherwise use tool name directly
+	local weaponName = (toolConfig and toolConfig.weaponRef) or toolType
+
+	-- Get weapon config for cooldown
+	local weaponConfig = CombatSystem.getWeaponConfig(weaponName)
+	if not weaponConfig then
+		return
+	end
+
+	-- Set swing cooldown based on weapon
+	setCooldown(player, "swing", weaponConfig.cooldown)
+
+	-- Perform combat attack using CombatSystem with click target/position
+	task.spawn(function()
+		performCombatAttack(player, toolType, clickTarget, clickPosition)
+	end)
+
+	if clickTarget then
+		print(`{player.Name} swung {toolType} at click target {clickTarget.Name}`)
+	elseif clickPosition then
+		print(`{player.Name} swung {toolType} at click position {clickPosition}`)
+	else
+		print(`{player.Name} swung {toolType}`)
+	end
 end
 
 -- Create a tool for the player
@@ -778,6 +879,7 @@ local function initialize()
 	-- Connect remote events
 	RemoteEvents.Events.EquipTool.OnServerEvent:Connect(onToolEquip)
 	RemoteEvents.Events.SwingTool.OnServerEvent:Connect(onToolSwing)
+	RemoteEvents.Events.SwingToolWithTarget.OnServerEvent:Connect(onToolSwingWithTarget)
 	RemoteEvents.Events.PlaceBuilding.OnServerEvent:Connect(onPlaceBuilding)
 
 	print("ToolManager initialized")

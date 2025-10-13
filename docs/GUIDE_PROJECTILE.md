@@ -76,7 +76,7 @@ combat = {
 
 - **ACTION Mode** (`CombatMode.ACTION`): Players can attack at any time
   - If target selected: Uses auto-aim or free-aim (based on `autoAim` setting)
-  - If no target: Fires in look direction (unless weapon has `requiresTarget = true`)
+  - If no target: Uses click-targeting or fires in look direction
   - Best for: Fast-paced action gameplay, free-form combat
 
 - **TACTICAL Mode** (`CombatMode.TACTICAL`): Players must select target to attack
@@ -85,15 +85,43 @@ combat = {
   - Best for: Strategic gameplay, turn-based combat feel
 
 **Auto-aim Configuration:**
-Set `combat.autoAim` in GameConfig to control how projectiles aim when target is selected:
+Set `combat.autoAim` in GameConfig to control targeting behavior:
 
 ```lua
 combat = {
-    autoAim = true, -- true = aim at locked target, false = free-aim (aim direction)
-    -- When true: projectiles auto-aim at target with leading (predict movement)
-    -- When false: projectiles fire in look direction (skill-based aiming)
+    autoAim = false, -- true = locked target override, false = always use tap position
+    -- When true: Locked target overrides tap position (tab-target style)
+    -- When false: Always uses tap position (click-to-aim style)
 }
 ```
+
+**Targeting System Behavior:**
+
+**Default Behavior (applies to both autoAim ON/OFF):**
+1. Player taps/clicks to fire projectile
+2. System searches 8-stud radius around tap point for targetable entities
+3. If entity found near tap: Projectile aims at that entity
+4. If no entity near tap: Projectile aims at 3D tap position
+5. Fallback (no tap): Projectile uses look direction
+
+**autoAim = true (Tab-Target Override):**
+- **With locked target**: Aims at locked target (ignores tap position completely)
+- **Without locked target**: Uses default behavior (aims at tap position)
+
+**autoAim = false (Pure Click-to-Aim):**
+- **Always** uses tap position (locked target ignored for aiming)
+- Uses default behavior for all attacks
+
+**Example Scenarios:**
+- `autoAim=true` + locked target + tap ground → Aims at locked target
+- `autoAim=true` + no target + tap ground → Aims at tap position
+- `autoAim=false` + locked target + tap ground → Aims at tap position (ignores locked target)
+- `autoAim=false` + locked target + tap enemy → Aims at tapped enemy (ignores locked target)
+
+**Platform Support:**
+- **PC/Mac**: Click with mouse to aim
+- **Mobile/Tablet**: Tap on screen to aim
+- **Console**: Uses look direction (touch not available)
 
 **Force Target Selection (Optional):**
 Some weapons always need a target (e.g., healing projectiles) even in free-aim mode:
@@ -177,9 +205,9 @@ enemies = {
 
 ## Usage Patterns
 
-### Pattern 1: Auto-Aim Projectile (Target-Based)
+### Pattern 1: Auto-Aim Projectile (Tab-Target Style)
 
-**Use Case:** Lock-on arrows, homing attacks
+**Use Case:** Lock-on arrows, MMO-style combat
 **Requires:** `combat.autoAim = true`
 
 ```lua
@@ -195,21 +223,21 @@ Bow = {
 **Player Experience:**
 1. Equip Bow
 2. Target enemy with X key (TargetingSystem)
-3. Click to fire (auto-aims at target with leading)
-4. Projectile flies toward predicted target location
-5. Target can dodge by moving unpredictably
+3. Click to fire (auto-aims at locked target)
+4. Projectile flies toward target position
+5. Target can dodge by moving
 
 **Auto-aim Features:**
-- Predicts target movement (velocity-based leading)
-- Aims at target regardless of look direction
-- Requires target selection
-- Better for fast-paced combat
+- Aims at locked target automatically
+- Ignores look direction and mouse position
+- Works even if you're looking away
+- Best for: MMO-style combat, accessibility
 
 ---
 
-### Pattern 2: Free-Aim Projectile (Look Direction)
+### Pattern 2: Click-Targeting Projectile (FPS Style)
 
-**Use Case:** Skill-based archery, sniper gameplay
+**Use Case:** Point-and-click combat, MOBA-style targeting
 **Requires:** `combat.autoAim = false`
 
 ```lua
@@ -224,20 +252,50 @@ Bow = {
 
 **Player Experience:**
 1. Equip Bow
-2. Aim at enemy (no target selection needed)
+2. Click on/near enemy to fire
+3. System finds closest target within 8 studs of click
+4. Projectile aims at clicked target
+5. If no target nearby, shoots at click position
+
+**Click-targeting Features:**
+- Smart target detection (8-stud radius)
+- Aims at 3D click position if no target
+- Locked targets are for UI/info only
+- Best for: FPS/MOBA gameplay, precise aiming
+
+---
+
+### Pattern 3: Free-Aim Projectile (Pure Look Direction)
+
+**Use Case:** Skill-based archery, no targeting assistance
+**Requires:** `combat.autoAim = false` + no clicking on targets
+
+```lua
+Bow = {
+    type = "projectile",
+    damage = 30,
+    range = 100,
+    projectileSpeed = 80,
+    requiresLineOfSight = true,
+}
+```
+
+**Player Experience:**
+1. Equip Bow
+2. Aim with camera at enemy
 3. Click to fire in look direction
 4. Projectile travels in straight line
 5. Manual leading required for moving targets
 
 **Free-aim Features:**
 - Fires in camera look direction
-- No target selection needed
-- Requires player skill for leading
-- Better for precision gameplay
+- No targeting assistance
+- Pure skill-based aiming
+- Best for: Hardcore FPS gameplay
 
 ---
 
-### Pattern 3: AOE Projectile (Hits Multiple Targets)
+### Pattern 4: AOE Projectile (Hits Multiple Targets)
 
 **Use Case:** Grenades, splash damage, crowd control
 

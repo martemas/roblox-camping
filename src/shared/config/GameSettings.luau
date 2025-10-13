@@ -41,15 +41,18 @@ local GameSettings = {
 	-- Combat System Settings
 	combat = {
 		-- Combat Mode
-		combatMode = CombatMode.TACTICAL, -- ACTION = can attack without target, TACTICAL = must select target
+		combatMode = CombatMode.ACTION, -- ACTION = can attack without target, TACTICAL = must select target
 
 		-- Hit Detection Mode
 		damageTargetOnly = false, -- false = hit all entities in range, true = only hit targeted entity
 
 		-- Auto-Aim System (applies to projectile AND hitscan)
-		autoAim = true, -- true = aim at locked target automatically, false = free-aim (aim direction)
+		autoAim = false, -- true = aim at locked target automatically, false = free-aim (aim direction)
 		-- When true: projectiles/hitscans aim at target regardless of look direction (skill-based, combat action)
 		-- When false: projectiles/hitscans go in aim direction (precision, FPS-style)
+
+		-- Click-Targeting System
+		clickTargetSearchRadius = 10, -- Studs around click/tap point to search for targetable entities
 
 		-- Invulnerability Frames (prevent weapon spam)
 		invulnerabilityFrames = true,
@@ -57,7 +60,7 @@ local GameSettings = {
 
 		-- Directional Combat
 		requireFacingForDamage = false, -- Must be facing target to deal damage
-		facingAngleDegrees = 210, -- Total cone angle (180 = full front hemisphere, 120 = narrow cone)
+		facingAngleDegrees = 300, -- Total cone angle (180 = full front hemisphere, 120 = narrow cone)
 		showFacingIndicator = true, -- Show visual feedback in target HUD
 
 		-- Entity AI Aggro

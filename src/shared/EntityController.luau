@@ -63,6 +63,12 @@ export type EntityInstance = {
 	baseStats: Stats.Stats,    -- Base stats from config
 	scaledStats: Stats.Stats,  -- Scaled stats (baseStats * level scaling)
 	config: any,  -- Store config reference for easy access
+
+	-- AI system
+	spawnPoint: Vector3,       -- Spawn location for return behavior
+	patrolPoints: {Vector3}?,  -- Patrol points (if any)
+	currentPatrolIndex: number, -- Current patrol point index
+	attacker: Model?,          -- Last attacker (for retaliation)
 }
 
 local EntityController = {}
@@ -494,22 +500,184 @@ local function handleJumping(entity: EntityInstance)
 	end
 end
 
--- Get target based on priority (players first, then structures)
-local function getTarget(entity: EntityInstance): Player?
-	local config = getEntityConfig(entity.entityType)
-	if not config then return nil end
+-- Get closest entity of a specific category
+local function getClosestEntityOfCategory(entity: EntityInstance, category: string): Model?
+	if category == "Player" then
+		-- Use existing player detection
+		local player = getClosestPlayer(entity)
+		return player and player.Character or nil
 
-	-- Always prioritize players first (as requested)
-	local player = getClosestPlayer(entity)
+	elseif category == "Structure" then
+		-- Find closest structure (building)
+		-- TODO: Implement when building system is ready
+		local townhall = _G.TownhallManager and _G.TownhallManager.GetTownhall()
+		return townhall
 
-	if player then
-		return player
+	elseif category == "Wildlife" or category == "Creature" then
+		-- Find closest entity of this category
+		local position = entity.humanoidRootPart.Position
+		local closest: Model? = nil
+		local shortestDist = entity.config.ai.aggroRange or 30
+
+		for model, otherEntity in activeEntities do
+			if otherEntity.config.category == category and model ~= entity.model then
+				local dist = (otherEntity.humanoidRootPart.Position - position).Magnitude
+				if dist <= shortestDist then
+					closest = model
+					shortestDist = dist
+				end
+			end
+		end
+
+		return closest
 	end
 
-	-- TODO: Add structure targeting when building system is ready
-	-- This will check config.targetPriority to decide behavior
+	return nil
+end
+
+-- Get target based on AI targetPriority array
+local function getTarget(entity: EntityInstance): Model?
+	local config = getEntityConfig(entity.entityType)
+	if not config or not config.ai or not config.ai.targetPriority then
+		return nil
+	end
+
+	-- Check each priority in order
+	for _, category in config.ai.targetPriority do
+		local target = getClosestEntityOfCategory(entity, category)
+		if target then
+			return target
+		end
+	end
 
 	return nil
+end
+
+-- Wander behavior: Random wandering within radius from spawn point
+local function behaviorWander(entity: EntityInstance)
+	local currentTime = tick()
+	local wanderCooldown = 3
+
+	if currentTime - entity.lastWanderTime >= wanderCooldown then
+		local wanderRadius = entity.config.ai.wanderRadius or 20
+		local angle = math.random() * math.pi * 2
+		local distance = math.random() * wanderRadius
+		local offset = Vector3.new(
+			math.cos(angle) * distance,
+			0,
+			math.sin(angle) * distance
+		)
+		local targetPos = entity.spawnPoint + offset
+		entity.humanoid:MoveTo(targetPos)
+		entity.lastWanderTime = currentTime
+	end
+
+	entity.humanoid.WalkSpeed = entity.config.walkSpeed or 12
+	updateEntityState(entity, "wandering")
+	playAnimation(entity, "walk")
+end
+
+-- Seek target behavior: Actively seek targets while wandering
+local function behaviorSeekTarget(entity: EntityInstance)
+	local seekRange = entity.config.ai.seekRange or 50
+	local wanderRadius = entity.config.ai.wanderRadius or 20
+
+	-- Look for target within seek range
+	local target = getTarget(entity)
+
+	if target then
+		-- Found target - switch to chasing
+		entity.isAggro = true
+		entity.target = Players:GetPlayerFromCharacter(target) or target
+		return
+	end
+
+	-- No target found - wander while seeking
+	local currentTime = tick()
+	local wanderCooldown = 3
+
+	if currentTime - entity.lastWanderTime >= wanderCooldown then
+		local angle = math.random() * math.pi * 2
+		local distance = math.random() * wanderRadius
+		local offset = Vector3.new(
+			math.cos(angle) * distance,
+			0,
+			math.sin(angle) * distance
+		)
+		local targetPos = entity.spawnPoint + offset
+		entity.humanoid:MoveTo(targetPos)
+		entity.lastWanderTime = currentTime
+	end
+
+	entity.humanoid.WalkSpeed = entity.config.walkSpeed or 12
+	updateEntityState(entity, "wandering")
+	playAnimation(entity, "walk")
+end
+
+-- Return to spawn behavior: Walk back to spawn area
+local function behaviorReturnToSpawn(entity: EntityInstance)
+	local distanceToSpawn = (entity.humanoidRootPart.Position - entity.spawnPoint).Magnitude
+	local returnThreshold = (entity.config.ai.wanderRadius or 20) * 1.5
+
+	if distanceToSpawn > returnThreshold then
+		-- Return to spawn
+		entity.humanoid:MoveTo(entity.spawnPoint)
+		entity.humanoid.WalkSpeed = (entity.config.walkSpeed or 12) * (entity.config.ai.returnSpeed or 0.5)
+		updateEntityState(entity, "wandering")
+		playAnimation(entity, "walk")
+	else
+		-- Close enough to spawn, resume idle behavior
+		if entity.config.ai.behaviors.idle == "wander" then
+			behaviorWander(entity)
+		elseif entity.config.ai.behaviors.idle == "seek_target" then
+			behaviorSeekTarget(entity)
+		end
+	end
+end
+
+-- Handle retargeting based on AI retargetBehavior setting
+local function handleRetargeting(entity: EntityInstance): boolean
+	local retargetBehavior = entity.config.ai.retargetBehavior or "locked"
+
+	if retargetBehavior == "locked" then
+		-- Never retarget
+		return false
+
+	elseif retargetBehavior == "closest" then
+		-- Retarget to closest threat if current target out of range
+		if entity.target then
+			local currentTarget = entity.target
+			local currentDist = math.huge
+
+			if typeof(currentTarget) == "Instance" and currentTarget:IsA("Model") and currentTarget:FindFirstChild("HumanoidRootPart") then
+				currentDist = (currentTarget.HumanoidRootPart.Position - entity.humanoidRootPart.Position).Magnitude
+			end
+
+			-- If current target is too far, find closest
+			local chaseMultiplier = GameConfig.combat.chaseRangeMultiplier or 3
+			local maxChaseRange = entity.config.ai.aggroRange * chaseMultiplier
+
+			if currentDist > maxChaseRange then
+				local newTarget = getTarget(entity)
+				if newTarget then
+					entity.target = Players:GetPlayerFromCharacter(newTarget) or newTarget
+					return true
+				else
+					return false
+				end
+			end
+		end
+
+	elseif retargetBehavior == "priority" then
+		-- Always check for higher priority targets
+		local newTarget = getTarget(entity)
+		if newTarget then
+			entity.target = Players:GetPlayerFromCharacter(newTarget) or newTarget
+			return true
+		end
+	end
+
+	return false
 end
 
 -- Update entity AI behavior (main AI loop)
@@ -519,122 +687,136 @@ local function updateEntityAI(entity: EntityInstance)
 	end
 
 	local config = getEntityConfig(entity.entityType)
-	if not config then return end
+	if not config or not config.ai then return end
 
 	local currentTime = tick()
 
-	-- If entity already has a target, check if we should maintain it
-	if entity.target and entity.target.Character then
-		local targetHumanoid = entity.target.Character:FindFirstChildOfClass("Humanoid")
-		local targetRoot = entity.target.Character:FindFirstChild("HumanoidRootPart")
+	-- Validate current target
+	if entity.target then
+		local targetModel = typeof(entity.target) == "Instance" and entity.target:IsA("Model") and entity.target or (typeof(entity.target) == "Instance" and entity.target.Character)
 
-		-- Clear target if they died
-		if not targetHumanoid or targetHumanoid.Health <= 0 then
-			entity.target = nil
-			entity.isAggro = false
-		-- Clear target if they're beyond extended chase range
-		elseif targetRoot and targetRoot:IsA("BasePart") then
-			local distance = (targetRoot.Position - entity.humanoidRootPart.Position).Magnitude
-			local chaseMultiplier = GameConfig.combat.chaseRangeMultiplier or 3
-			local maxChaseRange = config.aggroRange * chaseMultiplier
+		if targetModel then
+			local targetHumanoid = targetModel:FindFirstChildOfClass("Humanoid")
+			local targetRoot = targetModel:FindFirstChild("HumanoidRootPart")
 
-			if distance > maxChaseRange then
+			-- Clear target if dead or too far
+			if not targetHumanoid or targetHumanoid.Health <= 0 then
 				entity.target = nil
 				entity.isAggro = false
-				print(`{entity.entityType} gave up chase - target too far ({math.floor(distance)} > {maxChaseRange})`)
+			elseif targetRoot and targetRoot:IsA("BasePart") then
+				local distance = (targetRoot.Position - entity.humanoidRootPart.Position).Magnitude
+				local chaseMultiplier = GameConfig.combat.chaseRangeMultiplier or 3
+				local maxChaseRange = config.ai.aggroRange * chaseMultiplier
+
+				if distance > maxChaseRange then
+					-- Try retargeting
+					if not handleRetargeting(entity) then
+						entity.target = nil
+						entity.isAggro = false
+						print(`{entity.entityType} gave up chase - target too far`)
+					end
+				end
 			end
+		else
+			entity.target = nil
+			entity.isAggro = false
 		end
 	end
 
-	-- Only look for new target if we don't have one
+	-- Look for new target if we don't have one
 	if not entity.target then
 		local target = getTarget(entity)
 		if target then
 			entity.isAggro = true
-			entity.target = target
+			entity.target = Players:GetPlayerFromCharacter(target) or target
 		else
 			entity.isAggro = false
 		end
 	end
 
 	-- Handle behavior based on aggro state
-	if entity.isAggro and entity.target and entity.target.Character and entity.target.Character:FindFirstChild("HumanoidRootPart") then
-		local targetHRP = entity.target.Character.HumanoidRootPart :: BasePart
-		local targetPos = targetHRP.Position
-		local distToTarget = (targetHRP.Position - entity.humanoidRootPart.Position).Magnitude
+	if entity.isAggro and entity.target then
+		local targetModel = typeof(entity.target) == "Instance" and entity.target:IsA("Model") and entity.target or (typeof(entity.target) == "Instance" and entity.target.Character)
 
-		-- Get weapon config for range/cooldown
-		local weaponName = config.primaryWeapon
-		local CS = getCombatSystem()
-		local weaponConfig = CS.getWeaponConfig(weaponName)
-		if not weaponConfig then
-			warn(`Entity {entity.entityType} has no valid weapon config`)
-			return
-		end
+		if targetModel and targetModel:FindFirstChild("HumanoidRootPart") then
+			local targetHRP = targetModel.HumanoidRootPart :: BasePart
+			local targetPos = targetHRP.Position
+			local distToTarget = (targetPos - entity.humanoidRootPart.Position).Magnitude
 
-		local attackDistance = weaponConfig.range
-		local stoppingDistance = attackDistance * 0.8 -- Stop a bit before attack range
+			-- Get weapon config for range/cooldown
+			local weaponName = config.primaryWeapon
+			local CS = getCombatSystem()
+			local weaponConfig = CS.getWeaponConfig(weaponName)
+			if not weaponConfig then
+				warn(`Entity {entity.entityType} has no valid weapon config`)
+				return
+			end
 
-		-- Check if entity is currently attacking
-		if entity.state ~= "attacking" then
-			-- Adjust speed based on distance - slower when closer
-			if distToTarget <= stoppingDistance then
-				-- Within stopping distance: reduce speed for circling/strafing
-				entity.humanoid.WalkSpeed = (config.walkSpeed or 12) * 0.6 -- 60% of walk speed
-				updateEntityState(entity, "chasing")
-				playAnimation(entity, "walk") -- use walk animation at lower speed
+			local attackDistance = weaponConfig.range
+			local stoppingDistance = attackDistance * 0.8
+
+			-- Adjust speed based on distance
+			if entity.state ~= "attacking" then
+				if distToTarget <= stoppingDistance then
+					entity.humanoid.WalkSpeed = (config.walkSpeed or 12) * 0.6
+					updateEntityState(entity, "chasing")
+					playAnimation(entity, "walk")
+				else
+					entity.humanoid.WalkSpeed = config.runSpeed or 12
+					updateEntityState(entity, "chasing")
+					playAnimation(entity, "run")
+				end
+			end
+
+			-- Attack if in range
+			if distToTarget <= attackDistance then
+				if currentTime - entity.lastAttackTime >= weaponConfig.cooldown then
+					local targetPlayer = Players:GetPlayerFromCharacter(targetModel)
+					if targetPlayer then
+						performAttack(entity, targetPlayer)
+					end
+				end
+			end
+
+			-- Movement
+			if distToTarget > stoppingDistance then
+				entity.humanoid:MoveTo(targetPos)
 			else
-				-- Outside stopping distance: full chase speed
-				entity.humanoid.WalkSpeed = config.runSpeed or 12
-				updateEntityState(entity, "chasing")
-				playAnimation(entity, "run")
+				entity.humanoid:MoveTo(entity.humanoidRootPart.Position)
 			end
-		end
 
-		if distToTarget <= attackDistance then
-			if currentTime - entity.lastAttackTime >= weaponConfig.cooldown then
-				-- Perform attack (performAttack now handles castDuration internally)
-				performAttack(entity, entity.target)
+			-- Jumping
+			if config.canJump then
+				handleJumping(entity)
 			end
-		end
-
-		-- Movement behavior based on distance
-		if distToTarget > stoppingDistance then
-			-- Chase: move directly toward target
-			entity.humanoid:MoveTo(targetPos)
-		else
-			-- Within stopping distance: stop moving and clear pathfinding target
-			local currentPos = entity.humanoidRootPart.Position
-			entity.humanoid:MoveTo(currentPos)
-		end
-
-		-- Handle jumping
-		if config.canJump then
-			handleJumping(entity)
 		end
 	else
-		-- Wandering behavior
-		entity.humanoid.WalkSpeed = config.walkSpeed or 12
-		updateEntityState(entity, "wandering")
-		playAnimation(entity, "walk")
+		-- Idle behavior (no target)
+		local idleBehavior = config.ai.behaviors.idle
 
-		-- Simple wandering logic with cooldown to prevent rapid direction changes
-		local wanderCooldown = 3 -- seconds between wander direction changes
-		if currentTime - entity.lastWanderTime >= wanderCooldown then
-			local wanderRange = config.wanderRange or 10
-			local randomOffset = vector.create(
-				math.random(-wanderRange, wanderRange),
-				0,
-				math.random(-wanderRange, wanderRange)
-			)
-			local currentPos = entity.humanoidRootPart.Position
-			local targetPos = Vector3.new(
-				currentPos.X + randomOffset.x,
-				currentPos.Y + randomOffset.y,
-				currentPos.Z + randomOffset.z
-			)
-			entity.humanoid:MoveTo(targetPos)
-			entity.lastWanderTime = currentTime
+		if idleBehavior == "wander" then
+			-- Check if we should return to spawn first
+			if config.ai.returnToSpawn then
+				local distanceToSpawn = (entity.humanoidRootPart.Position - entity.spawnPoint).Magnitude
+				local returnThreshold = (config.ai.wanderRadius or 20) * 1.5
+
+				if distanceToSpawn > returnThreshold then
+					behaviorReturnToSpawn(entity)
+				else
+					behaviorWander(entity)
+				end
+			else
+				behaviorWander(entity)
+			end
+
+		elseif idleBehavior == "seek_target" then
+			behaviorSeekTarget(entity)
+
+		else
+			-- Default: stand idle
+			entity.humanoid.WalkSpeed = config.walkSpeed or 12
+			updateEntityState(entity, "idle")
+			playAnimation(entity, "walk")
 		end
 	end
 end
@@ -658,6 +840,21 @@ function EntityController.initializeEntity(model: Model, entityType: string): En
 	-- Get level from model attribute (defaults to 1)
 	local level = (model:GetAttribute("Level") :: number) or 1
 
+	-- Get spawn point from model attribute (defaults to current position)
+	local spawnPoint = model:GetAttribute("SpawnPoint") or humanoidRootPart.Position
+
+	-- Get patrol points from model attribute (if any)
+	local patrolPoints: {Vector3}? = nil
+	local patrolPointsJson = model:GetAttribute("PatrolPoints")
+	if patrolPointsJson then
+		local success, decoded = pcall(function()
+			return game:GetService("HttpService"):JSONDecode(patrolPointsJson)
+		end)
+		if success and decoded then
+			patrolPoints = decoded
+		end
+	end
+
 	-- Get base stats from config or use defaults
 	local baseStats = config.baseStats or {
 		strength = 3,
@@ -679,9 +876,13 @@ function EntityController.initializeEntity(model: Model, entityType: string): En
 	humanoid.Health = humanoid.MaxHealth
 	humanoid.WalkSpeed = config.walkSpeed or 12
 
-	-- Store level on model for other systems
+	-- Store attributes for other systems (targeting, health bars, etc.)
 	model:SetAttribute("Level", level)
 	model:SetAttribute("EntityType", entityType)
+	model:SetAttribute("EntityCategory", config.category)
+	model:SetAttribute("CanTakeDamage", config.canTakeDamage)
+	model:SetAttribute("MaxHealth", humanoid.MaxHealth)
+	model:SetAttribute("CurrentHealth", humanoid.Health)
 
 	-- Create entity instance
 	local entity: EntityInstance = {
@@ -703,6 +904,12 @@ function EntityController.initializeEntity(model: Model, entityType: string): En
 		baseStats = baseStats,
 		scaledStats = scaledStats,
 		config = config,
+
+		-- AI system
+		spawnPoint = spawnPoint,
+		patrolPoints = patrolPoints,
+		currentPatrolIndex = 1,
+		attacker = nil,
 	}
 
 	-- Load animations
@@ -710,6 +917,11 @@ function EntityController.initializeEntity(model: Model, entityType: string): En
 
 	-- Set initial state
 	updateEntityState(entity, "idle")
+
+	-- Sync CurrentHealth attribute when health changes
+	humanoid.HealthChanged:Connect(function(newHealth)
+		model:SetAttribute("CurrentHealth", newHealth)
+	end)
 
 	-- Handle death
 	humanoid.Died:Connect(function()
@@ -774,7 +986,7 @@ function EntityController.setTarget(model: Model, target: Player?)
 end
 
 --[[
-	Called when an entity takes damage - retargets to attacker ONLY if no current target
+	Called when an entity takes damage - handles retargeting based on AI behavior
 
 	@param entity - Entity that took damage
 	@param attacker - The attacker (character model)
@@ -785,14 +997,47 @@ function EntityController.onEntityDamaged(entity: Model, attacker: Model)
 		return
 	end
 
-	-- ONLY retarget if entity has no current target
-	if not entityInstance.target then
-		local attackerPlayer = Players:GetPlayerFromCharacter(attacker)
-		if attackerPlayer then
-			entityInstance.target = attackerPlayer
-			entityInstance.isAggro = true
-			print(`{entity.Name} now targeting {attackerPlayer.Name} after taking damage`)
+	-- Store attacker reference
+	entityInstance.attacker = attacker
+
+	-- Handle retargeting based on AI onDamaged behavior
+	local onDamagedBehavior = entityInstance.config.ai and entityInstance.config.ai.behaviors.onDamaged or "ignore"
+
+	if onDamagedBehavior == "retaliate_locked" then
+		-- Always attack attacker, never switch
+		if not entityInstance.target then
+			local attackerPlayer = Players:GetPlayerFromCharacter(attacker)
+			if attackerPlayer then
+				entityInstance.target = attackerPlayer
+				entityInstance.isAggro = true
+				print(`{entity.Name} now targeting {attackerPlayer.Name} after taking damage (locked)`)
+			else
+				entityInstance.target = attacker
+				entityInstance.isAggro = true
+				print(`{entity.Name} now targeting attacker (locked)`)
+			end
 		end
+
+	elseif onDamagedBehavior == "retaliate_closest" then
+		-- Attack attacker, but can switch to closer threats
+		local attackerPlayer = Players:GetPlayerFromCharacter(attacker)
+		if not entityInstance.target then
+			if attackerPlayer then
+				entityInstance.target = attackerPlayer
+				entityInstance.isAggro = true
+				print(`{entity.Name} now targeting {attackerPlayer.Name} after taking damage (can retarget)`)
+			else
+				entityInstance.target = attacker
+				entityInstance.isAggro = true
+				print(`{entity.Name} now targeting attacker (can retarget)`)
+			end
+		end
+
+	elseif onDamagedBehavior == "ignore" then
+		-- Don't retarget from damage, maintain current target
+		-- This is useful for creatures with mission objectives (like attacking structures)
+		print(`{entity.Name} ignored damage, maintaining current target`)
+
 	end
 end
 

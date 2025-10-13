@@ -50,9 +50,39 @@ local function setTarget(entity: Model)
 	end
 end
 
--- Handle mouse clicks for targeting (simplified approach)
-local function onMouseClick()
-	local hitPart = mouse.Target
+-- Raycast from screen position to find what was clicked/tapped
+local function raycastFromScreenPosition(screenPosition: Vector2): BasePart?
+	if not camera then
+		return nil
+	end
+
+	-- Get world ray from screen position
+	local ray = camera:ScreenPointToRay(screenPosition.X, screenPosition.Y)
+
+	-- Setup raycast params
+	local raycastParams = RaycastParams.new()
+	raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+	raycastParams.FilterDescendantsInstances = {player.Character}
+	raycastParams.IgnoreWater = true
+
+	-- Perform raycast
+	local result = workspace:Raycast(ray.Origin, ray.Direction * 1000, raycastParams)
+
+	return result and result.Instance
+end
+
+-- Handle mouse clicks for targeting (works with mouse or touch)
+local function onMouseClick(screenPosition: Vector2?)
+	-- Use provided screen position or current mouse position
+	local hitPart: BasePart?
+	if screenPosition then
+		-- Touch input - use raycast
+		hitPart = raycastFromScreenPosition(screenPosition)
+	else
+		-- Mouse input - use mouse.Target
+		hitPart = mouse.Target
+	end
+
 	if not hitPart then
 		-- Click on empty space - keep current target (if any)
 		return
@@ -140,10 +170,8 @@ if UserInputService.TouchEnabled then
 		-- Use the first touch position
 		if #touchPositions > 0 then
 			local touchPos = touchPositions[1]
-			-- Convert touch position to mouse position equivalent
-			mouse.X = touchPos.X
-			mouse.Y = touchPos.Y
-			onMouseClick()
+			-- Pass touch position to onMouseClick for raycasting
+			onMouseClick(vector.create(touchPos.X, touchPos.Y))
 		end
 	end)
 end
