@@ -3,7 +3,7 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
-local PlayerSettings = require(script.Parent:WaitForChild("PlayerSettings"))
+local PlayerSettings = require(script.Parent.PlayerSettings)
 
 type PlayerSettingsData = PlayerSettings.PlayerSettingsData
 

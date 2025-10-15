@@ -51,7 +51,7 @@ local isInitialized = false
 ]]
 local function getCombatSystem()
 	if not CombatSystem then
-		CombatSystem = require(script.Parent:WaitForChild("CombatSystem"))
+		CombatSystem = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("combat"):WaitForChild("CombatSystem"))
 	end
 	return CombatSystem
 end
@@ -63,7 +63,7 @@ end
 ]]
 local function getStatsProvider()
 	if not StatsProvider then
-		StatsProvider = require(script.Parent:WaitForChild("StatsProvider"))
+		StatsProvider = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("combat"):WaitForChild("StatsProvider"))
 	end
 	return StatsProvider
 end

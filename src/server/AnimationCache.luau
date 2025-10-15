@@ -1,7 +1,7 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Types = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Types"))
+local Types = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("Types"))
 
 type ToolType = Types.ToolType
 

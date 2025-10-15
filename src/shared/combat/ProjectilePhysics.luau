@@ -11,10 +11,10 @@
 
 local Players = game:GetService("Players")
 
-local CombatSystem = require(script.Parent:WaitForChild("CombatSystem"))
-local CombatFeedback = require(script.Parent:WaitForChild("CombatFeedback"))
-local DamageCalculator = require(script.Parent:WaitForChild("DamageCalculator"))
-local StatsProvider = require(script.Parent:WaitForChild("StatsProvider"))
+local CombatSystem = require(script.Parent.CombatSystem)
+local CombatFeedback = require(script.Parent.Parent:WaitForChild("visual-effects"):WaitForChild("CombatFeedback"))
+local StatsProvider = require(script.Parent.StatsProvider)
+-- DamageCalculator moved to server (not used here)
 
 type ProjectileInstance = CombatSystem.ProjectileInstance
 type DamageMode = CombatSystem.DamageMode
@@ -145,7 +145,7 @@ local function showImpactEffect(projectile: ProjectileInstance, position: Vector
 		end)
 
 		-- Also show AOE radius circle briefly
-		local AOETelegraph = require(script.Parent:WaitForChild("AOETelegraph"))
+		local AOETelegraph = require(script.Parent.Parent:WaitForChild("visual-effects"):WaitForChild("AOETelegraph"))
 		local circle = AOETelegraph.showCircleTelegraph(
 			position,
 			weaponConfig.aoeRadius or 10,

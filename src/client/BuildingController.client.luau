@@ -5,8 +5,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
-local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RemoteEvents"))
-local Utils = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Utils"))
+local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("RemoteEvents"))
+local Utils = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("Utils"))
 
 local player = Players.LocalPlayer
 

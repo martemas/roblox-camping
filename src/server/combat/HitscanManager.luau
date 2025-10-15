@@ -14,9 +14,9 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local CombatSystem = require(script.Parent:WaitForChild("CombatSystem"))
-local HitscanEffects = require(script.Parent:WaitForChild("HitscanEffects"))
-local GameConfig = require(script.Parent:WaitForChild("config"))
+local CombatSystem = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("combat"):WaitForChild("CombatSystem"))
+local HitscanEffects = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("visual-effects"):WaitForChild("HitscanEffects"))
+local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("config"))
 
 local HitscanManager = {}
 
@@ -164,7 +164,7 @@ function HitscanManager.validateAttack(
 
 	-- Check line of sight (if required)
 	if weaponConfig.requiresLineOfSight and lockedTarget then
-		local ProjectileLOS = require(script.Parent:WaitForChild("ProjectileLOS"))
+		local ProjectileLOS = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("combat"):WaitForChild("ProjectileLOS"))
 		local losResult = ProjectileLOS.canTargetEntity(attacker, lockedTarget)
 
 		if not losResult.hasLineOfSight then

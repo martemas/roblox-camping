@@ -5,10 +5,10 @@ local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local TargetingSystem = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("TargetingSystem"))
-local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RemoteEvents"))
+local TargetingSystem = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("player"):WaitForChild("TargetingSystem"))
+local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("RemoteEvents"))
 local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("config"))
-local PlayerSettingsManager = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("PlayerSettingsManager"))
+local PlayerSettingsManager = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("player"):WaitForChild("PlayerSettingsManager"))
 
 local player = Players.LocalPlayer
 local mouse = player:GetMouse()

@@ -16,7 +16,7 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Stats = require(ReplicatedStorage.Shared:WaitForChild("Stats"))
+local Stats = require(ReplicatedStorage.Shared:WaitForChild("combat"):WaitForChild("Stats"))
 local GameConfig = require(ReplicatedStorage.Shared:WaitForChild("config"))
 
 local XPRewardManager = {}
@@ -34,7 +34,7 @@ end
 
 local function getEntityController()
 	if not EntityController then
-		EntityController = require(ReplicatedStorage.Shared:WaitForChild("EntityController"))
+		EntityController = require(script.Parent:WaitForChild("entities"):WaitForChild("EntityController"))
 	end
 	return EntityController
 end

@@ -17,8 +17,8 @@ local RunService = game:GetService("RunService")
 local ServerScriptService = game:GetService("ServerScriptService")
 
 local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("config"))
-local EntitySpawner = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("EntitySpawner"))
-local EntityController = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("EntityController"))
+local EntitySpawner = require(script.Parent:WaitForChild("entities"):WaitForChild("EntitySpawner"))
+local EntityController = require(script.Parent:WaitForChild("entities"):WaitForChild("EntityController"))
 local WorkspaceSpawnLoader = require(script.Parent:WaitForChild("game-specific"):WaitForChild("WorkspaceSpawnLoader"))
 
 local SpawnManager = {}

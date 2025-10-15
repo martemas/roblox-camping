@@ -10,7 +10,7 @@
 local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Stats = require(ReplicatedStorage.Shared:WaitForChild("Stats"))
+local Stats = require(ReplicatedStorage.Shared:WaitForChild("combat"):WaitForChild("Stats"))
 local UIConfig = require(script.Parent.Parent:WaitForChild("UIConfig"))
 
 local XPBar = {}

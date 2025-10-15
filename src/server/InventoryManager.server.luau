@@ -5,8 +5,8 @@ local Players = game:GetService("Players")
 
 local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("config"))
 local ResourcesConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("config"):WaitForChild("ResourcesConfig"))
-local Types = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Types"))
-local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RemoteEvents"))
+local Types = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("Types"))
+local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("RemoteEvents"))
 
 type PlayerInventory = Types.PlayerInventory
 type ResourceType = ResourcesConfig.ResourceType

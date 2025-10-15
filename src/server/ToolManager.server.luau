@@ -2,15 +2,16 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
+local ServerScriptService = game:GetService("ServerScriptService")
 
 local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("config"))
-local Types = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Types"))
-local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RemoteEvents"))
-local Utils = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Utils"))
-local CombatSystem = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("CombatSystem"))
-local TargetingSystem = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("TargetingSystem"))
-local HitscanManager = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("HitscanManager"))
-local StatsProvider = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("StatsProvider"))
+local Types = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("Types"))
+local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("RemoteEvents"))
+local Utils = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("Utils"))
+local CombatSystem = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("combat"):WaitForChild("CombatSystem"))
+local TargetingSystem = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("player"):WaitForChild("TargetingSystem"))
+local HitscanManager = require(ServerScriptService:WaitForChild("Server"):WaitForChild("combat"):WaitForChild("HitscanManager"))
+local StatsProvider = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("combat"):WaitForChild("StatsProvider"))
 local AnimationManager = require(script.Parent:WaitForChild("AnimationManager"))
 
 type ToolType = Types.ToolType
@@ -225,7 +226,7 @@ local function performCombatAttack(player: Player, toolType: ToolType, clickTarg
 		local damageTarget = lockedTarget or clickTarget
 
 		-- Validate attack BEFORE animation
-		local ProjectileManager = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ProjectileManager"))
+		local ProjectileManager = require(ServerScriptService:WaitForChild("Server"):WaitForChild("combat"):WaitForChild("ProjectileManager"))
 		local isValid, errorMsg = ProjectileManager.validateAttack(character, damageTarget, weaponName)
 		if not isValid then
 			-- Validation failed - no animation, no sound
@@ -401,7 +402,7 @@ local function performCombatAttack(player: Player, toolType: ToolType, clickTarg
 
 	elseif weaponConfig.type == "aoe" then
 		-- AOE attack
-		local AOETelegraph = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("AOETelegraph"))
+		local AOETelegraph = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("visual-effects"):WaitForChild("AOETelegraph"))
 		local target = TargetingSystem.getTarget(player)
 
 		-- Determine target position
@@ -454,7 +455,7 @@ local function performCombatAttack(player: Player, toolType: ToolType, clickTarg
 		-- Check if this is projectile AOE or instant AOE
 		if weaponConfig.projectileSpeed then
 			-- Projectile AOE: Spawn projectile that will explode on impact
-			local ProjectileManager = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ProjectileManager"))
+			local ProjectileManager = require(ServerScriptService:WaitForChild("Server"):WaitForChild("combat"):WaitForChild("ProjectileManager"))
 
 			-- Recalculate direction in case target moved
 			local direction: Vector3

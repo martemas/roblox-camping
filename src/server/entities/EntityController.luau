@@ -6,13 +6,14 @@ local TweenService = game:GetService("TweenService")
 local Debris = game:GetService("Debris")
 local PathfindingService = game:GetService("PathfindingService")
 local ServerScriptService = game:GetService("ServerScriptService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local GameConfig = require(script.Parent:WaitForChild("config"))
-local CombatFeedback = require(script.Parent:WaitForChild("CombatFeedback"))
-local ProjectileLOS = require(script.Parent:WaitForChild("ProjectileLOS"))
-local DamageCalculator = require(script.Parent:WaitForChild("DamageCalculator"))
-local Stats = require(script.Parent:WaitForChild("Stats"))
-local StatsProvider = require(script.Parent:WaitForChild("StatsProvider"))
+local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("config"))
+local CombatFeedback = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("visual-effects"):WaitForChild("CombatFeedback"))
+local ProjectileLOS = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("combat"):WaitForChild("ProjectileLOS"))
+local DamageCalculator = require(script.Parent.Parent:WaitForChild("combat"):WaitForChild("DamageCalculator"))
+local Stats = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("combat"):WaitForChild("Stats"))
+local StatsProvider = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("combat"):WaitForChild("StatsProvider"))
 
 -- Lazy-loaded modules to avoid circular dependencies
 local CombatSystem
@@ -20,7 +21,7 @@ local XPRewardManager
 
 local function getCombatSystem()
 	if not CombatSystem then
-		CombatSystem = require(script.Parent:WaitForChild("CombatSystem"))
+		CombatSystem = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("combat"):WaitForChild("CombatSystem"))
 	end
 	return CombatSystem
 end
@@ -349,7 +350,7 @@ local function performAttack(entity: EntityInstance, target: Player)
 		task.wait(weaponConfig.castDuration)
 
 		-- Fire projectile via ProjectileManager
-		local ProjectileManager = require(script.Parent:WaitForChild("ProjectileManager"))
+		local ProjectileManager = require(script.Parent.Parent:WaitForChild("combat"):WaitForChild("ProjectileManager"))
 		local origin = entityPos + (direction * 2) -- Slightly in front
 		local projectile = ProjectileManager.spawnProjectile(
 			origin,
@@ -368,7 +369,7 @@ local function performAttack(entity: EntityInstance, target: Player)
 
 	elseif weaponConfig.type == "hitscan" then
 		-- Hitscan attack (uses HitscanManager like players)
-		local HitscanManager = require(script.Parent:WaitForChild("HitscanManager"))
+		local HitscanManager = require(script.Parent.Parent:WaitForChild("combat"):WaitForChild("HitscanManager"))
 
 		-- Play attack animation
 		playAnimation(entity, "attack")
@@ -404,7 +405,7 @@ local function performAttack(entity: EntityInstance, target: Player)
 
 	elseif weaponConfig.type == "aoe" then
 		-- AOE attack
-		local AOETelegraph = require(script.Parent:WaitForChild("AOETelegraph"))
+		local AOETelegraph = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("visual-effects"):WaitForChild("AOETelegraph"))
 
 		local targetPos: Vector3
 
@@ -435,7 +436,7 @@ local function performAttack(entity: EntityInstance, target: Player)
 		-- Check if this is projectile AOE or instant AOE
 		if weaponConfig.projectileSpeed then
 			-- Projectile AOE: Spawn projectile that will explode on impact
-			local ProjectileManager = require(script.Parent:WaitForChild("ProjectileManager"))
+			local ProjectileManager = require(script.Parent.Parent:WaitForChild("combat"):WaitForChild("ProjectileManager"))
 			local direction = (targetPos - entity.humanoidRootPart.Position).Unit
 			local origin = entity.humanoidRootPart.Position + (direction * 2)
 
@@ -1136,8 +1137,7 @@ function EntityController.handleDamage(
 		-- This bypasses XP system since there's no attacker
 		entity.humanoid:TakeDamage(damage)
 
-		-- Show feedback for environmental damage
-		local CombatFeedback = require(script.Parent:WaitForChild("CombatFeedback"))
+		-- Show feedback for environmental damage (already imported at top)
 		CombatFeedback.showDamage(model, damage, damageSource or "environmental", "other_player", nil)
 
 		-- Play damage sound

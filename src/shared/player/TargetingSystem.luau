@@ -3,9 +3,9 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
-local GameConfig = require(script.Parent:WaitForChild("config"))
-local EntityConfig = require(script.Parent:WaitForChild("config"):WaitForChild("EntitiesConfig"))
-local Types = require(script.Parent:WaitForChild("Types"))
+local GameConfig = require(script.Parent.Parent:WaitForChild("config"))
+local EntityConfig = require(script.Parent.Parent:WaitForChild("config"):WaitForChild("EntitiesConfig"))
+local Types = require(script.Parent.Parent:WaitForChild("core"):WaitForChild("Types"))
 
 type TargetInfo = Types.TargetInfo
 

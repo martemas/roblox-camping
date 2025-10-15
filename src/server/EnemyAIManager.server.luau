@@ -1,7 +1,7 @@
 --!strict
 
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local EntityController = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("EntityController"))
+local ServerScriptService = game:GetService("ServerScriptService")
+local EntityController = require(ServerScriptService:WaitForChild("Server"):WaitForChild("entities"):WaitForChild("EntityController"))
 
 -- Initialize the centralized entity controller system
 EntityController.initialize()

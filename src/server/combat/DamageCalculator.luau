@@ -10,8 +10,9 @@
 	All stat formulas are centralized in Stats module for easy balance adjustments.
 ]]
 
-local GameConfig = require(script.Parent:WaitForChild("config"))
-local Stats = require(script.Parent:WaitForChild("Stats"))
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("config"))
+local Stats = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("combat"):WaitForChild("Stats"))
 
 local DamageCalculator = {}
 

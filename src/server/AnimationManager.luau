@@ -3,7 +3,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 
-local Types = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Types"))
+local Types = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("Types"))
 local AnimationCache = require(script.Parent:WaitForChild("AnimationCache"))
 
 type ToolType = Types.ToolType

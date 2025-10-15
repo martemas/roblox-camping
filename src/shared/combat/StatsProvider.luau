@@ -19,7 +19,7 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local ServerScriptService = game:GetService("ServerScriptService")
 
-local Stats = require(script.Parent:WaitForChild("Stats"))
+local Stats = require(script.Parent.Stats)
 
 -- Lazy-loaded modules (cached after first use)
 local PlayerStats
@@ -44,7 +44,16 @@ end
 -- Load EntityController module
 local function getEntityController()
 	if not EntityController then
-		EntityController = require(script.Parent:WaitForChild("EntityController"))
+		-- EntityController is now in server/entities
+		local success, entityControllerModule = pcall(function()
+			return ServerScriptService:WaitForChild("Server"):WaitForChild("entities"):WaitForChild("EntityController", 5)
+		end)
+
+		if success and entityControllerModule then
+			EntityController = require(entityControllerModule)
+		else
+			warn("[StatsProvider] Failed to load EntityController - module not found in ServerScriptService.Server.entities")
+		end
 	end
 	return EntityController
 end

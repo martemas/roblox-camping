@@ -4,7 +4,7 @@ local TweenService = game:GetService("TweenService")
 local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
 
-local PlayerSettingsManager = require(script.Parent:WaitForChild("PlayerSettingsManager"))
+local PlayerSettingsManager = require(script.Parent.Parent:WaitForChild("player"):WaitForChild("PlayerSettingsManager"))
 
 local CombatFeedback = {}
 

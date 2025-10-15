@@ -1,12 +1,12 @@
 --!strict
 local Types = {}
 
-local Stats = require(script.Parent:WaitForChild("Stats"))
+local Stats = require(script.Parent.Parent:WaitForChild("combat"):WaitForChild("Stats"))
 
-local ResourcesConfig = require(script.Parent:WaitForChild("config"):WaitForChild("ResourcesConfig"))
-local EntityConfig = require(script.Parent:WaitForChild("config"):WaitForChild("EntitiesConfig"))
-local ToolsConfig = require(script.Parent:WaitForChild("config"):WaitForChild("ToolsConfig"))
-local DayNightCycleConfig = require(script.Parent:WaitForChild("config"):WaitForChild("DayNightCycleConfig"))
+local ResourcesConfig = require(script.Parent.Parent:WaitForChild("config"):WaitForChild("ResourcesConfig"))
+local EntityConfig = require(script.Parent.Parent:WaitForChild("config"):WaitForChild("EntitiesConfig"))
+local ToolsConfig = require(script.Parent.Parent:WaitForChild("config"):WaitForChild("ToolsConfig"))
+local DayNightCycleConfig = require(script.Parent.Parent:WaitForChild("config"):WaitForChild("DayNightCycleConfig"))
 
 -- Export Stats types (centralized from Stats module)
 export type Stats = Stats.Stats

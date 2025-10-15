@@ -8,18 +8,20 @@ local ServerScriptService = game:GetService("ServerScriptService")
 
 print("Server initializing...")
 
+-- Get server folder reference
+local serverFolder = ServerScriptService:FindFirstChild("Server")
+
 -- Wait for shared modules to load
 local GameConfig = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("config")
-local Types = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Types")
-local RemoteEvents = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RemoteEvents")
+local Types = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("Types")
+local RemoteEvents = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("RemoteEvents")
 
--- Initialize ProjectileManager
-local ProjectileManager = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("ProjectileManager"))
-ProjectileManager.initialize()
-
--- Pre-warm animation cache FIRST (before other systems)
-local serverFolder = ServerScriptService:FindFirstChild("Server")
+-- Initialize ProjectileManager (now in server/combat)
 if serverFolder then
+	local ProjectileManager = require(serverFolder:WaitForChild("combat"):WaitForChild("ProjectileManager"))
+	ProjectileManager.initialize()
+
+	-- Pre-warm animation cache FIRST (before other systems)
 	local AnimationCache = require(serverFolder:WaitForChild("AnimationCache"))
 	AnimationCache.Initialize()
 

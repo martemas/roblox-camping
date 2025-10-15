@@ -16,10 +16,10 @@ local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Debris = game:GetService("Debris")
 
-local CombatSystem = require(script.Parent:WaitForChild("CombatSystem"))
-local ProjectilePhysics = require(script.Parent:WaitForChild("ProjectilePhysics"))
-local ProjectileLOS = require(script.Parent:WaitForChild("ProjectileLOS"))
-local GameConfig = require(script.Parent:WaitForChild("config"))
+local CombatSystem = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("combat"):WaitForChild("CombatSystem"))
+local ProjectilePhysics = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("combat"):WaitForChild("ProjectilePhysics"))
+local ProjectileLOS = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("combat"):WaitForChild("ProjectileLOS"))
+local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("config"))
 
 type ProjectileInstance = CombatSystem.ProjectileInstance
 

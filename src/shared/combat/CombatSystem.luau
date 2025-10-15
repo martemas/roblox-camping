@@ -4,11 +4,24 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local ServerScriptService = game:GetService("ServerScriptService")
-local GameConfig = require(script.Parent:WaitForChild("config"))
-local CombatFeedback = require(script.Parent:WaitForChild("CombatFeedback"))
-local ProjectileLOS = require(script.Parent:WaitForChild("ProjectileLOS"))
-local DamageCalculator = require(script.Parent:WaitForChild("DamageCalculator"))
-local HitscanEffects = require(script.Parent:WaitForChild("HitscanEffects"))
+local GameConfig = require(script.Parent.Parent:WaitForChild("config"))
+local CombatFeedback = require(script.Parent.Parent:WaitForChild("visual-effects"):WaitForChild("CombatFeedback"))
+local ProjectileLOS = require(script.Parent.ProjectileLOS)
+local HitscanEffects = require(script.Parent.Parent:WaitForChild("visual-effects"):WaitForChild("HitscanEffects"))
+
+-- DamageCalculator is now in server/combat (lazy load to avoid errors on client)
+local DamageCalculator
+local function getDamageCalculator()
+	if not DamageCalculator and RunService:IsServer() then
+		local success, damageCalcModule = pcall(function()
+			return ServerScriptService:WaitForChild("Server"):WaitForChild("combat"):WaitForChild("DamageCalculator", 5)
+		end)
+		if success and damageCalcModule then
+			DamageCalculator = require(damageCalcModule)
+		end
+	end
+	return DamageCalculator
+end
 
 -- Lazy-loaded server modules
 local XPRewardManager
@@ -512,8 +525,18 @@ function CombatSystem.performAOEAttack(
 		onDamageCallback: ((target: Model, attacker: Model) -> ())?, -- Optional callback per target
 	}?
 ): {AOEHitInfo}
-	local AOEZoneManager = require(script.Parent:WaitForChild("AOEZoneManager"))
-	local StatsProvider = require(script.Parent:WaitForChild("StatsProvider"))
+	-- AOEZoneManager is now in server/combat (lazy load)
+	local AOEZoneManager
+	if RunService:IsServer() then
+		local success, aoeModule = pcall(function()
+			return ServerScriptService:WaitForChild("Server"):WaitForChild("combat"):WaitForChild("AOEZoneManager", 5)
+		end)
+		if success and aoeModule then
+			AOEZoneManager = require(aoeModule)
+		end
+	end
+
+	local StatsProvider = require(script.Parent.StatsProvider)
 	local opts = options or {}
 
 	local weaponConfig = CombatSystem.getWeaponConfig(weaponName)
@@ -711,7 +734,21 @@ function CombatSystem.applyDamageToEntity(
 	local targetStats = opts.targetStats
 
 	-- Calculate damage via DamageCalculator (with stats)
-	local damageResult = DamageCalculator.calculateDamage({
+	local DamageCalc = getDamageCalculator()
+	if not DamageCalc then
+		warn("[CombatSystem] DamageCalculator not available")
+		return {
+			finalDamage = 0,
+			wasHit = false,
+			wasCritical = false,
+			wasDodged = false,
+			hitLocation = "unknown",
+			damageMultiplier = 0,
+			baseDamage = 0,
+		}
+	end
+
+	local damageResult = DamageCalc.calculateDamage({
 		attacker = attacker,
 		target = target,
 		weaponName = weaponName,
