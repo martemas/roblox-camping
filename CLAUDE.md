@@ -118,3 +118,7 @@ This generalized iteration provides a more consistent way to loop through tables
 - Use Roblox best practices
 - Make sure the method definitions are defined before they are called.
 - Run rojo build after changes to ensure there are no compilation error.
+
+MAKE SURE
+- Put client only code in either /src/client or /src/shared (ReplicatedStorage)
+- Any server code or code that the client does not use or need should be stored or split into /src/server (ServerScriptStorage)
