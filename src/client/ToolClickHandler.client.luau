@@ -35,6 +35,7 @@ local MAX_RAYCAST_DISTANCE = 1000 -- Max distance for click raycast
 
 -- Track last input position (for mobile touch support)
 local lastInputPosition: Vector2? = nil
+local lastInputType: Enum.UserInputType? = nil
 
 --[[
 	Perform a raycast from camera through screen position
@@ -131,8 +132,17 @@ local function onToolActivated(toolType: ToolType)
 	local clickPosition: Vector3? = nil
 
 	-- ALWAYS capture click/tap position (needed for default behavior)
-	-- Get screen position (use stored touch position or current mouse position)
-	local screenPosition = lastInputPosition or vector.create(mouse.X, mouse.Y)
+	-- Get screen position:
+	-- - For TOUCH input: Use stored position from InputBegan (already captured)
+	-- - For MOUSE input: Use CURRENT mouse position (not stored, to avoid stale data)
+	local screenPosition: Vector2
+	if lastInputType == Enum.UserInputType.Touch and lastInputPosition then
+		-- Touch: Use stored position from InputBegan
+		screenPosition = lastInputPosition
+	else
+		-- Mouse or fallback: Use current live mouse position
+		screenPosition = vector.create(mouse.X, mouse.Y)
+	end
 
 	-- Raycast from screen position to get click point
 	local rayResult = raycastFromScreenPosition(screenPosition)
@@ -153,8 +163,9 @@ local function onToolActivated(toolType: ToolType)
 		print(`[ClickHandler] No raycast hit - will use look direction fallback`)
 	end
 
-	-- Clear stored input position after use
+	-- Clear stored input position and type after use
 	lastInputPosition = nil
+	lastInputType = nil
 
 	-- Send to server (server will decide based on autoAim setting)
 	-- - autoAim=true + lockedTarget: Server uses locked target
@@ -233,14 +244,17 @@ local function setupInputCapture()
 			return
 		end
 
-		-- Capture touch position (mobile)
+		-- Capture touch position (mobile) - MUST store for touch input
 		if input.UserInputType == Enum.UserInputType.Touch then
 			lastInputPosition = input.Position
+			lastInputType = Enum.UserInputType.Touch
 		end
 
-		-- Capture mouse position (PC/Mac)
+		-- For mouse, store the input type but NOT the position
+		-- (we'll use live mouse position to avoid stale data)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 then
-			lastInputPosition = input.Position
+			lastInputType = Enum.UserInputType.MouseButton1
+			-- Don't store lastInputPosition for mouse - use live mouse.X/Y instead
 		end
 	end)
 

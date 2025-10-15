@@ -205,6 +205,7 @@ function ProjectileManager.spawnProjectile(
 		if descendant:IsA("BasePart") then
 			descendant.Anchored = true
 			descendant.CanCollide = false
+			descendant.CollisionGroup = "Projectiles"
 		end
 	end
 

@@ -168,9 +168,21 @@ local GameSettings = {
 
 	-- Map Settings
 	map = {
-		size = 600, -- 1000x1000 studs
+		size = 1000, -- 1000x1000 studs
 		campRadius = 50, -- Radius around camp center for building
 		resourceSpawnRadius = 400, -- Max distance from center for resources
+	},
+
+	-- Drop System Settings
+	drops = {
+		mode = "scatter", -- "scatter" or "container" (container = future implementation)
+		scatterRadius = 5, -- Studs radius for scattered items
+		despawnTime = 300, -- 5 minutes (in seconds)
+
+		-- Container mode settings (future)
+		containerDespawnTime = 300, -- 5 minutes (seconds)
+		containerDespawnAfterLoot = false, -- Keep container after looting
+		containerMaxDistance = 10, -- Max distance to interact (studs)
 	},
 
 	-- Export CombatMode enum

@@ -125,9 +125,7 @@ local function createResourceNode(resourceType: ResourceType, position: vector):
 
 	if entityConfig then
 		nodeModel:SetAttribute("EntityType", resourceType :: ResourceType)
-		print("**** setting entity category to resource ****")
 		nodeModel:SetAttribute("EntityCategory", EntityConfig.Categories.Resource)
-		print(`Set attributes for {resourceType} node: EntityType={resourceType}`)
 	else
 		warn(`No entity configuration found for {resourceType}`)
 	end
@@ -152,8 +150,6 @@ local function createResourceNode(resourceType: ResourceType, position: vector):
 
 	prompt.RequiresLineOfSight = false
 	prompt.Parent = mainPart
-
-	print(`Created ProximityPrompt for {resourceType} node`) -- DEBUG
 
 	resourceNodes[mainPart] = resourceNode
 	return resourceNode
@@ -782,8 +778,6 @@ local function spawnResourceNodes()
 					warn(`Failed to create {resourceType} node {i}`)
 				end
 			end
-		else
-			print(`Skipping {resourceType} - spawnMode is {config.spawnMode}`) -- DEBUG
 		end
 	end
 end
@@ -823,8 +817,6 @@ end
 
 -- Handle tool hit on resource node (called from ToolManager)
 function ResourceManager.HandleToolHit(player: Player, hitPart: BasePart, resourceType: ResourceType)
-	print(`HandleToolHit called for {player.Name} hitting {resourceType}`) -- DEBUG
-
 	-- Find the resource node
 	local node = resourceNodes[hitPart]
 	if not node then
@@ -837,15 +829,15 @@ function ResourceManager.HandleToolHit(player: Player, hitPart: BasePart, resour
 		end
 	end
 
-	if not node then
-		print(`No resource node found for hit part`) -- DEBUG
-		return
-	end
+	-- if not node then
+	-- 	print(`No resource node found for hit part`) -- DEBUG
+	-- 	return
+	-- end
 
-	if not node.isActive then
-		print(`Node is not active (depleted)`) -- DEBUG
-		return
-	end
+	-- if not node.isActive then
+	-- 	print(`Node is not active (depleted)`) -- DEBUG
+	-- 	return
+	-- end
 
 	-- Get resource configuration
 	local resourceConfig = GameConfig.resources[resourceType]
@@ -890,14 +882,12 @@ function ResourceManager.HandleToolHit(player: Player, hitPart: BasePart, resour
 		end
 		inventory[resourceType] += resourceConfig.yieldPerMine
 		RemoteEvents.Events.UpdateInventory:FireClient(player, inventory)
-		print(`{player.Name} mined {resourceType}, now has {inventory[resourceType]}`) -- DEBUG
 	end
 
 	-- Check if node is depleted
 	if node.currentHits >= node.maxHits then
 		node.isActive = false
 		hideResourceNode(node)
-		print(`{resourceType} node depleted, will respawn in {resourceConfig.respawnTime} seconds`) -- DEBUG
 
 		-- TODO: Stop mining particles when assets are ready
 
@@ -963,11 +953,7 @@ local function registerManualNodes()
 					-- 	startAutoMining(player, node)
 					-- end)
 
-					print(`Created ProximityPrompt for manual {resourceType} node`) -- DEBUG
-
 					resourceNodes[mainPart] = node
-					
-					print(`Registered manual node: {resourceType}`) -- DEBUG
 				else
 					error(`Manual {resourceType} node has no BasePart`)
 				end
@@ -984,7 +970,6 @@ local function connectProximityPrompts()
 			prompt.Triggered:Connect(function(player)
 				startAutoMining(player, node)
 			end)
-			print(`Connected ProximityPrompt for {node.resourceType}`) -- DEBUG
 		end
 	end
 end

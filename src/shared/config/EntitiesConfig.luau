@@ -32,7 +32,13 @@ local CategoryLookup = {
 			jumpCooldown = 3,
 			respawnTime = 60,
 			canJump = true,
-			drops = {"Food", "Hide", "Bones"},
+			drops = {
+				["SmallMeat"] = {
+					chance = 1.0, -- 100% chance
+					min = 1,
+					max = 1
+				}
+			},
 			primaryWeapon = "WolfClaw",
 			baseStats = { strength = 3, magic = 0, stamina = 2, accuracy = 6 },
 			animations = {
@@ -54,7 +60,7 @@ local CategoryLookup = {
 				},
 				targetPriority = {"Player"},      -- Only attack players
 				aggroRange = 30,                  -- Detection range
-				wanderRadius = 50,                -- Wander area from spawn
+				wanderRadius = 30,                -- Wander area from spawn
 				returnToSpawn = true,             -- Walk back to spawn when idle
 				returnSpeed = 0.5,                -- 50% speed when returning
 				retargetBehavior = "closest",     -- Switch to closest threat if attacker leaves
@@ -68,7 +74,34 @@ local CategoryLookup = {
 			jumpCooldown = 4,
 			respawnTime = 90,
 			canJump = false,
-			drops = {"Meat", "Hide", "Bones"},
+			drops = {
+				["BigMeat"] = {
+					chance = 1.0, -- 100% base chance
+					min = 1,
+					max = 1,
+					chanceModifiers = {
+						luck = 0.0, -- No luck modifier for guaranteed drops
+					}
+				},
+				["SmallMeat"] = {
+					chance = 0.1, -- 80% base chance
+					min = 1,
+					max = 1,
+					excludeIf = { "BigMeat" }, -- Don't drop if BigMeat already dropped
+					chanceModifiers = {
+						luck = 0.01, -- +1% per luck point
+					}
+				},
+				-- ["BearPelt"] = {
+				-- 	chance = 0.01, -- 1% base chance (rare drop)
+				-- 	min = 1,
+				-- 	max = 1,
+				-- 	chanceModifiers = {
+				-- 		luck = 0.001, -- +0.1% per luck point
+				-- 	},
+				-- 	maxChance = 0.15 -- Cap at 15% to prevent over-stacking
+				-- }
+			},
 			primaryWeapon = "BearClaw",
 			baseStats = { strength = 6, magic = 0, stamina = 4, accuracy = 2 },
 			animations = {
@@ -87,13 +120,51 @@ local CategoryLookup = {
 					onPlayerNear = "chase",           -- Aggressive in range
 				},
 				targetPriority = {"Player"},
-				aggroRange = 25,
-				wanderRadius = 35,
+				aggroRange = 2,
+				wanderRadius = 20,
 				returnToSpawn = true,
 				returnSpeed = 0.6,
 				retargetBehavior = "locked",          -- Never retarget
 			},
 		},
+	},
+	NPC = {
+		TownGuard = {
+			category = Categories.NPC,
+			health = 150,
+			walkSpeed = 10,
+			runSpeed = 15,
+			jumpCooldown = 3,
+			respawnTime = 300,
+			canJump = true,
+			drops = {},
+			primaryWeapon = "Sword",
+			baseStats = { strength = 8, magic = 0, stamina = 5, accuracy = 5 },
+			animations = {
+				walk = "rbxassetid://125448487250472",
+				run = "rbxassetid://70972717905830",
+				jump = "rbxassetid://130986182083396",
+				attack = "rbxassetid://83719559878946",
+			},
+			maxCount = 2,
+			canTakeDamage = true,
+
+			-- AI Behavior Configuration
+			ai = {
+				profile = "defensive_npc",
+				behaviors = {
+					idle = "stand_guard",          -- Stand at post when idle
+					onDamaged = "retaliate_closest",  -- Attack back, switch if closer threat
+					onPlayerNear = "assist_ally",      -- Assist nearby allies under attack
+				},
+				targetPriority = {"Creature", "Wildlife", "Player"}, -- Attack threats in this order
+				aggroRange = 20,                  -- Detection range
+				wanderRadius = 0,                 -- No wandering, stands guard
+				returnToSpawn = true,             -- Walk back to spawn when idle
+				returnSpeed = 1.0,                -- Normal speed when returning
+				retargetBehavior = "closest",     -- Switch to closest threat if attacker leaves
+			},
+		}
 	},
 	Creature = {
 		Zombie = {
@@ -105,7 +176,13 @@ local CategoryLookup = {
 			spawnWeight = 1,
 			respawnTime = 90,
 			canJump = false,
-			drops = {"Cloth", "RottenMeat"},
+			drops = {
+				["RottenMeat"] = {
+					chance = 1.0, -- 100% chance
+					min = 1,
+					max = 1
+				}
+			},
 			primaryWeapon = "ZombieBite",
 			baseStats = { strength = 4, magic = 0, stamina = 3, accuracy = 3 },
 			animations = {

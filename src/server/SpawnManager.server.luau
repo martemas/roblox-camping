@@ -14,10 +14,12 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local ServerScriptService = game:GetService("ServerScriptService")
 
 local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("config"))
 local EntitySpawner = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("EntitySpawner"))
 local EntityController = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("EntityController"))
+local WorkspaceSpawnLoader = require(script.Parent:WaitForChild("game-specific"):WaitForChild("WorkspaceSpawnLoader"))
 
 local SpawnManager = {}
 
@@ -26,6 +28,9 @@ local lastWildlifeCheck = 0
 local isNightActive = false
 local currentNight = 0
 local nextWaveTime = 0
+
+-- Store workspace spawn points
+local workspaceSpawnPoints = {}
 
 -- Initialize EntityController
 EntityController.initialize()
@@ -133,14 +138,14 @@ end
 -- Main update loop
 local function update()
 	-- Maintain wildlife population
-	maintainWildlifePopulation()
+	-- maintainWildlifePopulation()
 
 	-- Handle creature waves during night
 	if isNightActive then
-		local currentTime = tick()
-		if currentTime >= nextWaveTime then
-			spawnCreatureWave()
-		end
+		-- local currentTime = tick()
+		-- if currentTime >= nextWaveTime then
+		-- 	spawnCreatureWave()
+		-- end
 
 		-- Optional: Check if all creatures are defeated (early night end)
 		-- Uncomment this if you want night to end when all creatures are killed
@@ -210,13 +215,49 @@ function SpawnManager.clearAllEntities()
 	print("All entities cleared")
 end
 
+-- Spawn entities from workspace spawn points
+function SpawnManager.spawnFromWorkspacePoints()
+	if #workspaceSpawnPoints == 0 then
+		warn("[SpawnManager] No workspace spawn points loaded. Cannot spawn.")
+		return
+	end
+
+	for _, spawnPoint in workspaceSpawnPoints do
+		local spawnConfig = {
+			entityType = spawnPoint.entityType,
+			location = {
+				type = "area",
+				center = spawnPoint.position,
+				radius = spawnPoint.spawnRadius,
+			},
+			count = spawnPoint.count,
+			level = 1, -- Default level, can be enhanced later
+		}
+
+		print(`[SpawnManager] Spawning {spawnPoint.count} {spawnPoint.entityType}(s) at {spawnPoint.position}`)
+		EntitySpawner.spawnWave({spawnConfig})
+	end
+end
+
+-- Get workspace spawn points (for external access)
+function SpawnManager.getWorkspaceSpawnPoints()
+	return workspaceSpawnPoints
+end
+
 -- Initialize
 local function initialize()
+	-- Load workspace spawn configurations
+	workspaceSpawnPoints = WorkspaceSpawnLoader.loadSpawnConfigs()
+	print(`[SpawnManager] Loaded {#workspaceSpawnPoints} workspace spawn point(s)`)
+
 	-- Start update loop
 	RunService.Heartbeat:Connect(update)
 
 	-- Initial wildlife spawn
-	maintainWildlifePopulation()
+	-- maintainWildlifePopulation()
+
+	-- Spawn entities from workspace spawn points on server start
+	SpawnManager.spawnFromWorkspacePoints()
 
 	print("SpawnManager initialized")
 end

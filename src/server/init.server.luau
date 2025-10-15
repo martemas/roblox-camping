@@ -39,7 +39,7 @@ print("Waiting for all systems to initialize...")
 local function waitForSystems()
 	local systems = {
 		"InventoryManager",
-		"TownhallManager",
+		-- "TownhallManager",
 		"DayNightCycle",
 		"SpawnManager"
 	}

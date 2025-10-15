@@ -24,6 +24,7 @@ local GameConfig = {
 	targeting = GameSettings.targeting,
 	stats = GameSettings.stats,
 	map = GameSettings.map,
+	drops = GameSettings.drops,
 	CombatMode = GameSettings.CombatMode,
 
 	-- Day/Night Cycle & Waves

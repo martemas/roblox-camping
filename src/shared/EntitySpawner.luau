@@ -22,6 +22,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Utils = require(script.Parent:WaitForChild("Utils"))
 local GameConfig = require(script.Parent:WaitForChild("config"))
 local EntityController = require(script.Parent:WaitForChild("EntityController"))
+local EntitiesConfig = require(script.Parent:WaitForChild("config"):WaitForChild("EntitiesConfig"))
 
 -- Types
 export type SpawnLocation =
@@ -113,15 +114,24 @@ end
 
 -- Create entity model from template
 local function createEntityModel(entityType: string, position: Vector3): Model?
-	local modelsFolder = ReplicatedStorage:FindFirstChild("Models")
+	-- Find entity category in EntitiesConfig
+	local entityConfig = EntitiesConfig.Entities[entityType]
+
+	if not entityConfig then
+		warn(`Entity type '{entityType}' not found in GameConfig.entities`)
+		return nil
+	end
+
+	local modelsFolder = ReplicatedStorage:FindFirstChild("Models"):FindFirstChild("Entities"):FindFirstChild(entityConfig.category)
+
 	if not modelsFolder then
-		warn("Models folder not found in ReplicatedStorage")
+		warn(`Models folder not found in ReplicatedStorage.Models.Entities for category {entityConfig.category}`)
 		return nil
 	end
 
 	local template = modelsFolder:FindFirstChild(entityType)
 	if not template then
-		warn(`Entity template '{entityType}' not found in Models folder`)
+		warn(`Entity template '{entityType}' not found in Models.Entities.{entityConfig.category} folder`)
 		return nil
 	end
 
@@ -131,13 +141,20 @@ local function createEntityModel(entityType: string, position: Vector3): Model?
 	-- Position the model
 	if model.PrimaryPart then
 		model:SetPrimaryPartCFrame(CFrame.new(position))
+
+		for _, descendant in model:GetDescendants() do
+			if descendant:IsA("BasePart") then
+				descendant.CollisionGroup = "Entities"
+			end
+		end
 	else
+		warn(`ERROR - Model '{entityType}' has no PrimaryPart, attempting to position manually`)
 		-- Fallback: move the first BasePart found
 		local firstPart = model:FindFirstChildOfClass("BasePart")
 		if firstPart then
 			firstPart.CFrame = CFrame.new(position)
 		else
-			warn(`No BasePart found in {entityType} model for positioning`)
+			warn(`ERROR - No BasePart found in {entityType} model for positioning`)
 			model:Destroy()
 			return nil
 		end

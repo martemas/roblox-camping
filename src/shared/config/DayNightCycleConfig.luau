@@ -14,9 +14,9 @@ local DayNightCycleConfig = {
 	GamePhases = GamePhases,
 	-- Time Settings
 	time = {
-		dayDuration = 60, -- 5 minutes
+		dayDuration = 180, -- 5 minutes
 		nightDuration = 180, -- 3 minutes
-		transitionTime = 5, -- Seconds for dawn/dusk transition
+		transitionTime = 180, -- Seconds for dawn/dusk transition
 
 		-- Lighting Configuration
 		dayBrightness = 2, -- Day ambient brightness (0-3)

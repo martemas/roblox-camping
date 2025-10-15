@@ -41,6 +41,18 @@ local function getXPRewardManager()
 	return XPRewardManager
 end
 
+-- DropSystem - Server-side only, no circular dependency
+local DropSystem
+if RunService:IsServer() then
+	local serverFolder = ServerScriptService:FindFirstChild("Server")
+	if serverFolder then
+		local dropSystemModule = serverFolder:FindFirstChild("DropSystem")
+		if dropSystemModule then
+			DropSystem = require(dropSystemModule)
+		end
+	end
+end
+
 -- Entity runtime state
 export type EntityState = "idle" | "wandering" | "chasing" | "attacking" | "jumping"
 
@@ -927,15 +939,31 @@ function EntityController.initializeEntity(model: Model, entityType: string): En
 	humanoid.Died:Connect(function()
 		playSound(entity, "died") -- Play death sound if it exists
 
-		-- Award XP to last attacker (server-side only)
+		-- Server-side only actions
 		if RunService:IsServer() then
-			print(`[EntityController] {entityType} died, attempting to award XP...`)
+			-- Award XP to last attacker
 			local XPRewardModule = getXPRewardManager()
 			if XPRewardModule then
-				print(`[EntityController] XPRewardModule loaded, calling awardXPForKill`)
 				XPRewardModule.awardXPForKill(model)
-			else
-				warn(`[EntityController] XPRewardModule not loaded!`)
+			end
+
+			-- Process drops
+			if DropSystem and entity.config and entity.config.drops then
+
+				-- Get killer stats from last attacker
+				local killerStats = nil
+				if entity.attacker then
+					killerStats = StatsProvider.getStats(entity.attacker)
+				end
+
+				-- Process drops (mode determined by GameSettings)
+				DropSystem.processDrops(
+					entity.config.drops,
+					killerStats,
+					entity.humanoidRootPart.Position,
+					nil, -- Use default scatter radius from config
+					model -- Pass model for container mode (future)
+				)
 			end
 		end
 
