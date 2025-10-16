@@ -122,3 +122,6 @@ This generalized iteration provides a more consistent way to loop through tables
 MAKE SURE
 - Put client only code in either /src/client or /src/shared (ReplicatedStorage)
 - Any server code or code that the client does not use or need should be stored or split into /src/server (ServerScriptStorage)
+- Use ROBLOX lua best practices:
+-- CamelCase
+-- Filename should start with a Capital letter
