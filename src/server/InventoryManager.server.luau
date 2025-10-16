@@ -1,31 +1,23 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
 local Players = game:GetService("Players")
 
-local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("config"))
-local ResourcesConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("config"):WaitForChild("ResourcesConfig"))
+local GameConfig = require(ServerScriptService:WaitForChild("Server"):WaitForChild("Config"):WaitForChild("GameConfig"))
+local Items = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Data"):WaitForChild("Items"):WaitForChild("Items"))
+local ItemValidator = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Systems"):WaitForChild("Inventory"):WaitForChild("ItemValidator"))
 local Types = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("Types"))
 local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("RemoteEvents"))
 
 type PlayerInventory = Types.PlayerInventory
-type ResourceType = ResourcesConfig.ResourceType
 
 local InventoryManager = {}
 local playerInventories: {[Player]: PlayerInventory} = {}
 
 -- Initialize empty inventory
 local function createEmptyInventory(): PlayerInventory
-	-- for each resource type, set amount to 0
-	for _, resourceType in pairs(ResourcesConfig.Types :: {ResourceType}) do
-		-- This loop is just to ensure all resource types are included
-	end
-	return {
-		Wood = 0,
-		Stone = 0,
-		Metal = 0,
-		Gem = 0,
-	}
+	return {}
 end
 
 -- Get total items in inventory
@@ -52,29 +44,58 @@ local function hasInventorySpace(player: Player, amount: number?): boolean
 end
 
 -- Add item to player inventory
-local function addToInventory(player: Player, resourceType: ResourceType, amount: number): boolean
+local function addToInventory(player: Player, itemId: string, amount: number): boolean
 	local inventory = playerInventories[player]
 	if not inventory then
 		return false
 	end
 
+	-- Validate item exists
+	if not ItemValidator.exists(itemId) then
+		warn(`[InventoryManager] Unknown item: {itemId}`)
+		return false
+	end
+
+	-- Check if stackable
+	if not ItemValidator.isStackable(itemId) and amount > 1 then
+		warn(`[InventoryManager] Item {itemId} is not stackable`)
+		return false
+	end
+
+	-- Check stack limit
+	local currentAmount = inventory[itemId] or 0
+	if not ItemValidator.canStack(itemId, currentAmount, amount) then
+		warn(`[InventoryManager] Stack limit exceeded for {itemId}`)
+		return false
+	end
+
+	-- Check inventory space
 	if not hasInventorySpace(player, amount) then
 		return false
 	end
 
-	inventory[resourceType] += amount
+	inventory[itemId] = currentAmount + amount
 	RemoteEvents.Events.UpdateInventory:FireClient(player, inventory)
 	return true
 end
 
 -- Remove item from player inventory
-local function removeFromInventory(player: Player, resourceType: ResourceType, amount: number): boolean
+local function removeFromInventory(player: Player, itemId: string, amount: number): boolean
 	local inventory = playerInventories[player]
-	if not inventory or inventory[resourceType] < amount then
+	if not inventory then
 		return false
 	end
 
-	inventory[resourceType] -= amount
+	local currentAmount = inventory[itemId] or 0
+	if currentAmount < amount then
+		return false
+	end
+
+	inventory[itemId] = currentAmount - amount
+	if inventory[itemId] == 0 then
+		inventory[itemId] = nil -- Clean up empty slots
+	end
+
 	RemoteEvents.Events.UpdateInventory:FireClient(player, inventory)
 	return true
 end
@@ -87,12 +108,12 @@ local function clearInventory(player: Player): PlayerInventory?
 	end
 
 	local clearedInventory = {}
-	for resourceType, amount in pairs(inventory) do
-		clearedInventory[resourceType] = amount
-		inventory[resourceType :: ResourceType] = 0
+	for itemId, amount in inventory do
+		clearedInventory[itemId] = amount
 	end
 
-	RemoteEvents.Events.UpdateInventory:FireClient(player, inventory)
+	playerInventories[player] = createEmptyInventory()
+	RemoteEvents.Events.UpdateInventory:FireClient(player, playerInventories[player])
 	return clearedInventory :: PlayerInventory
 end
 
@@ -138,12 +159,12 @@ function InventoryManager.HasSpace(player: Player, amount: number?): boolean
 	return hasInventorySpace(player, amount)
 end
 
-function InventoryManager.AddItem(player: Player, resourceType: ResourceType, amount: number): boolean
-	return addToInventory(player, resourceType, amount)
+function InventoryManager.AddItem(player: Player, itemId: string, amount: number): boolean
+	return addToInventory(player, itemId, amount)
 end
 
-function InventoryManager.RemoveItem(player: Player, resourceType: ResourceType, amount: number): boolean
-	return removeFromInventory(player, resourceType, amount)
+function InventoryManager.RemoveItem(player: Player, itemId: string, amount: number): boolean
+	return removeFromInventory(player, itemId, amount)
 end
 
 function InventoryManager.ClearInventory(player: Player): PlayerInventory?

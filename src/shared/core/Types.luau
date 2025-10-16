@@ -3,27 +3,30 @@ local Types = {}
 
 local Stats = require(script.Parent.Parent:WaitForChild("combat"):WaitForChild("Stats"))
 
-local ResourcesConfig = require(script.Parent.Parent:WaitForChild("config"):WaitForChild("ResourcesConfig"))
+local Items = require(script.Parent.Parent:WaitForChild("Data"):WaitForChild("Items"):WaitForChild("Items"))
 local EntityConfig = require(script.Parent.Parent:WaitForChild("config"):WaitForChild("EntitiesConfig"))
-local ToolsConfig = require(script.Parent.Parent:WaitForChild("config"):WaitForChild("ToolsConfig"))
 local DayNightCycleConfig = require(script.Parent.Parent:WaitForChild("config"):WaitForChild("DayNightCycleConfig"))
 
 -- Export Stats types (centralized from Stats module)
 export type Stats = Stats.Stats
 export type DerivedStats = Stats.DerivedStats
 
+-- Export Item types
+export type ItemType = Items.ItemType
+export type ItemData = Items.ItemData
+
 -- Re-export types from config modules
-export type Tool = ToolsConfig.Tool
 export type Category = EntityConfig.Category
 export type StructureType = EntityConfig.StructureType
 export type GamePhase = DayNightCycleConfig.GamePhase
 
+-- Updated inventory to support all item types (not just resources)
 export type PlayerInventory = {
-	[ResourcesConfig.ResourceType]: number
+	[string]: number -- itemId -> quantity
 }
 
 export type ResourceNode = {
-	resourceType: ResourcesConfig.ResourceType,
+	resourceType: string, -- itemId for resource (Wood, Stone, Metal, Gem)
 	currentHits: number,
 	maxHits: number,
 	isActive: boolean,
@@ -82,7 +85,7 @@ export type MiningSession = {
 	player: Player,
 	resourceNode: ResourceNode,
 	startPosition: Vector3,
-	previousTool: Tool?,
+	previousTool: string?, -- itemId for tool
 	task: thread,
 	cancelled: boolean,
 }

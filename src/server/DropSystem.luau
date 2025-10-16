@@ -19,9 +19,11 @@
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
 local Debris = game:GetService("Debris")
 
-local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("config"))
+local GameConfig = require(ServerScriptService:WaitForChild("Server"):WaitForChild("Config"):WaitForChild("GameConfig"))
+local Items = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Data"):WaitForChild("Items"):WaitForChild("Items"))
 
 -- Types
 export type DropItemConfig = {
@@ -50,37 +52,49 @@ export type StatsTable = {
 local DropSystem = {}
 
 --[[
-	Search for item model in ReplicatedStorage
+	Search for item model in ReplicatedStorage using Items database
 	@param itemId - Item identifier (e.g., "BigMeat", "Sword")
 	@return Model or nil if not found
 ]]
 local function findItemModel(itemId: string): Model?
+	-- Get item data from Items database
+	local itemData = Items.Database[itemId]
+	if not itemData then
+		warn(`[DropSystem] Unknown item: {itemId}`)
+		return nil
+	end
+
+	if not itemData.dropModel then
+		warn(`[DropSystem] No drop model defined for item: {itemId}`)
+		return nil
+	end
+
 	local modelsFolder = ReplicatedStorage:FindFirstChild("Models")
 	if not modelsFolder then
 		warn("[DropSystem] Models folder not found in ReplicatedStorage")
 		return nil
 	end
 
-	-- Check Models/Items/{itemId}
-	local itemsFolder = modelsFolder:FindFirstChild("Items")
-	if itemsFolder then
-		local itemModel = itemsFolder:FindFirstChild(itemId)
-		if itemModel and itemModel:IsA("Model") then
-			return itemModel
+	-- Use path from Items database (e.g., "Items/Wood" or "Weapons/Sword")
+	local modelPath = itemData.dropModel
+	local pathParts = string.split(modelPath, "/")
+
+	local current = modelsFolder
+	for _, part in pathParts do
+		local child = current:FindFirstChild(part)
+		if not child then
+			warn(`[DropSystem] Model not found at path: {modelPath}`)
+			return nil
 		end
+		current = child
 	end
 
-	-- Check Models/Weapons/{itemId}
-	local weaponsFolder = modelsFolder:FindFirstChild("Weapons")
-	if weaponsFolder then
-		local weaponModel = weaponsFolder:FindFirstChild(itemId)
-		if weaponModel and weaponModel:IsA("Model") then
-			return weaponModel
-		end
+	if not current:IsA("Model") then
+		warn(`[DropSystem] Path does not point to a Model: {modelPath}`)
+		return nil
 	end
 
-	warn(`[DropSystem] Item model not found: {itemId}`)
-	return nil
+	return current
 end
 
 --[[
