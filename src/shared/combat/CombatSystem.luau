@@ -5,6 +5,7 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local ServerScriptService = game:GetService("ServerScriptService")
 local GameConfig = require(script.Parent.Parent:WaitForChild("config"))
+local Items = require(script.Parent.Parent:WaitForChild("Data"):WaitForChild("Items"):WaitForChild("Items"))
 local CombatFeedback = require(script.Parent.Parent:WaitForChild("visual-effects"):WaitForChild("CombatFeedback"))
 local ProjectileLOS = require(script.Parent.ProjectileLOS)
 local HitscanEffects = require(script.Parent.Parent:WaitForChild("visual-effects"):WaitForChild("HitscanEffects"))
@@ -122,14 +123,39 @@ export type ProjectileInstance = {
 
 local CombatSystem = {}
 
--- Get weapon config from GameConfig
+-- Lazy load WeaponStats (server-only)
+local WeaponStats
+local function getWeaponStats()
+	if not WeaponStats and RunService:IsServer() then
+		local success, weaponStatsModule = pcall(function()
+			return ServerScriptService:WaitForChild("Server"):WaitForChild("Data"):WaitForChild("Items"):WaitForChild("WeaponStats", 5)
+		end)
+		if success and weaponStatsModule then
+			WeaponStats = require(weaponStatsModule)
+		else
+			warn("[CombatSystem] Failed to load WeaponStats - module not found")
+		end
+	end
+	return WeaponStats
+end
+
+-- Get weapon config from WeaponStats (server) or return nil (client)
 function CombatSystem.getWeaponConfig(weaponName: string): WeaponConfig?
-	local weaponConfig = GameConfig.weapons[weaponName]
-	if not weaponConfig then
-		warn(`Weapon config not found: {weaponName}`)
+	if RunService:IsServer() then
+		local stats = getWeaponStats()
+		if stats then
+			local weaponConfig = stats.Stats[weaponName]
+			if not weaponConfig then
+				warn(`Weapon config not found: {weaponName}`)
+				return nil
+			end
+			return weaponConfig
+		end
+		return nil
+	else
+		-- Client doesn't get weapon stats (security)
 		return nil
 	end
-	return weaponConfig
 end
 
 -- Get entity's weapon (for wildlife/enemies)
@@ -149,16 +175,17 @@ function CombatSystem.getPlayerWeapon(player: Player): string?
 		return nil
 	end
 
-	-- Check for equipped tool
-	for _, toolName in GameConfig.player.startingTools do
-		local tool = character:FindFirstChild(toolName)
-		if tool and tool:IsA("Tool") then
-			-- Get weapon name: use weaponRef if available, otherwise use tool name directly
-			local toolConfig = GameConfig.tools[toolName]
-			if toolConfig and toolConfig.weaponRef then
-				return toolConfig.weaponRef
+	-- Check for any equipped tool in character
+	for _, child in character:GetChildren() do
+		if child:IsA("Tool") then
+			local toolName = child.Name
+			-- Check Items database for weapon reference
+			local itemData = Items.Database[toolName]
+			if itemData and itemData.weaponData then
+				-- Item has weapon data (e.g., BasicAxe → Axe)
+				return itemData.weaponData
 			else
-				-- Pure weapon tools (like Bow) use tool name as weapon name
+				-- Pure weapon (e.g., Bow → Bow)
 				return toolName
 			end
 		end

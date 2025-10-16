@@ -24,6 +24,7 @@ local ClientSettings = {
 
 	-- Combat UI Settings
 	combat = {
+		clickTargetSearchRadius = 10, -- Radius for click-targeting
 		showFacingIndicator = true, -- Show visual feedback in target HUD
 		facingAngleDegrees = 300, -- Total cone angle for UI display
 	},

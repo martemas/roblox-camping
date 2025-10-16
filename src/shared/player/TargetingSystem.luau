@@ -117,8 +117,9 @@ local function getTargetInfo(model: Model, playerPosition: vector?): TargetInfo?
 		runSpeed = 0
 	else
 		local config = GameConfig.entities[entityType]
-		local weaponConfig = GameConfig.weapons[config.primaryWeapon]
-		damage = weaponConfig and weaponConfig.damage or nil
+		-- Don't show damage to client (security - prevents damage exploits)
+		-- Damage is server-only information
+		damage = nil
 		walkSpeed = config.walkSpeed
 		runSpeed = config.runSpeed
 	end

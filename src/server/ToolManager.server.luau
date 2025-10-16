@@ -4,7 +4,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local ServerScriptService = game:GetService("ServerScriptService")
 
-local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("config"))
+local GameConfig = require(ServerScriptService:WaitForChild("Server"):WaitForChild("Config"):WaitForChild("GameConfig"))
+local ToolStats = require(ServerScriptService:WaitForChild("Server"):WaitForChild("Data"):WaitForChild("Items"):WaitForChild("ToolStats"))
 local Types = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("Types"))
 local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("RemoteEvents"))
 local Utils = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("Utils"))
@@ -145,7 +146,7 @@ local function performCombatAttack(player: Player, toolType: ToolType, clickTarg
 	end
 
 	-- Get weapon name: use weaponRef if available, otherwise use tool name directly
-	local toolConfig = GameConfig.tools[toolType]
+	local toolConfig = ToolStats.Stats[toolType]
 	local weaponName = (toolConfig and toolConfig.weaponRef) or toolType
 	local weaponConfig = CombatSystem.getWeaponConfig(weaponName)
 	if not weaponConfig then
@@ -611,7 +612,7 @@ local function onToolSwing(player: Player, toolType: ToolType)
 		return
 	end
 
-	local toolConfig = GameConfig.tools[toolType]
+	local toolConfig = ToolStats.Stats[toolType]
 
 	-- Get weapon name: use weaponRef if available, otherwise use tool name directly
 	local weaponName = (toolConfig and toolConfig.weaponRef) or toolType
@@ -654,7 +655,7 @@ local function onToolSwingWithTarget(player: Player, toolType: ToolType, clickTa
 		return
 	end
 
-	local toolConfig = GameConfig.tools[toolType]
+	local toolConfig = ToolStats.Stats[toolType]
 
 	-- Get weapon name: use weaponRef if available, otherwise use tool name directly
 	local weaponName = (toolConfig and toolConfig.weaponRef) or toolType
@@ -854,7 +855,7 @@ function ToolManager.AutoEquipForResource(player: Player, resourceType: Types.Re
 end
 
 function ToolManager.GetToolDamage(toolType: ToolType): number
-	local config = GameConfig.tools[toolType]
+	local config = ToolStats.Stats[toolType]
 	return config and config.damage or 0
 end
 

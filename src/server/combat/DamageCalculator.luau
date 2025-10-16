@@ -11,7 +11,10 @@
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("config"))
+local ServerScriptService = game:GetService("ServerScriptService")
+
+local WeaponStats = require(ServerScriptService:WaitForChild("Server"):WaitForChild("Data"):WaitForChild("Items"):WaitForChild("WeaponStats"))
+local GameConfig = require(ServerScriptService:WaitForChild("Server"):WaitForChild("Config"):WaitForChild("GameConfig"))
 local Stats = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("combat"):WaitForChild("Stats"))
 
 local DamageCalculator = {}
@@ -203,7 +206,7 @@ function DamageCalculator.calculateDamage(input: DamageInput): DamageResult
 	end
 
 	-- Validate weapon
-	local weaponConfig = GameConfig.weapons[input.weaponName]
+	local weaponConfig = WeaponStats.Stats[input.weaponName]
 	if not weaponConfig then
 		warn(`DamageCalculator: Invalid weapon: {input.weaponName}`)
 		return createMissResult()

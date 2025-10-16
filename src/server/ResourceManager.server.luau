@@ -1,19 +1,21 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 
-local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("config"))
-local ResourcesConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("config"):WaitForChild("ResourcesConfig"))
+local GameConfig = require(ServerScriptService:WaitForChild("Server"):WaitForChild("Config"):WaitForChild("GameConfig"))
+local ResourceStats = require(ServerScriptService:WaitForChild("Server"):WaitForChild("Data"):WaitForChild("Items"):WaitForChild("ResourceStats"))
+local ToolStats = require(ServerScriptService:WaitForChild("Server"):WaitForChild("Data"):WaitForChild("Items"):WaitForChild("ToolStats"))
+local Items = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Data"):WaitForChild("Items"):WaitForChild("Items"))
 local EntityConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("config"):WaitForChild("EntitiesConfig"))
 local Types = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("Types"))
 local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("RemoteEvents"))
 local Utils = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("Utils"))
 
 type ResourceNode = Types.ResourceNode
-type ResourceType = ResourcesConfig.ResourceType
 
 local ResourceManager = {}
 local resourceNodes: {[BasePart]: ResourceNode} = {}
@@ -24,14 +26,7 @@ local resourcesFolder = ReplicatedStorage:WaitForChild("Models"):WaitForChild("R
 
 -- Initialize empty inventory for a player
 local function createEmptyInventory(): Types.PlayerInventory
-	-- iterate over each resource type in ResourcesConfig.Types and set amount to 0
-	local resources = {}
-	for _, resourceType in ResourcesConfig.Types do
-		-- This loop is just to ensure all resource types are included
-		resources[resourceType] = 0
-	end
-
-	return resources :: Types.PlayerInventory
+	return {}
 end
 
 -- Get player's current inventory count
@@ -49,22 +44,19 @@ local function getInventoryCount(player: Player): number
 end
 
 -- Check if player has any tool in the required category
-local function hasRequiredToolCategory(player: Player, category: string): (boolean, Types.ToolType?)
+local function hasRequiredToolCategory(player: Player, category: string): (boolean, string?)
 	local character = player.Character
 	if not character then
 		return false, nil
 	end
 
-	local toolsInCategory = GameConfig.toolCategories[category]
-	if not toolsInCategory then
-		warn(`Tool category {category} not found in GameConfig.toolCategories`)
-		return false, nil
-	end
-
-	for _, toolName in toolsInCategory do
-		local tool = character:FindFirstChild(toolName)
-		if tool and tool:IsA("Tool") then
-			return true, toolName :: Types.ToolType -- Return tool name for miningSpeed lookup
+	-- Search through all tools to find one matching the category
+	for toolId, toolSpec in ToolStats.Stats do
+		if toolSpec.category == category then
+			local tool = character:FindFirstChild(toolId)
+			if tool and tool:IsA("Tool") then
+				return true, toolId
+			end
 		end
 	end
 
@@ -72,7 +64,7 @@ local function hasRequiredToolCategory(player: Player, category: string): (boole
 end
 
 -- Create a resource node
-local function createResourceNode(resourceType: ResourceType, position: vector): ResourceNode?
+local function createResourceNode(resourceType: string, position: vector): ResourceNode?
 	
 	if not resourcesFolder then
 		warn("Resources model folder not found in ReplicatedStorage")
@@ -111,7 +103,14 @@ local function createResourceNode(resourceType: ResourceType, position: vector):
 		return nil
 	end
 
-	local maxHits = GameConfig.resources[resourceType].hitsRequired
+	local resourceNodeConfig = ResourceStats.Nodes[resourceType]
+	if not resourceNodeConfig then
+		warn(`No resource node config found for {resourceType}`)
+		nodeModel:Destroy()
+		return nil
+	end
+
+	local maxHits = resourceNodeConfig.hitsRequired
 	local resourceNode: ResourceNode = {
 		resourceType = resourceType,
 		currentHits = 0,
@@ -121,14 +120,8 @@ local function createResourceNode(resourceType: ResourceType, position: vector):
 	}
 
 	-- Set generic entity attributes for tool interaction system
-	local entityConfig = GameConfig.resources[resourceType]
-
-	if entityConfig then
-		nodeModel:SetAttribute("EntityType", resourceType :: ResourceType)
-		nodeModel:SetAttribute("EntityCategory", EntityConfig.Categories.Resource)
-	else
-		warn(`No entity configuration found for {resourceType}`)
-	end
+	nodeModel:SetAttribute("EntityType", resourceType)
+	nodeModel:SetAttribute("EntityCategory", EntityConfig.Categories.Resource)
 
 	-- TODO: Create HP indicator GUI when UI assets are ready
 	-- TODO: Add particle emitter when particle assets are ready
@@ -394,7 +387,11 @@ local function startAutoMining(player: Player, node: ResourceNode)
 	end
 
 	-- Get resource config
-	local resourceConfig = GameConfig.resources[node.resourceType]
+	local resourceConfig = ResourceStats.Nodes[node.resourceType]
+	if not resourceConfig then
+		warn(`No resource config found for {node.resourceType}`)
+		return
+	end
 
 	-- Check inventory space FIRST before touching tools
 	local InventoryManager = _G.InventoryManager
@@ -439,7 +436,7 @@ local function startAutoMining(player: Player, node: ResourceNode)
 			return
 		end
 
-		local toolsInCategory = GameConfig.toolCategories[resourceConfig.requiredToolCategory]
+		-- Find tools in the required category
 		local foundTool = false
 
 		-- Save currently equipped tool BEFORE unequipping
@@ -464,17 +461,19 @@ local function startAutoMining(player: Player, node: ResourceNode)
 			end
 		end
 
-		-- Find and equip mining tool
-		for _, toolName in toolsInCategory do
-			if ToolManager.HasTool(player, toolName :: Types.ToolType) then
-				local miningTool = backpack:FindFirstChild(toolName)
-				if miningTool and miningTool:IsA("Tool") then
-					task.wait(0.1) -- Wait before equipping
-					miningTool.Parent = character
-					equippedToolName = toolName :: Types.ToolType
-					foundTool = true
-					print(`Auto-equipped {toolName} for {player.Name}`) -- DEBUG
-					break
+		-- Find and equip mining tool matching the category
+		for toolId, toolSpec in ToolStats.Stats do
+			if toolSpec.category == resourceConfig.requiredToolCategory then
+				if ToolManager.HasTool(player, toolId) then
+					local miningTool = backpack:FindFirstChild(toolId)
+					if miningTool and miningTool:IsA("Tool") then
+						task.wait(0.1) -- Wait before equipping
+						miningTool.Parent = character
+						equippedToolName = toolId
+						foundTool = true
+						print(`Auto-equipped {toolId} for {player.Name}`) -- DEBUG
+						break
+					end
 				end
 			end
 		end
@@ -496,7 +495,7 @@ local function startAutoMining(player: Player, node: ResourceNode)
 	end
 
 	-- Get tool config for miningSpeed
-	local toolConfig = GameConfig.tools[equippedToolName]
+	local toolConfig = ToolStats.Stats[equippedToolName]
 	local miningSpeed = (toolConfig and toolConfig.miningSpeed) or 1.0
 
 	-- Calculate mining duration
@@ -766,13 +765,13 @@ local function spawnResourceNodes()
 	local spawnRadius = GameConfig.map.resourceSpawnRadius
 	local centerPosition = vector.create(0, 0, 0) -- Map center
 
-	for resourceType, config in pairs(GameConfig.resources) do
+	for resourceType, config in ResourceStats.Nodes do
 		-- Only spawn nodes with spawnMode = "random"
 		if config.spawnMode == "random" then
 			for i = 1, config.nodesCount do
 				-- Generate random position with ground detection
 				local position = Utils.getRandomGroundPosition(centerPosition, 50, spawnRadius)
-				local node = createResourceNode(resourceType :: ResourceType, position)
+				local node = createResourceNode(resourceType, position)
 
 				if not node then
 					warn(`Failed to create {resourceType} node {i}`)
@@ -800,7 +799,7 @@ function ResourceManager.GetPlayerInventory(player: Player): Types.PlayerInvento
 	return playerInventories[player]
 end
 
-function ResourceManager.RemoveFromInventory(player: Player, resourceType: ResourceType, amount: number): boolean
+function ResourceManager.RemoveFromInventory(player: Player, resourceType: string, amount: number): boolean
 	local inventory = playerInventories[player]
 	if not inventory or inventory[resourceType] < amount then
 		return false
@@ -816,7 +815,7 @@ function ResourceManager.GetInventoryCount(player: Player): number
 end
 
 -- Handle tool hit on resource node (called from ToolManager)
-function ResourceManager.HandleToolHit(player: Player, hitPart: BasePart, resourceType: ResourceType)
+function ResourceManager.HandleToolHit(player: Player, hitPart: BasePart, resourceType: string)
 	-- Find the resource node
 	local node = resourceNodes[hitPart]
 	if not node then
@@ -840,7 +839,11 @@ function ResourceManager.HandleToolHit(player: Player, hitPart: BasePart, resour
 	-- end
 
 	-- Get resource configuration
-	local resourceConfig = GameConfig.resources[resourceType]
+	local resourceConfig = ResourceStats.Nodes[resourceType]
+	if not resourceConfig then
+		warn(`No resource config found for {resourceType}`)
+		return
+	end
 
 	-- Check inventory space
 	local InventoryManager = _G.InventoryManager
@@ -912,10 +915,10 @@ local function registerManualNodes()
 	local resourcesFolder = workspace:FindFirstChild("Resources")
 
 	for _, model in resourcesFolder:GetChildren() do
-		
+
 		if model:IsA("Model") and model:GetAttribute("EntityType") then
-			local resourceType : ResourceType = model:GetAttribute("EntityType") :: ResourceType
-			local config = GameConfig.resources[resourceType]
+			local resourceType: string = model:GetAttribute("EntityType")
+			local config = ResourceStats.Nodes[resourceType]
 
 			if config and config.spawnMode == "manual" then
 				local mainPart = model.PrimaryPart or model:FindFirstChildOfClass("BasePart")

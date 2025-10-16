@@ -3,15 +3,12 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 
-local ResourcesConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("config"):WaitForChild("ResourcesConfig"))
-
 local Types = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("Types"))
 local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("RemoteEvents"))
 local Utils = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("Utils"))
 
 type TeamResources = Types.TeamResources
 type PlayerInventory = Types.PlayerInventory
-type ResourceType = ResourcesConfig.ResourceType
 
 local TownhallManager = {}
 local townhall: Model? = nil
@@ -212,11 +209,11 @@ function TownhallManager.GetTeamResources(): TeamResources
 	return teamResources
 end
 
-function TownhallManager.HasResources(resourceType: ResourceType, amount: number): boolean
+function TownhallManager.HasResources(resourceType: string, amount: number): boolean
 	return teamResources[resourceType] >= amount
 end
 
-function TownhallManager.ConsumeResources(resourceType: ResourceType, amount: number): boolean
+function TownhallManager.ConsumeResources(resourceType: string, amount: number): boolean
 	if teamResources[resourceType] < amount then
 		return false
 	end
@@ -226,7 +223,7 @@ function TownhallManager.ConsumeResources(resourceType: ResourceType, amount: nu
 	return true
 end
 
-function TownhallManager.AddResources(resourceType: ResourceType, amount: number)
+function TownhallManager.AddResources(resourceType: string, amount: number)
 	teamResources[resourceType] += amount
 	broadcastTeamResources()
 end
