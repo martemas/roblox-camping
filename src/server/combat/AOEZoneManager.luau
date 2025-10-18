@@ -22,6 +22,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Debris = game:GetService("Debris")
 
 -- Forward declare CombatSystem and StatsProvider (loaded on first use to avoid circular dependency)
+local ServerScriptService = game:GetService("ServerScriptService")
 local CombatSystem = nil
 local StatsProvider = nil
 
@@ -51,7 +52,7 @@ local isInitialized = false
 ]]
 local function getCombatSystem()
 	if not CombatSystem then
-		CombatSystem = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("combat"):WaitForChild("CombatSystem"))
+		CombatSystem = require(script.Parent:WaitForChild("CombatSystem"))
 	end
 	return CombatSystem
 end

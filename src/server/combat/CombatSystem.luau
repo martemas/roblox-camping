@@ -4,39 +4,31 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local ServerScriptService = game:GetService("ServerScriptService")
-local GameConfig = require(script.Parent.Parent:WaitForChild("config"))
-local Items = require(script.Parent.Parent:WaitForChild("Data"):WaitForChild("Items"):WaitForChild("Items"))
-local CombatFeedback = require(script.Parent.Parent:WaitForChild("visual-effects"):WaitForChild("CombatFeedback"))
-local ProjectileLOS = require(script.Parent.ProjectileLOS)
-local HitscanEffects = require(script.Parent.Parent:WaitForChild("visual-effects"):WaitForChild("HitscanEffects"))
 
--- DamageCalculator is now in server/combat (lazy load to avoid errors on client)
-local DamageCalculator
-local function getDamageCalculator()
-	if not DamageCalculator and RunService:IsServer() then
-		local success, damageCalcModule = pcall(function()
-			return ServerScriptService:WaitForChild("Server"):WaitForChild("combat"):WaitForChild("DamageCalculator", 5)
-		end)
-		if success and damageCalcModule then
-			DamageCalculator = require(damageCalcModule)
-		end
-	end
-	return DamageCalculator
-end
+-- Server-side imports
+local GameConfig = require(script.Parent.Parent:WaitForChild("Config"):WaitForChild("GameConfig"))
+local Items = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Data"):WaitForChild("Items"):WaitForChild("Items"))
+local CombatFeedback = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("visual-effects"):WaitForChild("CombatFeedback"))
+local ProjectileLOS = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("combat"):WaitForChild("ProjectileLOS"))
+local HitscanEffects = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("visual-effects"):WaitForChild("HitscanEffects"))
 
--- Lazy-loaded server modules
+-- Server-side modules (now in same directory)
+local DamageCalculator = require(script.Parent:WaitForChild("DamageCalculator"))
+local StatsProvider = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("combat"):WaitForChild("StatsProvider"))
+
+-- Lazy-loaded server modules (avoid circular dependency)
 local XPRewardManager
 
 local function getXPRewardManager()
-	if not XPRewardManager and RunService:IsServer() then
+	if not XPRewardManager then
 		local success, xpRewardModule = pcall(function()
-			return ServerScriptService:WaitForChild("Server"):WaitForChild("XPRewardManager", 5)
+			return script.Parent.Parent:WaitForChild("XPRewardManager", 5)
 		end)
 
 		if success and xpRewardModule then
 			XPRewardManager = require(xpRewardModule)
 		else
-			warn("[CombatSystem] Failed to load XPRewardManager - module not found in ServerScriptService.Server")
+			warn("[CombatSystem] Failed to load XPRewardManager - module not found")
 		end
 	end
 	return XPRewardManager
@@ -123,39 +115,17 @@ export type ProjectileInstance = {
 
 local CombatSystem = {}
 
--- Lazy load WeaponStats (server-only)
-local WeaponStats
-local function getWeaponStats()
-	if not WeaponStats and RunService:IsServer() then
-		local success, weaponStatsModule = pcall(function()
-			return ServerScriptService:WaitForChild("Server"):WaitForChild("Data"):WaitForChild("Items"):WaitForChild("WeaponStats", 5)
-		end)
-		if success and weaponStatsModule then
-			WeaponStats = require(weaponStatsModule)
-		else
-			warn("[CombatSystem] Failed to load WeaponStats - module not found")
-		end
-	end
-	return WeaponStats
-end
+-- Server-side weapon stats
+local WeaponStats = require(script.Parent.Parent:WaitForChild("Data"):WaitForChild("Items"):WaitForChild("WeaponStats"))
 
--- Get weapon config from WeaponStats (server) or return nil (client)
+-- Get weapon config from WeaponStats (server-only now)
 function CombatSystem.getWeaponConfig(weaponName: string): WeaponConfig?
-	if RunService:IsServer() then
-		local stats = getWeaponStats()
-		if stats then
-			local weaponConfig = stats.Stats[weaponName]
-			if not weaponConfig then
-				warn(`Weapon config not found: {weaponName}`)
-				return nil
-			end
-			return weaponConfig
-		end
-		return nil
-	else
-		-- Client doesn't get weapon stats (security)
+	local weaponConfig = WeaponStats.Stats[weaponName]
+	if not weaponConfig then
+		warn(`Weapon config not found: {weaponName}`)
 		return nil
 	end
+	return weaponConfig
 end
 
 -- Get entity's weapon (for wildlife/enemies)
@@ -552,18 +522,16 @@ function CombatSystem.performAOEAttack(
 		onDamageCallback: ((target: Model, attacker: Model) -> ())?, -- Optional callback per target
 	}?
 ): {AOEHitInfo}
-	-- AOEZoneManager is now in server/combat (lazy load)
+	-- AOEZoneManager is in same directory (lazy load to avoid circular deps)
 	local AOEZoneManager
-	if RunService:IsServer() then
-		local success, aoeModule = pcall(function()
-			return ServerScriptService:WaitForChild("Server"):WaitForChild("combat"):WaitForChild("AOEZoneManager", 5)
-		end)
-		if success and aoeModule then
-			AOEZoneManager = require(aoeModule)
-		end
+	local success, aoeModule = pcall(function()
+		return script.Parent:WaitForChild("AOEZoneManager", 5)
+	end)
+	if success and aoeModule then
+		AOEZoneManager = require(aoeModule)
 	end
 
-	local StatsProvider = require(script.Parent.StatsProvider)
+	-- StatsProvider already imported at top
 	local opts = options or {}
 
 	local weaponConfig = CombatSystem.getWeaponConfig(weaponName)
@@ -761,21 +729,7 @@ function CombatSystem.applyDamageToEntity(
 	local targetStats = opts.targetStats
 
 	-- Calculate damage via DamageCalculator (with stats)
-	local DamageCalc = getDamageCalculator()
-	if not DamageCalc then
-		warn("[CombatSystem] DamageCalculator not available")
-		return {
-			finalDamage = 0,
-			wasHit = false,
-			wasCritical = false,
-			wasDodged = false,
-			hitLocation = "unknown",
-			damageMultiplier = 0,
-			baseDamage = 0,
-		}
-	end
-
-	local damageResult = DamageCalc.calculateDamage({
+	local damageResult = DamageCalculator.calculateDamage({
 		attacker = attacker,
 		target = target,
 		weaponName = weaponName,
@@ -811,8 +765,8 @@ function CombatSystem.applyDamageToEntity(
 		-- Damage
 		targetHumanoid:TakeDamage(finalDamage)
 
-		-- Track attacker for XP credit (server-side only)
-		if RunService:IsServer() and finalDamage > 0 then
+		-- Track attacker for XP credit
+		if finalDamage > 0 then
 			local XPRewardModule = getXPRewardManager()
 			if XPRewardModule then
 				local attackerLevel = 1

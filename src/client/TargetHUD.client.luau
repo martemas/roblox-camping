@@ -22,7 +22,8 @@ local PlayerSettingsManager = require(ReplicatedStorage:WaitForChild("Shared"):W
 local PlayerSettings = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("player"):WaitForChild("PlayerSettings"))
 local Types = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("Types"))
 local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("RemoteEvents"))
-local CombatSystem = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("combat"):WaitForChild("CombatSystem"))
+local CombatUtils = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("combat"):WaitForChild("CombatUtils"))
+local Items = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Data"):WaitForChild("Items"):WaitForChild("Items"))
 local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("config"))
 local ProjectileLOS = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("combat"):WaitForChild("ProjectileLOS"))
 
@@ -56,15 +57,26 @@ local function calculateAttackStatus(targetInfo: TargetInfo): (Color3, string)
 	end
 
 	-- Get player's equipped weapon
-	local weaponName = CombatSystem.getPlayerWeapon(player)
-	local weaponConfig = nil
-	if weaponName then
-		weaponConfig = CombatSystem.getWeaponConfig(weaponName)
-	end
-
-	if not weaponConfig then
+	local weaponName = CombatUtils.getPlayerWeapon(player)
+	if not weaponName then
 		return Color3.fromRGB(150, 150, 150), "NO WEAPON"
 	end
+
+	-- Get weapon display data from Items (client-safe)
+	local weaponData = Items.Database[weaponName]
+	if not weaponData or not weaponData.weaponData then
+		return Color3.fromRGB(150, 150, 150), "NO WEAPON DATA"
+	end
+
+	-- Use approximate weapon config from Items display data
+	-- Note: This is for UI feedback only. Server validates actual attacks.
+	local weaponConfig = {
+		range = weaponData.range or 10,
+		targetFilter = weaponData.targetFilter,
+		requireFacingForDamage = weaponData.requireFacingForDamage,
+		requiresLineOfSight = weaponData.requiresLineOfSight,
+		type = weaponData.weaponType or "melee",
+	}
 
 	-- Check target filter first (allies/enemies)
 	local targetPlayer = Players:GetPlayerFromCharacter(targetInfo.model)
@@ -105,7 +117,7 @@ local function calculateAttackStatus(targetInfo: TargetInfo): (Color3, string)
 
 	local isFacing = true
 	if requireFacing then
-		isFacing = CombatSystem.isFacingTarget(playerRoot, targetRoot, nil)
+		isFacing = CombatUtils.isFacingTarget(playerRoot, targetRoot, nil)
 	end
 
 	if not isFacing then

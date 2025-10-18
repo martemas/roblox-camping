@@ -10,14 +10,43 @@
 ]]
 
 local Players = game:GetService("Players")
+local ServerScriptService = game:GetService("ServerScriptService")
 
-local CombatSystem = require(script.Parent.CombatSystem)
+-- CombatSystem is now server-only (lazy load to avoid error on client)
+local CombatSystem = nil
+local function getCombatSystem()
+	if not CombatSystem then
+		local RunService = game:GetService("RunService")
+		if RunService:IsServer() then
+			CombatSystem = require(ServerScriptService:WaitForChild("Server"):WaitForChild("combat"):WaitForChild("CombatSystem"))
+		end
+	end
+	return CombatSystem
+end
+
 local CombatFeedback = require(script.Parent.Parent:WaitForChild("visual-effects"):WaitForChild("CombatFeedback"))
 local StatsProvider = require(script.Parent.StatsProvider)
--- DamageCalculator moved to server (not used here)
 
-type ProjectileInstance = CombatSystem.ProjectileInstance
-type DamageMode = CombatSystem.DamageMode
+-- Type imports (safe to use even if module not loaded)
+type ProjectileInstance = {
+	model: Model,
+	weapon: string,
+	attacker: Model,
+	attackingPlayer: Player?,
+	lockedTarget: Model?,
+	damageMode: any,
+	spawnTime: number,
+	distanceTraveled: number,
+	maxRange: number,
+	speed: number,
+	direction: Vector3,
+	lastPosition: Vector3,
+	entitiesHit: {[Model]: boolean},
+}
+type DamageMode = {
+	damageTargetOnly: boolean,
+	penetratesEntities: boolean,
+}
 
 local ProjectilePhysics = {}
 
@@ -106,7 +135,11 @@ end
 	@param position - Impact position
 ]]
 local function showImpactEffect(projectile: ProjectileInstance, position: Vector3)
-	local weaponConfig = CombatSystem.getWeaponConfig(projectile.weapon)
+	local CS = getCombatSystem()
+	if not CS then
+		return
+	end
+	local weaponConfig = CS.getWeaponConfig(projectile.weapon)
 	if not weaponConfig then
 		return
 	end
@@ -175,12 +208,15 @@ local function applyDamage(projectile: ProjectileInstance, entity: Model, hitPar
 	-- - XP tracking
 	-- - Feedback
 	-- - Entity aggro
-	CombatSystem.applyDamageToEntity(projectile.attacker, entity, projectile.weapon, {
-		hitPart = hitPart,
-		attackingPlayer = projectile.attackingPlayer,
-		attackerStats = attackerStats,
-		targetStats = targetStats,
-	})
+	local CS = getCombatSystem()
+	if CS then
+		CS.applyDamageToEntity(projectile.attacker, entity, projectile.weapon, {
+			hitPart = hitPart,
+			attackingPlayer = projectile.attackingPlayer,
+			attackerStats = attackerStats,
+			targetStats = targetStats,
+		})
+	end
 end
 
 --[[
@@ -242,13 +278,18 @@ local function handleRaycastHit(
 	raycastResult: RaycastResult
 ): boolean
 	-- Check for AOE on impact (before handling normal collision)
-	local weaponConfig = CombatSystem.getWeaponConfig(projectile.weapon)
+	local CS = getCombatSystem()
+	if not CS then
+		return true -- Destroy projectile
+	end
+
+	local weaponConfig = CS.getWeaponConfig(projectile.weapon)
 	if weaponConfig and weaponConfig.aoeOnImpact then
 		-- Get attacker stats once for AOE
 		local attackerStats = StatsProvider.getStats(projectile.attacker)
 
 		-- Trigger AOE at impact position
-		local hits = CombatSystem.performAOEAttack(
+		local hits = CS.performAOEAttack(
 			projectile.attacker,
 			raycastResult.Position,
 			projectile.weapon,
@@ -341,27 +382,30 @@ function ProjectilePhysics.updateProjectile(
 		print(`Projectile {projectile.weapon} reached max range`)
 
 		-- Trigger AOE at final position if configured
-		local weaponConfig = CombatSystem.getWeaponConfig(projectile.weapon)
-		if weaponConfig and weaponConfig.aoeOnImpact then
-			-- Get attacker stats once for AOE
-			local attackerStats = StatsProvider.getStats(projectile.attacker)
+		local CS = getCombatSystem()
+		if CS then
+			local weaponConfig = CS.getWeaponConfig(projectile.weapon)
+			if weaponConfig and weaponConfig.aoeOnImpact then
+				-- Get attacker stats once for AOE
+				local attackerStats = StatsProvider.getStats(projectile.attacker)
 
-			local hits = CombatSystem.performAOEAttack(
-				projectile.attacker,
-				projectile.lastPosition,
-				projectile.weapon,
-				projectile.attackingPlayer,
-				{
-					damageOverride = weaponConfig.aoeDamage,
-					radius = weaponConfig.aoeRadius,
-					falloff = weaponConfig.aoeFalloff,
-					maxTargets = weaponConfig.maxTargets,
+				local hits = CS.performAOEAttack(
+					projectile.attacker,
+					projectile.lastPosition,
+					projectile.weapon,
+					projectile.attackingPlayer,
+					{
+						damageOverride = weaponConfig.aoeDamage,
+						radius = weaponConfig.aoeRadius,
+						falloff = weaponConfig.aoeFalloff,
+						maxTargets = weaponConfig.maxTargets,
 					attackerStats = attackerStats,
 				}
-			)
+				)
 
-			print(`Projectile AOE {projectile.weapon} hit {#hits} entities at max range`)
-			showImpactEffect(projectile, projectile.lastPosition)
+				print(`Projectile AOE {projectile.weapon} hit {#hits} entities at max range`)
+				showImpactEffect(projectile, projectile.lastPosition)
+			end
 		end
 
 		return true -- Destroy

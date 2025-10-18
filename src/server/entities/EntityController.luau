@@ -23,7 +23,7 @@ local XPRewardManager
 
 local function getCombatSystem()
 	if not CombatSystem then
-		CombatSystem = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("combat"):WaitForChild("CombatSystem"))
+		CombatSystem = require(ServerScriptService:WaitForChild("Server"):WaitForChild("combat"):WaitForChild("CombatSystem"))
 	end
 	return CombatSystem
 end
