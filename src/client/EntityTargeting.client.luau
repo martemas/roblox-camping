@@ -22,16 +22,22 @@ PlayerSettingsManager.initialize()
 
 -- Find entity model from a clicked part (traverse up the hierarchy)
 local function findEntityFromPart(hitPart: BasePart): Model?
+	print(`[EntityTargeting] Clicked on: {hitPart:GetFullName()}`)
 	local current = hitPart.Parent
 
 	-- Traverse up the hierarchy to find a targetable entity
 	while current and current ~= workspace do
-		if current:IsA("Model") and TargetingSystem.isTargetable(current) then
-			return current
+		if current:IsA("Model") then
+			local isTargetable = TargetingSystem.isTargetable(current)
+			print(`[EntityTargeting] Checking model: {current.Name}, isTargetable: {isTargetable}`)
+			if isTargetable then
+				return current
+			end
 		end
 		current = current.Parent
 	end
 
+	print(`[EntityTargeting] No targetable entity found`)
 	return nil
 end
 
@@ -43,10 +49,13 @@ end
 
 -- Set new target
 local function setTarget(entity: Model)
+	print(`[EntityTargeting] Attempting to set target: {entity.Name}`)
 	local success = TargetingSystem.setTarget(player, entity)
 	if success then
-		print(`Targeted {entity.Name}`)
+		print(`[EntityTargeting] ✓ Targeted {entity.Name}`)
 		RemoteEvents.Events.SelectTarget:FireServer(entity)
+	else
+		print(`[EntityTargeting] ✗ Failed to target {entity.Name}`)
 	end
 end
 

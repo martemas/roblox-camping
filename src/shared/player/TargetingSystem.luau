@@ -2,12 +2,14 @@
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local GameConfig = require(script.Parent.Parent:WaitForChild("config"))
-local EntityConfig = require(script.Parent.Parent:WaitForChild("config"):WaitForChild("EntitiesConfig"))
+local Entities = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Data"):WaitForChild("Entities"):WaitForChild("Entities"))
 local Types = require(script.Parent.Parent:WaitForChild("core"):WaitForChild("Types"))
 
 type TargetInfo = Types.TargetInfo
+type EntityType = Types.EntityType
 
 local TargetingSystem = {}
 
@@ -17,7 +19,7 @@ local targetHighlights: {[Model]: {[Player]: Highlight}} = {}
 local lastTargetCheck: {[Player]: number} = {}
 
 -- Configuration
-local CHECK_INTERVAL = 0.1 -- How often to check target validity (seconds)
+local CHECK_INTERVAL = 0.5 -- How often to check target validity (seconds)
 
 -- Check if a model has targeting attributes and is valid
 local function isTargetable(model: Model): boolean
@@ -28,22 +30,23 @@ local function isTargetable(model: Model): boolean
 		return GameConfig.combat.pvpEnabled
 	end
 
-	-- Must have EntityType attribute for non-player entities
+	-- Must have EntityId attribute for non-player entities
+	local entityId = model:GetAttribute("EntityId")
+	if not entityId then
+		return false
+	end
+
+	-- Must have EntityCategory attribute
 	local entityType = model:GetAttribute("EntityType")
 	if not entityType then
 		return false
 	end
 
-	-- Must have EntityCategory attribute
-	local entityCategory = model:GetAttribute("EntityCategory")
-	if not entityCategory then
-		return false
-	end
+	print('Found entity type: ' .. entityType)
+	-- Check if entity exists in Entities.Database
+	local entityData = Entities.Database[entityId]
 
-	-- Check if entity exists in GameConfig
-	local config = GameConfig.entities[entityType] or GameConfig.resources[entityType] or GameConfig.buildings[entityType]
-
-	return config ~= nil
+	return entityData ~= nil
 end
 
 -- Check if target is still valid (alive, exists, etc.)
@@ -74,14 +77,14 @@ local function getTargetInfo(model: Model, playerPosition: vector?): TargetInfo?
 
 	-- Check if it's a player character
 	local targetPlayer = Players:GetPlayerFromCharacter(model)
-	local entityType, entityCategory
+	local entityId, entityType
 
 	if targetPlayer then
+		entityId = "Player"
 		entityType = "Player"
-		entityCategory = EntityConfig.Categories.Player
 	else
+		entityId = tostring(model:GetAttribute("EntityId"))
 		entityType = tostring(model:GetAttribute("EntityType"))
-		entityCategory = tostring(model:GetAttribute("EntityCategory"))
 	end
 
 	-- Calculate distance if player position provided
@@ -105,23 +108,22 @@ local function getTargetInfo(model: Model, playerPosition: vector?): TargetInfo?
 	-- Get configuration-based stats
 	local damage, walkSpeed, runSpeed = nil, nil, nil
 
-	if entityCategory == EntityConfig.Categories.Player then
+	if entityType == Entities.Types.Player then
 		-- For players, damage depends on equipped weapon
 		damage = nil -- Not static for players
 		walkSpeed = GameConfig.player.walkSpeed
 		runSpeed = GameConfig.player.sprintSpeed
-	elseif entityCategory == EntityConfig.Categories.Resource or entityCategory == EntityConfig.Categories.Structure then
-		-- Resources and buildings have no damage or speed
+	elseif entityType == Entities.Types.Resource or entityType == Entities.Types.Structure then
+		-- Resources and structures have no damage or speed
 		damage = nil
 		walkSpeed = 0
 		runSpeed = 0
 	else
-		local config = GameConfig.entities[entityType]
-		-- Don't show damage to client (security - prevents damage exploits)
-		-- Damage is server-only information
-		damage = nil
-		walkSpeed = config.walkSpeed
-		runSpeed = config.runSpeed
+		-- For Wildlife, Creatures, NPCs - don't expose actual stats to client
+		-- Stats are server-only (see server/Data/Entities/)
+		damage = nil -- Security: prevents damage exploits
+		walkSpeed = nil -- Security: prevents movement exploits
+		runSpeed = nil
 	end
 
 	-- Get current state from model attribute (set by EntityController)
@@ -129,8 +131,8 @@ local function getTargetInfo(model: Model, playerPosition: vector?): TargetInfo?
 
 	return {
 		model = model,
+		entityId = entityId,
 		entityType = entityType,
-		entityCategory = entityCategory,
 		health = health,
 		maxHealth = maxHealth,
 		distance = distance,
@@ -276,12 +278,18 @@ local function validatePlayerTarget(player: Player)
 		return
 	end
 
-	-- Check if target is still valid
-	if not isValidTarget(target) then
-		print(`Auto-deselecting {target.Name} for {player.Name}: no longer valid`)
+	local humanoid = target:FindFirstChildOfClass("Humanoid")
+	if not (humanoid and humanoid.Health > 0) then
 		TargetingSystem.setTarget(player, nil)
 		return
 	end
+
+	-- Check if target is still valid
+	-- if not isValidTarget(target) then
+	-- 	print(`Auto-deselecting {target.Name} for {player.Name}: no longer valid`)
+	-- 	TargetingSystem.setTarget(player, nil)
+	-- 	return
+	-- end
 
 	-- Check distance
 	if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then

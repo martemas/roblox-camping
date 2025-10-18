@@ -241,8 +241,8 @@ local function findEntityFromPart(part: BasePart): Model?
 			end
 
 			-- Check if it's an NPC with EntityType attribute
-			local entityType = current:GetAttribute("EntityType")
-			if entityType then
+			local entityId = current:GetAttribute("EntityId")
+			if entityId then
 				return current
 			end
 		end

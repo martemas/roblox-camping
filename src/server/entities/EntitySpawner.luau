@@ -22,7 +22,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Utils = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("Utils"))
 local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("config"))
 local EntityController = require(script.Parent:WaitForChild("EntityController"))
-local EntitiesConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("config"):WaitForChild("EntitiesConfig"))
+local Entities = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Data"):WaitForChild("Entities"):WaitForChild("Entities"))
 
 -- Types
 export type SpawnLocation =
@@ -114,24 +114,49 @@ end
 
 -- Create entity model from template
 local function createEntityModel(entityType: string, position: Vector3): Model?
-	-- Find entity category in EntitiesConfig
-	local entityConfig = EntitiesConfig.Entities[entityType]
+	-- Get entity data from new Entities.Database
+	local entityData = Entities.Database[entityType]
 
-	if not entityConfig then
-		warn(`Entity type '{entityType}' not found in GameConfig.entities`)
+	if not entityData then
+		warn(`Entity type '{entityType}' not found in Entities.Database`)
 		return nil
 	end
 
-	local modelsFolder = ReplicatedStorage:FindFirstChild("Models"):FindFirstChild("Entities"):FindFirstChild(entityConfig.category)
+	if not entityData.spawnModel then
+		warn(`No spawnModel defined for entity: {entityType}`)
+		return nil
+	end
 
+	-- Parse spawn model path (e.g., "Wildlife/Wolf")
+	local modelPath = entityData.spawnModel
+	local pathParts = string.split(modelPath, "/")
+
+	local modelsFolder = ReplicatedStorage:FindFirstChild("Models")
 	if not modelsFolder then
-		warn(`Models folder not found in ReplicatedStorage.Models.Entities for category {entityConfig.category}`)
+		warn("Models folder not found in ReplicatedStorage")
 		return nil
 	end
 
-	local template = modelsFolder:FindFirstChild(entityType)
+	local entitiesFolder = modelsFolder:FindFirstChild("Entities")
+	if not entitiesFolder then
+		warn("Entities folder not found in ReplicatedStorage.Models")
+		return nil
+	end
+
+	-- Navigate through the path
+	local currentFolder = entitiesFolder
+	for i = 1, #pathParts - 1 do
+		currentFolder = currentFolder:FindFirstChild(pathParts[i])
+		if not currentFolder then
+			warn(`Path '{pathParts[i]}' not found in model hierarchy for {entityType}`)
+			return nil
+		end
+	end
+
+	-- Get the actual model template
+	local template = currentFolder:FindFirstChild(pathParts[#pathParts])
 	if not template then
-		warn(`Entity template '{entityType}' not found in Models.Entities.{entityConfig.category} folder`)
+		warn(`Entity template '{pathParts[#pathParts]}' not found at path: {modelPath}`)
 		return nil
 	end
 
@@ -166,7 +191,7 @@ end
 -- Spawn a single entity
 function EntitySpawner.spawnEntity(config: SpawnConfig): Model?
 	-- Validate entity type exists
-	local entityConfig = GameConfig.entities[config.entityType]
+	local entityConfig = Entities.Database[config.entityType]
 	if not entityConfig then
 		warn(`Entity type '{config.entityType}' not found in GameConfig.entities`)
 		return nil
@@ -195,7 +220,7 @@ function EntitySpawner.spawnEntity(config: SpawnConfig): Model?
 		local patrolPointsJson = game:GetService("HttpService"):JSONEncode(config.patrolPoints)
 		model:SetAttribute("PatrolPoints", patrolPointsJson)
 	end
-
+	
 	-- Initialize entity with EntityController (handles AI, stats, animations)
 	local entity = EntityController.initializeEntity(model, config.entityType)
 	if not entity then
@@ -240,13 +265,13 @@ end
 
 -- Get spawn configuration for entity type (helper for quick spawning)
 function EntitySpawner.getDefaultSpawnConfig(entityType: string): SpawnConfig?
-	local entityConfig = GameConfig.entities[entityType]
-	if not entityConfig then
+	local entityData = Entities.Database[entityType]
+	if not entityData then
 		return nil
 	end
 
-	-- Default spawn config based on category
-	local category = entityConfig.category
+	-- Default spawn config based on entity category
+	local category = entityData.type
 
 	if category == "Wildlife" then
 		-- Wildlife spawns randomly around map

@@ -6,10 +6,8 @@
 
 local ClientSettings = require(script.ClientSettings)
 local DayNightCycleConfig = require(script.DayNightCycleConfig)
-local EntitiesConfig = require(script.EntitiesConfig)
-local BuildingsConfig = require(script.BuildingsConfig)
 
--- Client-safe config for legacy compatibility
+-- Client-safe config
 local ClientConfig = {
 	-- Client UI settings
 	gameplay = {},
@@ -40,9 +38,8 @@ local ClientConfig = {
 	time = DayNightCycleConfig.time,
 	nightWaves = DayNightCycleConfig.nightWaves,
 
-	-- Entity display data
-	entities = EntitiesConfig.Entities,
-	buildings = BuildingsConfig.buildings,
+	-- NOTE: Entity data moved to shared/Data/Entities/Entities.luau
+	-- Access via: require(ReplicatedStorage.Shared.Data.Entities.Entities).Database
 }
 
 return ClientConfig

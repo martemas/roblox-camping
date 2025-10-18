@@ -8,13 +8,15 @@ local PathfindingService = game:GetService("PathfindingService")
 local ServerScriptService = game:GetService("ServerScriptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("config"))
+-- local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("config"))
+local GameConfig = require(ServerScriptService:WaitForChild("Server"):WaitForChild("Config"):WaitForChild("GameConfig"))
 local CombatFeedback = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("visual-effects"):WaitForChild("CombatFeedback"))
 local ProjectileLOS = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("combat"):WaitForChild("ProjectileLOS"))
 local DamageCalculator = require(script.Parent.Parent:WaitForChild("combat"):WaitForChild("DamageCalculator"))
 local Stats = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("combat"):WaitForChild("Stats"))
 local StatsProvider = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("combat"):WaitForChild("StatsProvider"))
-
+local EntityStats = require(script.Parent.Parent:WaitForChild("Data"):WaitForChild("Entities"):WaitForChild("EntityStats")
+)
 -- Lazy-loaded modules to avoid circular dependencies
 local CombatSystem
 local XPRewardManager
@@ -58,7 +60,7 @@ end
 export type EntityState = "idle" | "wandering" | "chasing" | "attacking" | "jumping"
 
 export type EntityInstance = {
-	entityType: string,
+	entityId: string,
 	model: Model,
 	humanoid: Humanoid,
 	humanoidRootPart: BasePart,
@@ -96,19 +98,18 @@ local function updateEntityState(entity: EntityInstance, newState: EntityState)
 end
 
 -- Get entity configuration from GameConfig
-local function getEntityConfig(entityType: string)
+local function getEntityConfig(entityId: string)
 	-- First check wildlife
-	if GameConfig.entities[entityType] then
-		return GameConfig.entities[entityType]
-	end
-
-	return nil
+	return EntityStats.getEntity(entityId)
 end
 
 -- Load animations for an entity from GameConfig
 local function loadAnimations(entity: EntityInstance)
-	local config = GameConfig.entities[entity.entityType]
-	if not config or not config.animations then
+	local config = EntityStats.getEntity(entity.entityId)
+
+	if not config or not config.Display or not config.Display.animationIds then
+		warn("No animations configured for entity type", entity.entityId)
+		print(config)
 		return
 	end
 
@@ -121,7 +122,9 @@ local function loadAnimations(entity: EntityInstance)
 	entity.animationTracks = {}
 
 	-- Load each animation defined in config
-	for animName, animId in config.animations do
+	for animName, animId in config.Display.animationIds do
+		print("Loading animation", animName)
+		print("Anim ID", animId)
 		if animId and animId ~= "" then
 			local animation = Instance.new("Animation")
 			animation.AnimationId = animId
@@ -174,12 +177,9 @@ end
 
 -- Get closest player to entity
 local function getClosestPlayer(entity: EntityInstance): Player?
-	local config = getEntityConfig(entity.entityType)
-	if not config then return nil end
-
 	local position = entity.humanoidRootPart.Position
 	local closest: Player? = nil
-	local shortestDist = config.aggroDistance or config.aggroRange or 15
+	local shortestDist = entity.config.Stats.ai.aggroRange or 15
 
 	for _, player in Players:GetPlayers() do
 		if player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild("Humanoid") then
@@ -244,7 +244,7 @@ local function repositionForClearShot(entity: EntityInstance, target: Player)
 
 	-- Move toward new position (simple approach, no pathfinding)
 	entity.humanoid:MoveTo(newGoal)
-	print(`*** {entity.entityType} repositioning to find clear shot`)
+	print(`*** {entity.entityId} repositioning to find clear shot`)
 
 	-- Wait briefly for repositioning
 	task.wait(0.5)
@@ -257,7 +257,7 @@ local function performAttack(entity: EntityInstance, target: Player)
 	end
 
 	local targetHumanoid = target.Character.Humanoid :: Humanoid
-	local config = getEntityConfig(entity.entityType)
+	local config = entity.config
 
 	-- Don't attack if target is already dead
 	if targetHumanoid.Health <= 0 then
@@ -265,9 +265,9 @@ local function performAttack(entity: EntityInstance, target: Player)
 	end
 
 	-- Get entity's weapon
-	local weaponName = config.primaryWeapon
+	local weaponName = config.Stats.primaryWeapon
 	if not weaponName then
-		warn(`Entity {entity.entityType} has no primaryWeapon configured`)
+		warn(`Entity {entity.entityId} has no primaryWeapon configured`)
 		return
 	end
 
@@ -308,10 +308,10 @@ local function performAttack(entity: EntityInstance, target: Player)
 
 		if result.hit and result.damage then
 			-- Target was in range - damage was applied by CombatSystem
-			print(`*** {entity.entityType} hit {target.Name} for {result.damage} damage with {weaponName}`)
+			print(`*** {entity.entityId} hit {target.Name} for {result.damage} damage with {weaponName}`)
 		elseif result.wasDodged then
 			-- Target dodged!
-			print(`*** {target.Name} dodged {entity.entityType} attack!`)
+			print(`*** {target.Name} dodged {entity.entityId} attack!`)
 		elseif result.blockedByInvulnerability then
 			-- Target is invulnerable
 			print(`*** {target.Name} is invulnerable to {weaponName}`)
@@ -323,7 +323,7 @@ local function performAttack(entity: EntityInstance, target: Player)
 			local losResult = ProjectileLOS.canTargetEntity(entity.model, target.Character)
 
 			if not losResult.hasLineOfSight then
-				print(`*** {entity.entityType} blocked by obstacle, repositioning`)
+				print(`*** {entity.entityId} blocked by obstacle, repositioning`)
 				-- Attempt to reposition for clear shot
 				repositionForClearShot(entity, target)
 				return -- Skip attack this cycle
@@ -362,9 +362,9 @@ local function performAttack(entity: EntityInstance, target: Player)
 		)
 
 		if projectile then
-			print(`*** {entity.entityType} fired {weaponName} at {target.Name}`)
+			print(`*** {entity.entityId} fired {weaponName} at {target.Name}`)
 		else
-			print(`*** {entity.entityType} projectile attack failed`)
+			print(`*** {entity.entityId} projectile attack failed`)
 		end
 
 	elseif weaponConfig.type == "hitscan" then
@@ -398,9 +398,9 @@ local function performAttack(entity: EntityInstance, target: Player)
 		)
 
 		if result.hit then
-			print(`*** {entity.entityType} hit {target.Name} with {weaponName}`)
+			print(`*** {entity.entityId} hit {target.Name} with {weaponName}`)
 		else
-			print(`*** {entity.entityType} missed {target.Name} with {weaponName}`)
+			print(`*** {entity.entityId} missed {target.Name} with {weaponName}`)
 		end
 
 	elseif weaponConfig.type == "aoe" then
@@ -450,9 +450,9 @@ local function performAttack(entity: EntityInstance, target: Player)
 			)
 
 			if projectile then
-				print(`*** {entity.entityType} fired AOE projectile {weaponName} at {target.Name}`)
+				print(`*** {entity.entityId} fired AOE projectile {weaponName} at {target.Name}`)
 			else
-				print(`*** {entity.entityType} AOE projectile attack failed`)
+				print(`*** {entity.entityId} AOE projectile attack failed`)
 			end
 		else
 			-- Instant AOE: Apply immediately at target position
@@ -470,7 +470,7 @@ local function performAttack(entity: EntityInstance, target: Player)
 				}
 			)
 
-			print(`*** {entity.entityType} hit {#hits} entities with {weaponName} AOE`)
+			print(`*** {entity.entityId} hit {#hits} entities with {weaponName} AOE`)
 		end
 
 	else
@@ -481,8 +481,8 @@ end
 
 -- Handle jumping logic
 local function handleJumping(entity: EntityInstance)
-	local config = getEntityConfig(entity.entityType)
-	local jumpCooldown = config.jumpCooldown or 3
+	local config = entity.config
+	local jumpCooldown = config.Stats.jumpCooldown or 3
 
 	local currentTime = tick()
 	if currentTime - entity.lastJumpTime < jumpCooldown then
@@ -530,7 +530,8 @@ local function getClosestEntityOfCategory(entity: EntityInstance, category: stri
 		-- Find closest entity of this category
 		local position = entity.humanoidRootPart.Position
 		local closest: Model? = nil
-		local shortestDist = entity.config.ai.aggroRange or 30
+
+		local shortestDist = entity.config.Stats.ai.aggroRange or 30
 
 		for model, otherEntity in activeEntities do
 			if otherEntity.config.category == category and model ~= entity.model then
@@ -550,13 +551,13 @@ end
 
 -- Get target based on AI targetPriority array
 local function getTarget(entity: EntityInstance): Model?
-	local config = getEntityConfig(entity.entityType)
-	if not config or not config.ai or not config.ai.targetPriority then
-		return nil
-	end
+	-- local config = getEntityConfig(entity.entityId)
+	-- if not config or not config.Stats or not config.Stats.ai or not config.Stats.ai.targetPriority then
+	-- 	return nil
+	-- end
 
 	-- Check each priority in order
-	for _, category in config.ai.targetPriority do
+	for _, category in entity.config.Stats.ai.targetPriority do
 		local target = getClosestEntityOfCategory(entity, category)
 		if target then
 			return target
@@ -572,7 +573,7 @@ local function behaviorWander(entity: EntityInstance)
 	local wanderCooldown = 3
 
 	if currentTime - entity.lastWanderTime >= wanderCooldown then
-		local wanderRadius = entity.config.ai.wanderRadius or 20
+		local wanderRadius = entity.config.Stats.ai.wanderRadius or 20
 		local angle = math.random() * math.pi * 2
 		local distance = math.random() * wanderRadius
 		local offset = Vector3.new(
@@ -585,15 +586,15 @@ local function behaviorWander(entity: EntityInstance)
 		entity.lastWanderTime = currentTime
 	end
 
-	entity.humanoid.WalkSpeed = entity.config.walkSpeed or 12
+	entity.humanoid.WalkSpeed = entity.config.Stats.walkSpeed or 12
 	updateEntityState(entity, "wandering")
 	playAnimation(entity, "walk")
 end
 
 -- Seek target behavior: Actively seek targets while wandering
 local function behaviorSeekTarget(entity: EntityInstance)
-	local seekRange = entity.config.ai.seekRange or 50
-	local wanderRadius = entity.config.ai.wanderRadius or 20
+	local seekRange = entity.config.Stats.ai.seekRange or 50
+	local wanderRadius = entity.config.Stats.ai.wanderRadius or 20
 
 	-- Look for target within seek range
 	local target = getTarget(entity)
@@ -622,7 +623,7 @@ local function behaviorSeekTarget(entity: EntityInstance)
 		entity.lastWanderTime = currentTime
 	end
 
-	entity.humanoid.WalkSpeed = entity.config.walkSpeed or 12
+	entity.humanoid.WalkSpeed = entity.config.Stats.walkSpeed or 12
 	updateEntityState(entity, "wandering")
 	playAnimation(entity, "walk")
 end
@@ -630,19 +631,19 @@ end
 -- Return to spawn behavior: Walk back to spawn area
 local function behaviorReturnToSpawn(entity: EntityInstance)
 	local distanceToSpawn = (entity.humanoidRootPart.Position - entity.spawnPoint).Magnitude
-	local returnThreshold = (entity.config.ai.wanderRadius or 20) * 1.5
+	local returnThreshold = (entity.config.Stats.ai.wanderRadius or 20) * 1.5
 
 	if distanceToSpawn > returnThreshold then
 		-- Return to spawn
 		entity.humanoid:MoveTo(entity.spawnPoint)
-		entity.humanoid.WalkSpeed = (entity.config.walkSpeed or 12) * (entity.config.ai.returnSpeed or 0.5)
+		entity.humanoid.WalkSpeed = (entity.config.Stats.walkSpeed or 12) * (entity.config.Stats.ai.returnSpeed or 0.5)
 		updateEntityState(entity, "wandering")
 		playAnimation(entity, "walk")
 	else
 		-- Close enough to spawn, resume idle behavior
-		if entity.config.ai.behaviors.idle == "wander" then
+		if entity.config.Stats.ai.behaviors.idle == "wander" then
 			behaviorWander(entity)
-		elseif entity.config.ai.behaviors.idle == "seek_target" then
+		elseif entity.config.Stats.ai.behaviors.idle == "seek_target" then
 			behaviorSeekTarget(entity)
 		end
 	end
@@ -650,7 +651,7 @@ end
 
 -- Handle retargeting based on AI retargetBehavior setting
 local function handleRetargeting(entity: EntityInstance): boolean
-	local retargetBehavior = entity.config.ai.retargetBehavior or "locked"
+	local retargetBehavior = entity.config.Stats.ai.retargetBehavior or "locked"
 
 	if retargetBehavior == "locked" then
 		-- Never retarget
@@ -668,7 +669,7 @@ local function handleRetargeting(entity: EntityInstance): boolean
 
 			-- If current target is too far, find closest
 			local chaseMultiplier = GameConfig.combat.chaseRangeMultiplier or 3
-			local maxChaseRange = entity.config.ai.aggroRange * chaseMultiplier
+			local maxChaseRange = entity.config.Stats.ai.aggroRange * chaseMultiplier
 
 			if currentDist > maxChaseRange then
 				local newTarget = getTarget(entity)
@@ -699,8 +700,7 @@ local function updateEntityAI(entity: EntityInstance)
 		return
 	end
 
-	local config = getEntityConfig(entity.entityType)
-	if not config or not config.ai then return end
+	local config = entity.config.Stats
 
 	local currentTime = tick()
 
@@ -726,7 +726,7 @@ local function updateEntityAI(entity: EntityInstance)
 					if not handleRetargeting(entity) then
 						entity.target = nil
 						entity.isAggro = false
-						print(`{entity.entityType} gave up chase - target too far`)
+						print(`{entity.entityId} gave up chase - target too far`)
 					end
 				end
 			end
@@ -761,7 +761,7 @@ local function updateEntityAI(entity: EntityInstance)
 			local CS = getCombatSystem()
 			local weaponConfig = CS.getWeaponConfig(weaponName)
 			if not weaponConfig then
-				warn(`Entity {entity.entityType} has no valid weapon config`)
+				warn(`Entity {entity.entityId} has no valid weapon config`)
 				return
 			end
 
@@ -835,10 +835,10 @@ local function updateEntityAI(entity: EntityInstance)
 end
 
 -- Initialize an entity with the centralized system
-function EntityController.initializeEntity(model: Model, entityType: string): EntityInstance?
-	local config = getEntityConfig(entityType)
+function EntityController.initializeEntity(model: Model, entityId: string): EntityInstance?
+	local config = getEntityConfig(entityId)
 	if not config then
-		warn(`No configuration found for entity type: {entityType}`)
+		warn(`No configuration found for entity type: {entityId}`)
 		return nil
 	end
 
@@ -846,7 +846,7 @@ function EntityController.initializeEntity(model: Model, entityType: string): En
 	local humanoidRootPart = model:FindFirstChild("HumanoidRootPart") :: BasePart
 
 	if not humanoid or not humanoidRootPart then
-		warn(`Entity {entityType} missing Humanoid or HumanoidRootPart`)
+		warn(`Entity {entityId} missing Humanoid or HumanoidRootPart`)
 		return nil
 	end
 
@@ -869,7 +869,7 @@ function EntityController.initializeEntity(model: Model, entityType: string): En
 	end
 
 	-- Get base stats from config or use defaults
-	local baseStats = config.baseStats or {
+	local baseStats = config.Stats.baseStats or {
 		strength = 3,
 		magic = 0,
 		stamina = 2,
@@ -885,21 +885,22 @@ function EntityController.initializeEntity(model: Model, entityType: string): En
 	local derived = Stats.getDerivedStats(scaledStats)
 
 	-- Set up humanoid properties from config + stats
-	humanoid.MaxHealth = (config.health or 50) + derived.maxHealthBonus
+	humanoid.MaxHealth = (config.Stats.health or 50) + derived.maxHealthBonus
 	humanoid.Health = humanoid.MaxHealth
-	humanoid.WalkSpeed = config.walkSpeed or 12
+	humanoid.WalkSpeed = config.Stats.walkSpeed or 12
 
 	-- Store attributes for other systems (targeting, health bars, etc.)
 	model:SetAttribute("Level", level)
-	model:SetAttribute("EntityType", entityType)
-	model:SetAttribute("EntityCategory", config.category)
-	model:SetAttribute("CanTakeDamage", config.canTakeDamage)
+	model:SetAttribute("EntityId", config.id)
+	model:SetAttribute("EntityName", config.Display.DisplayName)
+	model:SetAttribute("EntityType", config.type)
+	model:SetAttribute("CanTakeDamage", config.Stats.canTakeDamage)
 	model:SetAttribute("MaxHealth", humanoid.MaxHealth)
 	model:SetAttribute("CurrentHealth", humanoid.Health)
 
 	-- Create entity instance
 	local entity: EntityInstance = {
-		entityType = entityType,
+		entityId = entityId,
 		model = model,
 		humanoid = humanoid,
 		humanoidRootPart = humanoidRootPart,
@@ -949,7 +950,7 @@ function EntityController.initializeEntity(model: Model, entityType: string): En
 			end
 
 			-- Process drops
-			if DropSystem and entity.config and entity.config.drops then
+			if DropSystem and entity.config and entity.config.Stats.drops then
 
 				-- Get killer stats from last attacker
 				local killerStats = nil
@@ -959,7 +960,7 @@ function EntityController.initializeEntity(model: Model, entityType: string): En
 
 				-- Process drops (mode determined by GameSettings)
 				DropSystem.processDrops(
-					entity.config.drops,
+					entity.config.Stats.drops,
 					killerStats,
 					entity.humanoidRootPart.Position,
 					nil, -- Use default scatter radius from config
@@ -974,7 +975,7 @@ function EntityController.initializeEntity(model: Model, entityType: string): En
 	-- Register entity
 	activeEntities[model] = entity
 
-	print(`Initialized {entityType} entity (Level {level}) with centralized controller`)
+	print(`Initialized {entityId} entity (Level {level}) with centralized controller`)
 	return entity
 end
 
@@ -991,7 +992,7 @@ function EntityController.removeEntity(model: Model)
 		end
 
 		activeEntities[model] = nil
-		print(`Removed {entity.entityType} from centralized controller`)
+		print(`Removed {entity.entityId} from centralized controller`)
 	end
 end
 
@@ -1143,7 +1144,7 @@ function EntityController.handleDamage(
 		-- Play damage sound
 		playSound(entity, "damage")
 
-		print(`{entity.entityType} took {damage} environmental damage`)
+		print(`{entity.entityId} took {damage} environmental damage`)
 	end
 end
 
@@ -1184,12 +1185,12 @@ function EntityController.setEntityLevel(model: Model, level: number)
 
 	-- Update HP based on new stamina
 	local derived = Stats.getDerivedStats(entity.scaledStats)
-	entity.humanoid.MaxHealth = entity.config.health + derived.maxHealthBonus
+	entity.humanoid.MaxHealth = entity.config.Stats.health + derived.maxHealthBonus
 
 	-- Store level on model
 	model:SetAttribute("Level", level)
 
-	print(`{entity.entityType} leveled up to {level}!`)
+	print(`{entity.entityId} leveled up to {level}!`)
 end
 
 -- Award XP to entity (uses centralized Stats.calculateXPReward)
@@ -1200,7 +1201,7 @@ function EntityController.awardEntityXP(model: Model, victimType: string, victim
 	end
 
 	-- Check if this entity type can earn XP
-	if not GameConfig.stats.entityCanEarnXP[entity.entityType] then
+	if not GameConfig.stats.entityCanEarnXP[entity.entityId] then
 		return
 	end
 
@@ -1224,9 +1225,9 @@ function EntityController.awardEntityXP(model: Model, victimType: string, victim
 		-- Apply scaling
 		EntityController.setEntityLevel(model, newLevel)
 
-		print(`{entity.entityType} earned {xpAmount} XP and leveled up to {newLevel}!`)
+		print(`{entity.entityId} earned {xpAmount} XP and leveled up to {newLevel}!`)
 	else
-		print(`{entity.entityType} earned {xpAmount} XP ({entity.xp} total)`)
+		print(`{entity.entityId} earned {xpAmount} XP ({entity.xp} total)`)
 	end
 end
 

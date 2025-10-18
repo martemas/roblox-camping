@@ -2,9 +2,8 @@
 local Types = {}
 
 local Stats = require(script.Parent.Parent:WaitForChild("combat"):WaitForChild("Stats"))
-
 local Items = require(script.Parent.Parent:WaitForChild("Data"):WaitForChild("Items"):WaitForChild("Items"))
-local EntityConfig = require(script.Parent.Parent:WaitForChild("config"):WaitForChild("EntitiesConfig"))
+local Entities = require(script.Parent.Parent:WaitForChild("Data"):WaitForChild("Entities"):WaitForChild("Entities"))
 local DayNightCycleConfig = require(script.Parent.Parent:WaitForChild("config"):WaitForChild("DayNightCycleConfig"))
 
 -- Export Stats types (centralized from Stats module)
@@ -15,9 +14,11 @@ export type DerivedStats = Stats.DerivedStats
 export type ItemType = Items.ItemType
 export type ItemData = Items.ItemData
 
+-- Export Entity types
+export type EntityType = Entities.EntityType
+export type EntityData = Entities.EntityData
+
 -- Re-export types from config modules
-export type Category = EntityConfig.Category
-export type StructureType = EntityConfig.StructureType
 export type GamePhase = DayNightCycleConfig.GamePhase
 
 -- Updated inventory to support all item types (not just resources)
@@ -31,6 +32,7 @@ export type ResourceNode = {
 	maxHits: number,
 	isActive: boolean,
 	part: BasePart,
+	stats: any,
 	-- TODO: Add particle emitter and HP GUI when assets are ready
 }
 
@@ -64,8 +66,8 @@ export type TeamResources = {
 
 export type TargetInfo = {
 	model: Model,
+	entityId: string,
 	entityType: string,
-	entityCategory: string,
 	health: number,
 	maxHealth: number,
 	distance: number,

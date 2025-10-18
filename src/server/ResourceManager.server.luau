@@ -7,10 +7,9 @@ local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 
 local GameConfig = require(ServerScriptService:WaitForChild("Server"):WaitForChild("Config"):WaitForChild("GameConfig"))
-local ResourceStats = require(ServerScriptService:WaitForChild("Server"):WaitForChild("Data"):WaitForChild("Items"):WaitForChild("ResourceStats"))
+local EntityStats = require(ServerScriptService:WaitForChild("Server"):WaitForChild("Data"):WaitForChild("Entities"):WaitForChild("EntityStats"))
 local ToolStats = require(ServerScriptService:WaitForChild("Server"):WaitForChild("Data"):WaitForChild("Items"):WaitForChild("ToolStats"))
 local Items = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Data"):WaitForChild("Items"):WaitForChild("Items"))
-local EntityConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("config"):WaitForChild("EntitiesConfig"))
 local Types = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("Types"))
 local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("RemoteEvents"))
 local Utils = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("Utils"))
@@ -66,6 +65,13 @@ end
 -- Create a resource node
 local function createResourceNode(resourceType: string, position: vector): ResourceNode?
 	
+	local entity = EntityStats.getEntity(resourceType)
+
+	if not entity then
+		warn(`No entity config found for resource type {resourceType}`)
+		return nil
+	end
+	
 	if not resourcesFolder then
 		warn("Resources model folder not found in ReplicatedStorage")
 		return nil
@@ -103,7 +109,7 @@ local function createResourceNode(resourceType: string, position: vector): Resou
 		return nil
 	end
 
-	local resourceNodeConfig = ResourceStats.Nodes[resourceType]
+	local resourceNodeConfig = entity.Stats
 	if not resourceNodeConfig then
 		warn(`No resource node config found for {resourceType}`)
 		nodeModel:Destroy()
@@ -117,11 +123,12 @@ local function createResourceNode(resourceType: string, position: vector): Resou
 		maxHits = maxHits,
 		isActive = true,
 		part = mainPart,
+		stats = entity.Stats
 	}
 
 	-- Set generic entity attributes for tool interaction system
-	nodeModel:SetAttribute("EntityType", resourceType)
-	nodeModel:SetAttribute("EntityCategory", EntityConfig.Categories.Resource)
+	nodeModel:SetAttribute("EntityId", entity.id)
+	nodeModel:SetAttribute("EntityType", entity.type)
 
 	-- TODO: Create HP indicator GUI when UI assets are ready
 	-- TODO: Add particle emitter when particle assets are ready
@@ -839,7 +846,7 @@ function ResourceManager.HandleToolHit(player: Player, hitPart: BasePart, resour
 	-- end
 
 	-- Get resource configuration
-	local resourceConfig = ResourceStats.Nodes[resourceType]
+	local resourceConfig = node
 	if not resourceConfig then
 		warn(`No resource config found for {resourceType}`)
 		return
@@ -848,7 +855,9 @@ function ResourceManager.HandleToolHit(player: Player, hitPart: BasePart, resour
 	-- Check inventory space
 	local InventoryManager = _G.InventoryManager
 	if InventoryManager then
-		if not InventoryManager.HasSpace(player, resourceConfig.yieldPerMine) then
+		-- workout the drop amount
+		-- TODO: Implement drop logic here
+		if not InventoryManager.HasSpace(player, 1) then --resourceConfig.yieldPerMine) then
 			RemoteEvents.Events.ShowNotification:FireClient(player, "Inventory full! Deposit resources at the warehouse.")
 			return
 		end
@@ -916,50 +925,48 @@ local function registerManualNodes()
 
 	for _, model in resourcesFolder:GetChildren() do
 
-		if model:IsA("Model") and model:GetAttribute("EntityType") then
-			local resourceType: string = model:GetAttribute("EntityType")
-			local config = ResourceStats.Nodes[resourceType]
+		if model:IsA("Model") and model:GetAttribute("EntityId") then
+			local resourceId: string = model:GetAttribute("EntityId")
+			local config = EntityStats.getEntity(resourceId)
 
-			if config and config.spawnMode == "manual" then
-				local mainPart = model.PrimaryPart or model:FindFirstChildOfClass("BasePart")
-				if mainPart then
-					local node: ResourceNode = {
-						resourceType = resourceType,
-						currentHits = 0,
-						maxHits = config.hitsRequired,
-						isActive = true,
-						part = mainPart,
-					}
+			local mainPart = model.PrimaryPart or model:FindFirstChildOfClass("BasePart")
+			if mainPart then
+				local node: ResourceNode = {
+					resourceId = resourceId,
+					currentHits = 0,
+					maxHits = config.hitsRequired,
+					isActive = true,
+					part = mainPart,
+				}
 
-					model:SetAttribute("EntityCategory", EntityConfig.Categories.Resource)
-					
-					-- Add ProximityPrompt for mining
-					local prompt = Instance.new("ProximityPrompt")
-					prompt.Name = "MiningPrompt"
-					prompt.ActionText = `Mine {resourceType}`
-					prompt.ObjectText = resourceType
-					prompt.KeyboardKeyCode = Enum.KeyCode.E
-					prompt.MaxActivationDistance = 10
+				model:SetAttribute("EntityType", "Resource")
+				
+				-- Add ProximityPrompt for mining
+				local prompt = Instance.new("ProximityPrompt")
+				prompt.Name = "MiningPrompt"
+				prompt.ActionText = `Mine {resourceId}`
+				prompt.ObjectText = resourceId
+				prompt.KeyboardKeyCode = Enum.KeyCode.E
+				prompt.MaxActivationDistance = 10
 
-					-- Set hold duration based on config
-					if GameConfig.gameplay.miningInteraction == "tap" then
-						prompt.HoldDuration = 0
-					else
-						prompt.HoldDuration = GameConfig.gameplay.miningHoldDuration
-					end
-
-					prompt.RequiresLineOfSight = false
-					prompt.Parent = mainPart
-
-					-- Connect ProximityPrompt event
-					-- prompt.Triggered:Connect(function(player)
-					-- 	startAutoMining(player, node)
-					-- end)
-
-					resourceNodes[mainPart] = node
+				-- Set hold duration based on config
+				if GameConfig.gameplay.miningInteraction == "tap" then
+					prompt.HoldDuration = 0
 				else
-					error(`Manual {resourceType} node has no BasePart`)
+					prompt.HoldDuration = GameConfig.gameplay.miningHoldDuration
 				end
+
+				prompt.RequiresLineOfSight = false
+				prompt.Parent = mainPart
+
+				-- Connect ProximityPrompt event
+				-- prompt.Triggered:Connect(function(player)
+				-- 	startAutoMining(player, node)
+				-- end)
+
+				resourceNodes[mainPart] = node
+			else
+				error(`Manual {resourceId} node has no BasePart`)
 			end
 		end
 	end
@@ -1001,7 +1008,7 @@ local function initialize()
 end
 
 -- Start the system
-initialize()
+-- initialize()
 
 -- Export to global _G for other servers to access
 _G.ResourceManager = ResourceManager

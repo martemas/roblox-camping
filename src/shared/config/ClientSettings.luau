@@ -24,6 +24,10 @@ local ClientSettings = {
 
 	-- Combat UI Settings
 	combat = {
+		-- Hit detection mode (shared with server)
+		damageTargetOnly = false, -- False = projectiles hit all entities in path
+
+		-- UI settings
 		clickTargetSearchRadius = 10, -- Radius for click-targeting
 		showFacingIndicator = true, -- Show visual feedback in target HUD
 		facingAngleDegrees = 300, -- Total cone angle for UI display
