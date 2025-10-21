@@ -29,7 +29,7 @@ Attack Source → StatsProvider.getStats() → CombatSystem.applyDamageToEntity(
 **Why it exists:** Eliminates circular dependencies between combat systems and stat management
 
 ```lua
-local StatsProvider = require(ReplicatedStorage.Shared.StatsProvider)
+local StatsProvider = require(ReplicatedStorage.Engine.StatsProvider)
 
 -- Get stats for any entity (player character or NPC)
 local stats = StatsProvider.getStats(model)
@@ -339,8 +339,8 @@ criticalChance = 0.05 + (stats.accuracy * 0.005)
 **ALWAYS use the centralized function with stats:**
 
 ```lua
-local CombatSystem = require(ReplicatedStorage.Shared.CombatSystem)
-local StatsProvider = require(ReplicatedStorage.Shared.StatsProvider)
+local CombatSystem = require(ReplicatedStorage.Engine.CombatSystem)
+local StatsProvider = require(ReplicatedStorage.Engine.StatsProvider)
 
 -- Get stats for both attacker and target
 local attackerStats = StatsProvider.getStats(attacker)
@@ -380,7 +380,7 @@ local result = CombatSystem.applyDamageToEntity(
 ### Example: Custom Spell with Bypass Options
 
 ```lua
-local StatsProvider = require(ReplicatedStorage.Shared.StatsProvider)
+local StatsProvider = require(ReplicatedStorage.Engine.StatsProvider)
 
 -- Get stats
 local casterStats = StatsProvider.getStats(caster)
@@ -403,7 +403,7 @@ end
 ### Example: Environmental Damage
 
 ```lua
-local StatsProvider = require(ReplicatedStorage.Shared.StatsProvider)
+local StatsProvider = require(ReplicatedStorage.Engine.StatsProvider)
 
 -- Lava damage (no attacker, no XP)
 -- attackerStats = nil since environment has no stats
@@ -447,7 +447,7 @@ end
 ### Example: AOE Attack (Multi-Target Efficiency)
 
 ```lua
-local StatsProvider = require(ReplicatedStorage.Shared.StatsProvider)
+local StatsProvider = require(ReplicatedStorage.Engine.StatsProvider)
 
 -- Get attacker stats ONCE for efficiency (reused across all targets)
 local attackerStats = StatsProvider.getStats(attacker)

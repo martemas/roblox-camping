@@ -573,7 +573,7 @@ For complex hitscan behavior, create custom Tool scripts using `CombatSystem.app
 
 ```lua
 -- Tool script
-local CombatSystem = require(ReplicatedStorage.Shared.CombatSystem)
+local CombatSystem = require(ReplicatedStorage.Engine.CombatSystem)
 
 tool.Activated:Connect(function()
     local character = player.Character

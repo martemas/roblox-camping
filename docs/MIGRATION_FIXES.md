@@ -9,12 +9,12 @@ ServerScriptService.Server.PlayerStats:36: attempt to index nil with 'strength'
 ```
 
 **Cause:**
-PlayerStats was using `require(ReplicatedStorage.Shared.config)` which now returns a client-safe config without the `stats` field.
+PlayerStats was using `require(ReplicatedStorage.Engine.config)` which now returns a client-safe config without the `stats` field.
 
 **Fix:**
 ```lua
 -- BEFORE (wrong - using client config)
-local GameConfig = require(ReplicatedStorage.Shared:WaitForChild("Config"))
+local GameConfig = require(ReplicatedStorage.Engine:WaitForChild("Config"))
 
 -- AFTER (correct - using server config)
 local GameConfig = require(script.Parent.Config:WaitForChild("GameConfig"))
@@ -27,7 +27,7 @@ local GameConfig = require(script.Parent.Config:WaitForChild("GameConfig"))
 ### ✅ Issue 2: TargetingSystem.luau - Index nil with 'BearClaw'
 **Error:**
 ```
-ReplicatedStorage.Shared.player.TargetingSystem:120: attempt to index nil with 'BearClaw'
+ReplicatedStorage.Engine.player.TargetingSystem:120: attempt to index nil with 'BearClaw'
 ```
 
 **Cause:**
@@ -92,7 +92,7 @@ end
 ### ✅ Issue 4: TownhallManager - WaitForChild("ResourcesConfig")
 **Error:**
 ```
-Infinite yield possible on 'ReplicatedStorage.Shared.config:WaitForChild("ResourcesConfig")'
+Infinite yield possible on 'ReplicatedStorage.Engine.config:WaitForChild("ResourcesConfig")'
 ```
 
 **Cause:**
@@ -101,7 +101,7 @@ TownhallManager was importing ResourcesConfig which was removed during refactori
 **Fix:**
 ```lua
 -- BEFORE (importing removed config)
-local ResourcesConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("ResourcesConfig"))
+local ResourcesConfig = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Config"):WaitForChild("ResourcesConfig"))
 type ResourceType = ResourcesConfig.ResourceType
 
 // AFTER (using string type directly)
@@ -120,7 +120,7 @@ function TownhallManager.AddResources(resourceType: string, amount: number)
 ### ✅ Issue 5: CombatSystem.getPlayerWeapon() - Index nil with 'Bow'
 **Error:**
 ```
-ReplicatedStorage.Shared.combat.CombatSystem:182: attempt to index nil with 'Bow'
+ReplicatedStorage.Engine.combat.CombatSystem:182: attempt to index nil with 'Bow'
 ```
 
 **Cause:**
@@ -185,7 +185,7 @@ When updating files that reference old configs:
 2. **Replace old imports:**
    ```lua
    -- ❌ OLD (removed files)
-   local GameConfig = require(ReplicatedStorage.Shared.config)
+   local GameConfig = require(ReplicatedStorage.Engine.config)
    local ResourcesConfig = require(...)
    local WeaponsConfig = require(...)
    local ToolsConfig = require(...)
@@ -199,8 +199,8 @@ When updating files that reference old configs:
    local Economy = require(ServerScriptService.Config.Economy)
 
    -- ✅ NEW (client files)
-   local Items = require(ReplicatedStorage.Shared.Data.Items.Items)
-   local ClientSettings = require(ReplicatedStorage.Shared.config.ClientSettings)
+   local Items = require(ReplicatedStorage.Engine.Data.Items.Items)
+   local ClientSettings = require(ReplicatedStorage.Engine.config.ClientSettings)
    ```
 
 3. **Update type annotations:**

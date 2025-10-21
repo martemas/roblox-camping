@@ -331,7 +331,7 @@ local night = SpawnManager.getCurrentNight()
 **EntitySpawner** provides full control over spawning.
 
 ```lua
-local EntitySpawner = require(ReplicatedStorage.Shared.EntitySpawner)
+local EntitySpawner = require(ReplicatedStorage.Engine.EntitySpawner)
 
 -- Spawn single entity
 local model = EntitySpawner.spawnEntity({
@@ -526,7 +526,7 @@ local model = EntitySpawner.spawnEntity({
 ### Accessing Active Entities
 
 ```lua
-local EntityController = require(ReplicatedStorage.Shared.EntityController)
+local EntityController = require(ReplicatedStorage.Engine.EntityController)
 
 -- Get all active entities
 for model, entity in EntityController.getActiveEntities() do
@@ -711,7 +711,7 @@ end
 _G.SpawnManager.startNightWave()
 
 -- Count active entities
-local EntityController = require(game.ReplicatedStorage.Shared.EntityController)
+local EntityController = require(game.ReplicatedStorage.Engine.EntityController)
 local count = 0
 for _ in EntityController.getActiveEntities() do
     count += 1

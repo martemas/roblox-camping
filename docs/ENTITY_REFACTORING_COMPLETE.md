@@ -183,7 +183,7 @@ Spider = {
 
 ```lua
 -- Get entity info
-local Entities = require(ReplicatedStorage.Shared.Data.Entities.Entities)
+local Entities = require(ReplicatedStorage.Engine.Data.Entities.Entities)
 local entityData = Entities.Database["Wolf"]
 print(entityData.name) -- "Wolf"
 print(entityData.spawnModel) -- "Wildlife/Wolf"

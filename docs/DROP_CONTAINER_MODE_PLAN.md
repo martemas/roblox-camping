@@ -206,7 +206,7 @@ Handles server-side container interactions.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local HttpService = game:GetService("HttpService")
 
-local RemoteEvents = require(ReplicatedStorage.Shared.RemoteEvents)
+local RemoteEvents = require(ReplicatedStorage.Engine.RemoteEvents)
 
 local LootContainerManager = {}
 
@@ -320,7 +320,7 @@ function LootContainerManager.onTakeItems(player: Player, containerId: string, i
     markPlayerAsLooted(container, player)
 
     -- Despawn container if configured
-    local GameConfig = require(ReplicatedStorage.Shared.config)
+    local GameConfig = require(ReplicatedStorage.Engine.config)
     if GameConfig.drops.containerDespawnAfterLoot then
         container:Destroy()
     end
@@ -360,7 +360,7 @@ Handles client-side UI for looting containers.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 
-local RemoteEvents = require(ReplicatedStorage.Shared.RemoteEvents)
+local RemoteEvents = require(ReplicatedStorage.Engine.RemoteEvents)
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")

@@ -204,9 +204,9 @@ function DropSystem.processDrops(
 
 ```lua
 -- In EntityController when entity dies
-local EntityController = require(ReplicatedStorage.Shared.EntityController)
+local EntityController = require(ReplicatedStorage.Engine.EntityController)
 local DropSystem = require(ServerScriptService.Server.DropSystem)
-local StatsProvider = require(ReplicatedStorage.Shared.StatsProvider)
+local StatsProvider = require(ReplicatedStorage.Engine.StatsProvider)
 
 -- Entity died, get killer stats
 local killerStats = StatsProvider.getStats(killerModel)
@@ -229,9 +229,9 @@ print("Dropped items:", drops)
 
 ```lua
 -- In ChestManager when chest is opened
-local ChestsConfig = require(ReplicatedStorage.Shared.config.ChestsConfig)
+local ChestsConfig = require(ReplicatedStorage.Engine.config.ChestsConfig)
 local DropSystem = require(ServerScriptService.Server.DropSystem)
-local StatsProvider = require(ReplicatedStorage.Shared.StatsProvider)
+local StatsProvider = require(ReplicatedStorage.Engine.StatsProvider)
 
 function ChestManager.openChest(chest, player)
 	local chestConfig = ChestsConfig[chest.Name]
@@ -252,7 +252,7 @@ end
 
 ```lua
 -- In ResourceManager when tree is chopped
-local ResourcesConfig = require(ReplicatedStorage.Shared.config.ResourcesConfig)
+local ResourcesConfig = require(ReplicatedStorage.Engine.config.ResourcesConfig)
 local DropSystem = require(ServerScriptService.Server.DropSystem)
 
 function ResourceManager.harvestResource(resource, player)
@@ -273,7 +273,7 @@ end
 
 ```lua
 -- In QuestManager when quest completes
-local QuestConfig = require(ReplicatedStorage.Shared.config.QuestConfig)
+local QuestConfig = require(ReplicatedStorage.Engine.config.QuestConfig)
 local DropSystem = require(ServerScriptService.Server.DropSystem)
 
 function QuestManager.completeQuest(questId, player)
@@ -383,7 +383,7 @@ ResourcesConfig = {
 The DropSystem integrates with the existing stats system via `StatsProvider`:
 
 ```lua
-local StatsProvider = require(ReplicatedStorage.Shared.StatsProvider)
+local StatsProvider = require(ReplicatedStorage.Engine.StatsProvider)
 
 -- Get stats for any entity (player or NPC)
 local stats = StatsProvider.getStats(model)

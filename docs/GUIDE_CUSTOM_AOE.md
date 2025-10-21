@@ -167,8 +167,8 @@ local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local Debris = game:GetService("Debris")
 
-local CombatSystem = require(ReplicatedStorage.Shared.CombatSystem)
-local GameConfig = require(ReplicatedStorage.Shared.GameConfig)
+local CombatSystem = require(ReplicatedStorage.Engine.CombatSystem)
+local GameConfig = require(ReplicatedStorage.Engine.GameConfig)
 
 local weaponName = "DragonBreath"
 local weaponConfig = GameConfig.weapons[weaponName]
@@ -844,7 +844,7 @@ Tool.Activated:Connect(function()
     showConeTelegraph(...)
 
     -- Request server to perform attack
-    local RemoteEvents = require(ReplicatedStorage.Shared.RemoteEvents)
+    local RemoteEvents = require(ReplicatedStorage.Engine.RemoteEvents)
     RemoteEvents.Events.PerformCustomAOE:FireServer(
         weaponName,
         origin,
@@ -856,7 +856,7 @@ end)
 ### Server Script
 
 ```lua
-local RemoteEvents = require(ReplicatedStorage.Shared.RemoteEvents)
+local RemoteEvents = require(ReplicatedStorage.Engine.RemoteEvents)
 
 RemoteEvents.Events.PerformCustomAOE.OnServerEvent:Connect(function(
     player,

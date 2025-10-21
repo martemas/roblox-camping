@@ -2,30 +2,35 @@
   "name": "roblox-camping",
   "tree": {
     "$className": "DataModel",
-
     "ReplicatedStorage": {
-      "Shared": {
-        "$path": "src/shared"
+      "Engine": {
+        "$path": "src/shared/engine"
+      },
+      "Games": {
+        "$path": "src/shared/games/alpha"
       },
       "Packages": {
         "$path": "Packages"
       }
     },
-
     "ServerScriptService": {
-      "Server": {
-        "$path": "src/server"
+      "Engine": {
+        "$path": "src/server/engine"
+      },
+      "Games": {
+        "$path": "src/server/games/alpha"
       }
     },
-
     "StarterPlayer": {
       "StarterPlayerScripts": {
-        "Client": {
-          "$path": "src/client"
+        "Common": {
+          "$path": "src/client/common"
+        },
+        "Games": {
+          "$path": "src/client/games/alpha"
         }
       }
     },
-
     "Workspace": {
       "$properties": {
         "FilteringEnabled": true
