@@ -301,11 +301,59 @@ local function getEffectiveDamageMode(weaponConfig: any): DamageMode
 	}
 end
 
+-- Helper function to check if entity should be affected by AOE
+local function shouldAffectEntity(entity: Model, attacker: Model, targetFilter: string?): boolean
+	if not targetFilter or targetFilter == "all" then
+		return true
+	end
+
+	local entityPlayer = Players:GetPlayerFromCharacter(entity)
+	local attackerPlayer = Players:GetPlayerFromCharacter(attacker)
+
+	if targetFilter == "allies" then
+		-- Only affect allies (same player or self)
+		if entity == attacker then
+			return true
+		end
+		if entityPlayer and attackerPlayer and entityPlayer == attackerPlayer then
+			return true
+		end
+		-- TODO: Team support
+		return false
+
+	elseif targetFilter == "enemies" then
+		-- Only affect enemies (different player or NPCs)
+		if entity == attacker then
+			return false
+		end
+		if entityPlayer and attackerPlayer and entityPlayer == attackerPlayer then
+			return false
+		end
+
+		-- Prevent friendly fire between same entity types
+		if not entityPlayer and not attackerPlayer then
+			local entityType = entity:GetAttribute("EntityType")
+			local attackerType = attacker:GetAttribute("EntityType")
+
+			-- Wildlife don't damage Wildlife, Creatures don't damage Creatures, etc.
+			if entityType and attackerType and entityType == attackerType then
+				return false
+			end
+		end
+
+		return true
+	end
+
+	return true
+end
+
 -- Find all entities within range of a position
 local function findEntitiesInRange(
 	origin: vector,
 	range: number,
-	excludeModel: Model?
+	excludeModel: Model?,
+	attacker: Model?,
+	targetFilter: string?
 ): {Model}
 	local entities: {Model} = {}
 	local params = OverlapParams.new()
@@ -319,6 +367,13 @@ local function findEntitiesInRange(
 	for _, part in parts do
 		local entity = findEntityFromPart(part)
 		if entity and not seen[entity] and entity ~= excludeModel then
+			-- Apply target filtering if attacker is provided
+			if attacker and targetFilter then
+				if not shouldAffectEntity(entity, attacker, targetFilter) then
+					continue
+				end
+			end
+
 			seen[entity] = true
 			table.insert(entities, entity)
 		end
@@ -379,7 +434,9 @@ function CombatSystem.attemptMeleeAttack(
 		end
 	else
 		-- Mode B: Damage all entities in range
-		targetsToCheck = findEntitiesInRange(attackerPos, weaponConfig.range, attacker)
+		-- Use weapon's targetFilter if specified, otherwise default to "enemies"
+		local targetFilter = weaponConfig.targetFilter or "enemies"
+		targetsToCheck = findEntitiesInRange(attackerPos, weaponConfig.range, attacker, attacker, targetFilter)
 	end
 
 	-- Check each potential target
@@ -468,40 +525,6 @@ function CombatSystem.attemptMeleeAttack(
 			blockedByInvulnerability = false
 		}
 	end
-end
-
--- Helper function to check if entity should be affected by AOE
-local function shouldAffectEntity(entity: Model, attacker: Model, targetFilter: string?): boolean
-	if not targetFilter or targetFilter == "all" then
-		return true
-	end
-
-	local entityPlayer = Players:GetPlayerFromCharacter(entity)
-	local attackerPlayer = Players:GetPlayerFromCharacter(attacker)
-
-	if targetFilter == "allies" then
-		-- Only affect allies (same player or self)
-		if entity == attacker then
-			return true
-		end
-		if entityPlayer and attackerPlayer and entityPlayer == attackerPlayer then
-			return true
-		end
-		-- TODO: Team support
-		return false
-
-	elseif targetFilter == "enemies" then
-		-- Only affect enemies (different player or NPCs)
-		if entity == attacker then
-			return false
-		end
-		if entityPlayer and attackerPlayer and entityPlayer == attackerPlayer then
-			return false
-		end
-		return true
-	end
-
-	return true
 end
 
 -- Perform AOE attack
