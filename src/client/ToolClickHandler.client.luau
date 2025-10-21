@@ -19,10 +19,10 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 
-local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("RemoteEvents"))
-local TargetingSystem = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("player"):WaitForChild("TargetingSystem"))
-local Types = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("Types"))
-local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("config"))
+local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Core"):WaitForChild("RemoteEvents"))
+local TargetingSystem = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Player"):WaitForChild("TargetingSystem"))
+local Types = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Core"):WaitForChild("Types"))
+local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 
 type ToolType = Types.ToolType
 

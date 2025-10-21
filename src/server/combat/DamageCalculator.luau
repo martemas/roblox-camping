@@ -13,9 +13,9 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 
-local WeaponStats = require(ServerScriptService:WaitForChild("Server"):WaitForChild("Data"):WaitForChild("Items"):WaitForChild("WeaponStats"))
+local Items = require(ServerScriptService:WaitForChild("Server"):WaitForChild("Data"):WaitForChild("Items"))
 local GameConfig = require(ServerScriptService:WaitForChild("Server"):WaitForChild("Config"):WaitForChild("GameConfig"))
-local Stats = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("combat"):WaitForChild("Stats"))
+local Stats = require(ServerScriptService:WaitForChild("Server"):WaitForChild("Combat"):WaitForChild("Stats"))
 
 local DamageCalculator = {}
 
@@ -25,7 +25,7 @@ export type Stats = Stats.Stats
 export type DamageInput = {
 	attacker: Model,           -- Attacker's character/NPC model
 	target: Model,             -- Target's character/NPC model
-	weaponName: string,        -- Weapon identifier (from GameConfig)
+	weaponId: string,          -- Weapon identifier
 	hitPart: BasePart?,        -- Body part hit (optional, used for multipliers)
 
 	-- Stats system
@@ -206,11 +206,12 @@ function DamageCalculator.calculateDamage(input: DamageInput): DamageResult
 	end
 
 	-- Validate weapon
-	local weaponConfig = WeaponStats.Stats[input.weaponName]
-	if not weaponConfig then
-		warn(`DamageCalculator: Invalid weapon: {input.weaponName}`)
+	local item = Items.getItem(input.weaponId)
+	if not item or not item.Stats then
+		warn(`DamageCalculator: Invalid weapon: {input.weaponId}`)
 		return createMissResult()
 	end
+	local weaponConfig = item.Stats
 
 	-- Validate hit part (if provided)
 	if input.hitPart and not input.hitPart:IsDescendantOf(input.target) then
@@ -261,7 +262,7 @@ function DamageCalculator.calculateDamage(input: DamageInput): DamageResult
 		print(`=== DAMAGE CALCULATION ===`)
 		print(`Attacker: {input.attacker.Name}`)
 		print(`Target: {input.target.Name}`)
-		print(`Weapon: {input.weaponName}`)
+		print(`Weapon: {input.weaponId}`)
 		print(`Base Damage: {baseDamage}`)
 		print(`Hit Location: {hitLocation}`)
 		print(`Body Part Multiplier: {bodyMultiplier}`)

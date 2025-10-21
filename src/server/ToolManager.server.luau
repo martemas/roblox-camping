@@ -5,15 +5,16 @@ local Players = game:GetService("Players")
 local ServerScriptService = game:GetService("ServerScriptService")
 
 local GameConfig = require(ServerScriptService:WaitForChild("Server"):WaitForChild("Config"):WaitForChild("GameConfig"))
-local ToolStats = require(ServerScriptService:WaitForChild("Server"):WaitForChild("Data"):WaitForChild("Items"):WaitForChild("ToolStats"))
-local Types = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("Types"))
-local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("RemoteEvents"))
-local Utils = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("Utils"))
-local CombatSystem = require(ServerScriptService:WaitForChild("Server"):WaitForChild("combat"):WaitForChild("CombatSystem"))
-local TargetingSystem = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("player"):WaitForChild("TargetingSystem"))
-local HitscanManager = require(ServerScriptService:WaitForChild("Server"):WaitForChild("combat"):WaitForChild("HitscanManager"))
-local StatsProvider = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("combat"):WaitForChild("StatsProvider"))
+local Items = require(ServerScriptService:WaitForChild("Server"):WaitForChild("Data"):WaitForChild("Items"))
+local Types = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Core"):WaitForChild("Types"))
+local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Core"):WaitForChild("RemoteEvents"))
+local Utils = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Core"):WaitForChild("Utils"))
+local CombatSystem = require(ServerScriptService:WaitForChild("Server"):WaitForChild("Combat"):WaitForChild("CombatSystem"))
+local TargetingSystem = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Player"):WaitForChild("TargetingSystem"))
+local HitscanManager = require(ServerScriptService:WaitForChild("Server"):WaitForChild("Combat"):WaitForChild("HitscanManager"))
+local StatsProvider = require(ServerScriptService:WaitForChild("Server"):WaitForChild("Combat"):WaitForChild("StatsProvider"))
 local AnimationManager = require(script.Parent:WaitForChild("AnimationManager"))
+local AOETelegraph = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("VisualFX"):WaitForChild("AOETelegraph"))
 
 type ToolType = Types.ToolType
 
@@ -139,18 +140,18 @@ end
 
 
 -- Perform combat attack using unified CombatSystem
-local function performCombatAttack(player: Player, toolType: ToolType, clickTarget: Model?, clickPosition: Vector3?)
+local function performCombatAttack(player: Player, toolId: string, clickTarget: Model?, clickPosition: Vector3?)
 	local character = player.Character
 	if not character then
 		return
 	end
 
 	-- Get weapon name: use weaponRef if available, otherwise use tool name directly
-	local toolConfig = ToolStats.Stats[toolType]
-	local weaponName = (toolConfig and toolConfig.weaponRef) or toolType
-	local weaponConfig = CombatSystem.getWeaponConfig(weaponName)
+	local toolConfig = Items.getItem(toolId)
+	local weaponId = toolId
+	local weaponConfig = toolConfig.Stats
 	if not weaponConfig then
-		warn(`DEBUG: No weapon config found for {weaponName}`)
+		warn(`DEBUG: No weapon config found for {weaponId}`)
 		return
 	end
 
@@ -164,20 +165,20 @@ local function performCombatAttack(player: Player, toolType: ToolType, clickTarg
 			-- TACTICAL mode: Must always have target to attack
 			if not target then
 				-- No target selected - no animation, no sound
-				print(`{player.Name} swung {toolType} but has no target selected`)
+				print(`{player.Name} swung {weaponId} but has no target selected`)
 				return
 			end
 		elseif GameConfig.combat.combatMode == GameConfig.CombatMode.ACTION then
 			-- ACTION mode: Only require target if weapon specifically requires it
 			if weaponConfig.requiresTarget and not target then
 				-- No target selected - no animation, no sound
-				print(`{player.Name} swung {toolType} but has no target selected`)
+				print(`{player.Name} swung {weaponId} but has no target selected`)
 				return
 			end
 		end
 
 		-- Play animation (validation passed)
-		playToolAnimation(player, toolType)
+		playToolAnimation(player, weaponId)
 
 		-- Wait for castDuration (telegraph window)
 		task.wait(weaponConfig.castDuration)
@@ -187,14 +188,14 @@ local function performCombatAttack(player: Player, toolType: ToolType, clickTarg
 		local targetStats = StatsProvider.getStats(target)
 
 		-- Attempt attack on target
-		local result = CombatSystem.attemptMeleeAttack(character, target, weaponName, player, {
+		local result = CombatSystem.attemptMeleeAttack(character, target, weaponId, player, {
 			attackerStats = attackerStats,
 			targetStats = targetStats,
 		})
 
 		if result.hit then
 			-- Hit! Damage already applied by CombatSystem
-			playToolSound(player, toolType, "attack")
+			playToolSound(player, weaponId, "attack")
 			if target then
 				print(`{player.Name} hit {target.Name} for {result.damage} damage`)
 			else
@@ -202,20 +203,20 @@ local function performCombatAttack(player: Player, toolType: ToolType, clickTarg
 			end
 		elseif result.wasDodged then
 			-- Target dodged
-			playToolSound(player, toolType, "swing")
+			playToolSound(player, weaponId, "swing")
 			if target then
 				print(`{player.Name}'s attack on {target.Name} was dodged`)
 			end
 		elseif result.blockedByInvulnerability then
 			-- Blocked by invulnerability
-			playToolSound(player, toolType, "swing")
+			playToolSound(player, weaponId, "swing")
 			if target then
-				print(`{target.Name} is invulnerable to {weaponName}`)
+				print(`{target.Name} is invulnerable to {weaponId}`)
 			end
 		else
 			-- Miss
-			playToolSound(player, toolType, "swing")
-			print(`{player.Name} swung {toolType} but hit nothing`)
+			playToolSound(player, weaponId, "swing")
+			print(`{player.Name} swung {weaponId} but hit nothing`)
 		end
 
 	elseif weaponConfig.type == "projectile" then
@@ -227,16 +228,16 @@ local function performCombatAttack(player: Player, toolType: ToolType, clickTarg
 		local damageTarget = lockedTarget or clickTarget
 
 		-- Validate attack BEFORE animation
-		local ProjectileManager = require(ServerScriptService:WaitForChild("Server"):WaitForChild("combat"):WaitForChild("ProjectileManager"))
-		local isValid, errorMsg = ProjectileManager.validateAttack(character, damageTarget, weaponName)
+		local ProjectileManager = require(ServerScriptService:WaitForChild("Server"):WaitForChild("Combat"):WaitForChild("ProjectileManager"))
+		local isValid, errorMsg = ProjectileManager.validateAttack(character, damageTarget, weaponId)
 		if not isValid then
 			-- Validation failed - no animation, no sound
-			print(`{player.Name} fired {weaponName} but {errorMsg or "validation failed"}`)
+			print(`{player.Name} fired {weaponId} but {errorMsg or "validation failed"}`)
 			return
 		end
 
 		-- Play animation (validation passed)
-		playToolAnimation(player, toolType)
+		playToolAnimation(player, weaponId)
 
 		-- Wait for castDuration (draw/charge animation)
 		task.wait(weaponConfig.castDuration)
@@ -296,25 +297,25 @@ local function performCombatAttack(player: Player, toolType: ToolType, clickTarg
 		local projectile = ProjectileManager.spawnProjectile(
 			origin,
 			direction,
-			weaponName,
+			weaponId,
 			character,
 			player,
 			damageTarget -- Locked or click target for damage
 		)
 
 		if projectile then
-			playToolSound(player, toolType, "attack")
+			playToolSound(player, weaponId, "attack")
 			if lockedTarget then
-				print(`{player.Name} fired {weaponName} at locked target {lockedTarget.Name}`)
+				print(`{player.Name} fired {weaponId} at locked target {lockedTarget.Name}`)
 			elseif clickTarget then
-				print(`{player.Name} fired {weaponName} at click target {clickTarget.Name}`)
+				print(`{player.Name} fired {weaponId} at click target {clickTarget.Name}`)
 			elseif clickPosition then
-				print(`{player.Name} fired {weaponName} at click position`)
+				print(`{player.Name} fired {weaponId} at click position`)
 			else
-				print(`{player.Name} fired {weaponName} in look direction`)
+				print(`{player.Name} fired {weaponId} in look direction`)
 			end
 		else
-			playToolSound(player, toolType, "swing")
+			playToolSound(player, weaponId, "swing")
 			print(`{player.Name} projectile attack blocked`)
 		end
 
@@ -327,15 +328,15 @@ local function performCombatAttack(player: Player, toolType: ToolType, clickTarg
 		local damageTarget = lockedTarget or clickTarget
 
 		-- Validate attack
-		local isValid, errorMsg = HitscanManager.validateAttack(character, damageTarget, weaponName)
+		local isValid, errorMsg = HitscanManager.validateAttack(character, damageTarget, weaponId)
 		if not isValid then
 			-- Validation failed - no animation, no sound
-			print(`{player.Name} fired {weaponName} but {errorMsg or "validation failed"}`)
+			print(`{player.Name} fired {weaponId} but {errorMsg or "validation failed"}`)
 			return
 		end
 
 		-- Play animation (validation passed)
-		playToolAnimation(player, toolType)
+		playToolAnimation(player, weaponId)
 
 		-- Wait for castDuration (charge/aim animation)
 		task.wait(weaponConfig.castDuration)
@@ -377,33 +378,32 @@ local function performCombatAttack(player: Player, toolType: ToolType, clickTarg
 		local result = HitscanManager.performHitscan(
 			origin,
 			direction,
-			weaponName,
+			weaponId,
 			character,
 			player,
 			damageTarget
 		)
 
 		if result.hit then
-			playToolSound(player, toolType, "attack")
+			playToolSound(player, weaponId, "attack")
 			if lockedTarget then
-				print(`{player.Name} hit locked target {lockedTarget.Name} with {weaponName}`)
+				print(`{player.Name} hit locked target {lockedTarget.Name} with {weaponId}`)
 			elseif clickTarget then
-				print(`{player.Name} hit click target {clickTarget.Name} with {weaponName}`)
+				print(`{player.Name} hit click target {clickTarget.Name} with {weaponId}`)
 			else
-				print(`{player.Name} hit with {weaponName}`)
+				print(`{player.Name} hit with {weaponId}`)
 			end
 		else
-			playToolSound(player, toolType, "swing")
+			playToolSound(player, weaponId, "swing")
 			if result.wasDodged then
-				print(`{player.Name} missed with {weaponName} - target out of range`)
+				print(`{player.Name} missed with {weaponId} - target out of range`)
 			else
-				print(`{player.Name} missed with {weaponName}`)
+				print(`{player.Name} missed with {weaponId}`)
 			end
 		end
 
 	elseif weaponConfig.type == "aoe" then
 		-- AOE attack
-		local AOETelegraph = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("visual-effects"):WaitForChild("AOETelegraph"))
 		local target = TargetingSystem.getTarget(player)
 
 		-- Determine target position
@@ -433,7 +433,7 @@ local function performCombatAttack(player: Player, toolType: ToolType, clickTarg
 		end
 
 		-- Play animation
-		playToolAnimation(player, toolType)
+		playToolAnimation(player, weaponId)
 
 		-- Show telegraph (warning for players to dodge)
 		local attackType: "damage" | "heal" = if weaponConfig.aoeDamage and weaponConfig.aoeDamage < 0 then "heal" else "damage"
@@ -456,7 +456,7 @@ local function performCombatAttack(player: Player, toolType: ToolType, clickTarg
 		-- Check if this is projectile AOE or instant AOE
 		if weaponConfig.projectileSpeed then
 			-- Projectile AOE: Spawn projectile that will explode on impact
-			local ProjectileManager = require(ServerScriptService:WaitForChild("Server"):WaitForChild("combat"):WaitForChild("ProjectileManager"))
+			local ProjectileManager = require(ServerScriptService:WaitForChild("Server"):WaitForChild("Combat"):WaitForChild("ProjectileManager"))
 
 			-- Recalculate direction in case target moved
 			local direction: Vector3
@@ -475,17 +475,17 @@ local function performCombatAttack(player: Player, toolType: ToolType, clickTarg
 			local projectile = ProjectileManager.spawnProjectile(
 				origin,
 				direction,
-				weaponName,
+				weaponId,
 				character,
 				player,
 				target
 			)
 
 			if projectile then
-				playToolSound(player, toolType, "attack")
-				print(`{player.Name} fired AOE projectile {weaponName}`)
+				playToolSound(player, weaponId, "attack")
+				print(`{player.Name} fired AOE projectile {weaponId}`)
 			else
-				playToolSound(player, toolType, "swing")
+				playToolSound(player, weaponId, "swing")
 				print(`{player.Name} AOE projectile attack failed`)
 			end
 		else
@@ -494,15 +494,15 @@ local function performCombatAttack(player: Player, toolType: ToolType, clickTarg
 			local hits = CombatSystem.performAOEAttack(
 				character,
 				targetPos,
-				weaponName,
+				weaponId,
 				player,
 				{
 					attackerStats = attackerStats,
 				}
 			)
 
-			playToolSound(player, toolType, "attack")
-			print(`{player.Name} hit {#hits} entities with {weaponName} AOE`)
+			playToolSound(player, weaponId, "attack")
+			print(`{player.Name} hit {#hits} entities with {weaponId} AOE`)
 		end
 
 	else
@@ -596,7 +596,7 @@ local function onPlaceBuilding(player: Player, buildingItemId: string, placement
 end
 
 -- Handle tool swing animation and effects
-local function onToolSwing(player: Player, toolType: ToolType)
+local function onToolSwing(player: Player, toolId: ToolType)
 	print('Swinging tool...')
 	if isOnCooldown(player, "swing") then
 		return
@@ -612,13 +612,10 @@ local function onToolSwing(player: Player, toolType: ToolType)
 		return
 	end
 
-	local toolConfig = ToolStats.Stats[toolType]
-
-	-- Get weapon name: use weaponRef if available, otherwise use tool name directly
-	local weaponName = (toolConfig and toolConfig.weaponRef) or toolType
+	local toolConfig = Items.getItem(toolId)
 
 	-- Get weapon config for cooldown
-	local weaponConfig = CombatSystem.getWeaponConfig(weaponName)
+	local weaponConfig = toolConfig.Stats
 	if not weaponConfig then
 		return
 	end
@@ -628,14 +625,14 @@ local function onToolSwing(player: Player, toolType: ToolType)
 
 	-- Perform combat attack using CombatSystem (animation plays after validation)
 	task.spawn(function()
-		performCombatAttack(player, toolType, nil, nil)
+		performCombatAttack(player, toolId, nil, nil)
 	end)
 
-	print(`{player.Name} swung {toolType}`)
+	print(`{player.Name} swung {toolId}`)
 end
 
 -- Handle tool swing with click target/position
-local function onToolSwingWithTarget(player: Player, toolType: ToolType, clickTarget: Model?, clickPosition: Vector3?)
+local function onToolSwingWithTarget(player: Player, itemId: ToolType, clickTarget: Model?, clickPosition: Vector3?)
 	print(`[ToolManager] Swinging {toolType} with click detection...`)
 	print(`[ToolManager] clickTarget: {clickTarget and clickTarget.Name or "nil"}`)
 	print(`[ToolManager] clickPosition: {clickPosition or "nil"}`)
@@ -655,13 +652,12 @@ local function onToolSwingWithTarget(player: Player, toolType: ToolType, clickTa
 		return
 	end
 
-	local toolConfig = ToolStats.Stats[toolType]
+	local toolConfig = Items.getItem(itemId)
 
-	-- Get weapon name: use weaponRef if available, otherwise use tool name directly
-	local weaponName = (toolConfig and toolConfig.weaponRef) or toolType
-
+	print(`Tool config for itemId {itemId}`, toolConfig)
+	
 	-- Get weapon config for cooldown
-	local weaponConfig = CombatSystem.getWeaponConfig(weaponName)
+	local weaponConfig = toolConfig.Stats
 	if not weaponConfig then
 		return
 	end
@@ -671,20 +667,20 @@ local function onToolSwingWithTarget(player: Player, toolType: ToolType, clickTa
 
 	-- Perform combat attack using CombatSystem with click target/position
 	task.spawn(function()
-		performCombatAttack(player, toolType, clickTarget, clickPosition)
+		performCombatAttack(player, itemId, clickTarget, clickPosition)
 	end)
 
 	if clickTarget then
-		print(`{player.Name} swung {toolType} at click target {clickTarget.Name}`)
+		print(`{player.Name} swung {itemId} at click target {clickTarget.Name}`)
 	elseif clickPosition then
-		print(`{player.Name} swung {toolType} at click position {clickPosition}`)
+		print(`{player.Name} swung {itemId} at click position {clickPosition}`)
 	else
-		print(`{player.Name} swung {toolType}`)
+		print(`{player.Name} swung {itemId}`)
 	end
 end
 
 -- Create a tool for the player
-local function createTool(toolType: ToolType): Tool?
+local function createTool(itemId: ToolType): Tool?
 	local modelsFolder = ReplicatedStorage:FindFirstChild("Models")
 	if not modelsFolder then
 		warn("Models folder not found in ReplicatedStorage")
@@ -692,16 +688,16 @@ local function createTool(toolType: ToolType): Tool?
 	end
 
 	-- Check both Models/ and Models/Tools/ for backwards compatibility
-	local toolTemplate = modelsFolder:FindFirstChild(toolType)
+	local toolTemplate = modelsFolder:FindFirstChild(itemId)
 	if not toolTemplate or not toolTemplate:IsA("Tool") then
 		local toolsFolder = modelsFolder:FindFirstChild("Tools")
 		if toolsFolder then
-			toolTemplate = toolsFolder:FindFirstChild(toolType)
+			toolTemplate = toolsFolder:FindFirstChild(itemId)
 		end
 	end
 
 	if not toolTemplate or not toolTemplate:IsA("Tool") then
-		warn(`Tool template '{toolType}' not found in Models folder`)
+		warn(`Tool template '{itemId}' not found in Models folder`)
 		return nil
 	end
 

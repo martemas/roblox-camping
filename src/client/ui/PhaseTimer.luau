@@ -15,7 +15,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local UIConfig = require(script.Parent.Parent:WaitForChild("UIConfig"))
 local UIComponent = require(script.Parent:WaitForChild("UIComponent"))
-local Types = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("Types"))
+local Types = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Core"):WaitForChild("Types"))
 
 type GamePhase = Types.GamePhase
 

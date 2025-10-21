@@ -1,7 +1,7 @@
 --!strict
 
 local ServerScriptService = game:GetService("ServerScriptService")
-local EntityController = require(ServerScriptService:WaitForChild("Server"):WaitForChild("entities"):WaitForChild("EntityController"))
+local EntityController = require(ServerScriptService:WaitForChild("Server"):WaitForChild("Entities"):WaitForChild("EntityController"))
 
 -- Initialize the centralized entity controller system
 EntityController.initialize()

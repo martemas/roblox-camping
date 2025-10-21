@@ -8,25 +8,18 @@ local PathfindingService = game:GetService("PathfindingService")
 local ServerScriptService = game:GetService("ServerScriptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
--- local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("config"))
+-- local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local GameConfig = require(ServerScriptService:WaitForChild("Server"):WaitForChild("Config"):WaitForChild("GameConfig"))
-local CombatFeedback = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("visual-effects"):WaitForChild("CombatFeedback"))
-local ProjectileLOS = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("combat"):WaitForChild("ProjectileLOS"))
-local DamageCalculator = require(script.Parent.Parent:WaitForChild("combat"):WaitForChild("DamageCalculator"))
-local Stats = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("combat"):WaitForChild("Stats"))
-local StatsProvider = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("combat"):WaitForChild("StatsProvider"))
-local EntityStats = require(script.Parent.Parent:WaitForChild("Data"):WaitForChild("Entities"):WaitForChild("EntityStats")
-)
--- Lazy-loaded modules to avoid circular dependencies
-local CombatSystem
-local XPRewardManager
+local CombatFeedback = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("VisualFX"):WaitForChild("CombatFeedback"))
+local ProjectileLOS = require(ServerScriptService:WaitForChild("Server"):WaitForChild("Combat"):WaitForChild("ProjectileLOS"))
+local Stats = require(ServerScriptService:WaitForChild("Server"):WaitForChild("Combat"):WaitForChild("Stats"))
+local StatsProvider = require(ServerScriptService:WaitForChild("Server"):WaitForChild("Combat"):WaitForChild("StatsProvider"))
+local Entities = require(script.Parent.Parent:WaitForChild("Data"):WaitForChild("Entities"))
+local AOETelegraph = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("VisualFX"):WaitForChild("AOETelegraph"))
+local CombatSystem = require(ServerScriptService:WaitForChild("Server"):WaitForChild("Combat"):WaitForChild("CombatSystem"))
 
-local function getCombatSystem()
-	if not CombatSystem then
-		CombatSystem = require(ServerScriptService:WaitForChild("Server"):WaitForChild("combat"):WaitForChild("CombatSystem"))
-	end
-	return CombatSystem
-end
+-- Lazy-loaded modules to avoid circular dependencies
+local XPRewardManager = require(ServerScriptService:WaitForChild("Server").XPRewardManager)
 
 local function getXPRewardManager()
 	if not XPRewardManager and RunService:IsServer() then
@@ -100,12 +93,12 @@ end
 -- Get entity configuration from GameConfig
 local function getEntityConfig(entityId: string)
 	-- First check wildlife
-	return EntityStats.getEntity(entityId)
+	return Entities.getEntity(entityId)
 end
 
 -- Load animations for an entity from GameConfig
 local function loadAnimations(entity: EntityInstance)
-	local config = EntityStats.getEntity(entity.entityId)
+	local config = Entities.getEntity(entity.entityId)
 
 	if not config or not config.Display or not config.Display.animationIds then
 		warn("No animations configured for entity type", entity.entityId)
@@ -271,7 +264,7 @@ local function performAttack(entity: EntityInstance, target: Player)
 		return
 	end
 
-	local CS = getCombatSystem()
+	local CS = CombatSystem
 	local weaponConfig = CS.getWeaponConfig(weaponName)
 	if not weaponConfig then
 		return
@@ -350,7 +343,7 @@ local function performAttack(entity: EntityInstance, target: Player)
 		task.wait(weaponConfig.castDuration)
 
 		-- Fire projectile via ProjectileManager
-		local ProjectileManager = require(script.Parent.Parent:WaitForChild("combat"):WaitForChild("ProjectileManager"))
+		local ProjectileManager = require(script.Parent.Parent:WaitForChild("Combat"):WaitForChild("ProjectileManager"))
 		local origin = entityPos + (direction * 2) -- Slightly in front
 		local projectile = ProjectileManager.spawnProjectile(
 			origin,
@@ -369,7 +362,7 @@ local function performAttack(entity: EntityInstance, target: Player)
 
 	elseif weaponConfig.type == "hitscan" then
 		-- Hitscan attack (uses HitscanManager like players)
-		local HitscanManager = require(script.Parent.Parent:WaitForChild("combat"):WaitForChild("HitscanManager"))
+		local HitscanManager = require(script.Parent.Parent:WaitForChild("Combat"):WaitForChild("HitscanManager"))
 
 		-- Play attack animation
 		playAnimation(entity, "attack")
@@ -405,8 +398,6 @@ local function performAttack(entity: EntityInstance, target: Player)
 
 	elseif weaponConfig.type == "aoe" then
 		-- AOE attack
-		local AOETelegraph = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("visual-effects"):WaitForChild("AOETelegraph"))
-
 		local targetPos: Vector3
 
 		if weaponConfig.range == 0 then
@@ -436,7 +427,7 @@ local function performAttack(entity: EntityInstance, target: Player)
 		-- Check if this is projectile AOE or instant AOE
 		if weaponConfig.projectileSpeed then
 			-- Projectile AOE: Spawn projectile that will explode on impact
-			local ProjectileManager = require(script.Parent.Parent:WaitForChild("combat"):WaitForChild("ProjectileManager"))
+			local ProjectileManager = require(script.Parent.Parent:WaitForChild("Combat"):WaitForChild("ProjectileManager"))
 			local direction = (targetPos - entity.humanoidRootPart.Position).Unit
 			local origin = entity.humanoidRootPart.Position + (direction * 2)
 
@@ -758,7 +749,7 @@ local function updateEntityAI(entity: EntityInstance)
 
 			-- Get weapon config for range/cooldown
 			local weaponName = config.primaryWeapon
-			local CS = getCombatSystem()
+			local CS = CombatSystem
 			local weaponConfig = CS.getWeaponConfig(weaponName)
 			if not weaponConfig then
 				warn(`Entity {entity.entityId} has no valid weapon config`)
@@ -1121,7 +1112,7 @@ function EntityController.handleDamage(
 	-- Use centralized damage system for proper XP tracking and stats
 	if attackerModel and damageSource then
 		-- Delegate to CombatSystem for full damage handling (XP, stats, feedback, aggro)
-		local CS = getCombatSystem()
+		local CS = CombatSystem
 		local attackerStats = StatsProvider.getStats(attackerModel)
 		local targetStats = entity.scaledStats
 

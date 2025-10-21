@@ -26,7 +26,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 
 local UIManager = require(script.Parent:WaitForChild("UIManager"))
-local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("RemoteEvents"))
+local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Core"):WaitForChild("RemoteEvents"))
 
 local player = Players.LocalPlayer
 

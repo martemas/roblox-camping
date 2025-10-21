@@ -18,7 +18,7 @@
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local SpawnConfig = require(ReplicatedStorage.Shared.config.SpawnConfig)
+local SpawnConfig = require(ReplicatedStorage.Shared.Config.SpawnConfig)
 
 type SpawnPoint = SpawnConfig.SpawnPoint
 

@@ -18,8 +18,8 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local Debris = game:GetService("Debris")
 
 local CombatSystem = require(script.Parent:WaitForChild("CombatSystem"))
-local ProjectilePhysics = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("combat"):WaitForChild("ProjectilePhysics"))
-local ProjectileLOS = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("combat"):WaitForChild("ProjectileLOS"))
+local ProjectilePhysics = require(ServerScriptService:WaitForChild("Server"):WaitForChild("Combat"):WaitForChild("ProjectilePhysics"))
+local ProjectileLOS = require(ServerScriptService:WaitForChild("Server"):WaitForChild("Combat"):WaitForChild("ProjectileLOS"))
 local GameConfig = require(ServerScriptService:WaitForChild("Server"):WaitForChild("Config"):WaitForChild("GameConfig"))
 
 type ProjectileInstance = CombatSystem.ProjectileInstance
@@ -33,11 +33,11 @@ local isInitialized = false
 --[[
 	Get projectile configuration for a weapon
 
-	@param weaponName - Name of weapon
+	@param weaponId - Name of weapon
 	@return ProjectileConfig or nil
 ]]
-local function getProjectileConfig(weaponName: string): CombatSystem.ProjectileConfig?
-	local weaponConfig = CombatSystem.getWeaponConfig(weaponName)
+local function getProjectileConfig(weaponId: string): CombatSystem.ProjectileConfig?
+	local weaponConfig = CombatSystem.getWeaponConfig(weaponId)
 	if weaponConfig and weaponConfig.projectileConfig then
 		return weaponConfig.projectileConfig
 	end
@@ -49,18 +49,18 @@ end
 
 	@param attacker - Entity attempting to attack
 	@param lockedTarget - Locked target (required for auto-aim)
-	@param weaponName - Name of weapon
+	@param weaponId - Name of weapon
 	@return boolean - True if valid, false otherwise
 	@return string? - Error message if invalid
 ]]
 function ProjectileManager.validateAttack(
 	attacker: Model,
 	lockedTarget: Model?,
-	weaponName: string
+	weaponId: string
 ): (boolean, string?)
-	local weaponConfig = CombatSystem.getWeaponConfig(weaponName)
+	local weaponConfig = CombatSystem.getWeaponConfig(weaponId)
 	if not weaponConfig or weaponConfig.type ~= "projectile" then
-		return false, `Invalid weapon: {weaponName}`
+		return false, `Invalid weapon: {weaponId}`
 	end
 
 	-- Check combat mode
@@ -114,7 +114,7 @@ end
 
 	@param origin - Starting position
 	@param direction - Unit direction vector
-	@param weaponName - Name of weapon (e.g., "Bow")
+	@param weaponId - Name of weapon (e.g., "Bow")
 	@param attacker - Entity firing the projectile
 	@param attackingPlayer - Player if attacker is player character
 	@param lockedTarget - Intended target (for damageTargetOnly mode)
@@ -123,7 +123,7 @@ end
 function ProjectileManager.spawnProjectile(
 	origin: Vector3,
 	direction: Vector3,
-	weaponName: string,
+	weaponId: string,
 	attacker: Model,
 	attackingPlayer: Player?,
 	lockedTarget: Model?
@@ -132,7 +132,7 @@ function ProjectileManager.spawnProjectile(
 	local isValid = CombatSystem.performProjectileAttack(
 		origin,
 		direction,
-		weaponName,
+		weaponId,
 		attacker,
 		attackingPlayer,
 		lockedTarget
@@ -143,9 +143,9 @@ function ProjectileManager.spawnProjectile(
 	end
 
 	-- Get weapon config
-	local weaponConfig = CombatSystem.getWeaponConfig(weaponName)
+	local weaponConfig = CombatSystem.getWeaponConfig(weaponId)
 	if not weaponConfig or weaponConfig.type ~= "projectile" then
-		warn(`Cannot spawn projectile for weapon {weaponName}`)
+		warn(`Cannot spawn projectile for weapon {weaponId}`)
 		return nil
 	end
 
@@ -153,9 +153,9 @@ function ProjectileManager.spawnProjectile(
 	local damageMode = CombatSystem.getEffectiveDamageMode(weaponConfig)
 
 	-- Get projectile model configuration
-	local projectileConfig = getProjectileConfig(weaponName)
+	local projectileConfig = getProjectileConfig(weaponId)
 	if not projectileConfig then
-		warn(`No projectile config found for {weaponName}`)
+		warn(`No projectile config found for {weaponId}`)
 		return nil
 	end
 
@@ -179,15 +179,15 @@ function ProjectileManager.spawnProjectile(
 		return nil
 	end
 
-	local weaponFolder = projectilesFolder:FindFirstChild(weaponName)
+	local weaponFolder = projectilesFolder:FindFirstChild(weaponId)
 	if not weaponFolder then
-		warn(`No projectile folder found for {weaponName} in Tools.Projectiles`)
+		warn(`No projectile folder found for {weaponId} in Tools.Projectiles`)
 		return nil
 	end
 
 	local projectileModel = weaponFolder:FindFirstChild(projectileConfig.modelPath)
 	if not projectileModel or not projectileModel:IsA("Model") then
-		warn(`No projectile model found at Projectiles.{weaponName}.{projectileConfig.modelPath}`)
+		warn(`No projectile model found at Projectiles.{weaponId}.{projectileConfig.modelPath}`)
 		return nil
 	end
 
@@ -216,7 +216,7 @@ function ProjectileManager.spawnProjectile(
 	-- Create projectile instance
 	local projectile: ProjectileInstance = {
 		model = clone,
-		weapon = weaponName,
+		weapon = weaponId,
 		attacker = attacker,
 		attackingPlayer = attackingPlayer,
 		lockedTarget = lockedTarget,
@@ -233,7 +233,7 @@ function ProjectileManager.spawnProjectile(
 	-- Add to registry
 	table.insert(activeProjectiles, projectile)
 
-	print(`Spawned projectile: {weaponName} from {attacker.Name}`)
+	print(`Spawned projectile: {weaponId} from {attacker.Name}`)
 
 	return projectile
 end

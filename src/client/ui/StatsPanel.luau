@@ -9,9 +9,10 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Stats = require(ReplicatedStorage.Shared:WaitForChild("combat"):WaitForChild("Stats"))
-local RemoteEventsModule = require(ReplicatedStorage.Shared:WaitForChild("core"):WaitForChild("RemoteEvents"))
+-- local Stats = require(ReplicatedStorage.Shared:WaitForChild("Combat"):WaitForChild("Stats"))
+local RemoteEventsModule = require(ReplicatedStorage.Shared:WaitForChild("Core"):WaitForChild("RemoteEvents"))
 local RemoteEvents = RemoteEventsModule.Events
+local RemoteFunctions = RemoteEventsModule.Functions
 local UIConfig = require(script.Parent.Parent:WaitForChild("UIConfig"))
 
 local StatsPanel = {}
@@ -176,6 +177,23 @@ function StatsPanel.update(stats: {[string]: number}, unallocatedPoints: number)
 
 	local config = UIConfig.statsPanel
 
+	-- Calculate derived bonuses once (outside the loop)
+	local success, derived = pcall(function()
+		return RemoteFunctions.GetDerivedStats:InvokeServer({
+			strength = stats.strength,
+			magic = stats.magic,
+			stamina = stats.stamina,
+			accuracy = stats.accuracy,
+			level = 1,  -- Level not needed for derived stats
+			xp = 0,
+		})
+	end)
+
+	if not success then
+		warn("ERROR - Unable to retrieve derived stats:", derived)
+		return  -- Exit early if we can't get derived stats
+	end
+
 	-- Update each stat row
 	for statKey, value in stats do
 		local statRow = statsContainer:FindFirstChild(statKey)
@@ -184,16 +202,6 @@ function StatsPanel.update(stats: {[string]: number}, unallocatedPoints: number)
 			if valueLabel then
 				valueLabel.Text = tostring(value)
 			end
-
-			-- Calculate derived bonuses
-			local derived = Stats.getDerivedStats({
-				strength = stats.strength,
-				magic = stats.magic,
-				stamina = stats.stamina,
-				accuracy = stats.accuracy,
-				level = 1,  -- Level not needed for derived stats
-				xp = 0,
-			})
 
 			-- Update description with actual values
 			local descLabel = statRow:FindFirstChild("DescLabel") :: TextLabel

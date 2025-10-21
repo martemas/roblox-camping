@@ -9,12 +9,13 @@
 
 	Architecture:
 	- PlayerStats (server) ──┐
-	                         ├──> StatsProvider (shared) ──> CombatSystem
+	                         ├──> StatsProvider (server) ──> CombatSystem
 	- EntityController ──────┘
 
 	Performance: O(1) hash table lookups, no performance impact
 ]]
 
+local PlayerStats = require(script.Parent.Parent.PlayerStats)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local ServerScriptService = game:GetService("ServerScriptService")
@@ -22,31 +23,14 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local Stats = require(script.Parent.Stats)
 
 -- Lazy-loaded modules (cached after first use)
-local PlayerStats
 local EntityController
-
--- Load PlayerStats module (server-side only)
-local function getPlayerStats()
-	if not PlayerStats and RunService:IsServer() then
-		local success, playerStatsModule = pcall(function()
-			return ServerScriptService:WaitForChild("Server"):WaitForChild("PlayerStats", 5)
-		end)
-
-		if success and playerStatsModule then
-			PlayerStats = require(playerStatsModule)
-		else
-			warn("[StatsProvider] Failed to load PlayerStats - module not found in ServerScriptService.Server")
-		end
-	end
-	return PlayerStats
-end
 
 -- Load EntityController module
 local function getEntityController()
 	if not EntityController then
 		-- EntityController is now in server/entities
 		local success, entityControllerModule = pcall(function()
-			return ServerScriptService:WaitForChild("Server"):WaitForChild("entities"):WaitForChild("EntityController", 5)
+			return ServerScriptService:WaitForChild("Server"):WaitForChild("Entities"):WaitForChild("EntityController", 5)
 		end)
 
 		if success and entityControllerModule then
@@ -75,13 +59,7 @@ function StatsProvider.getStats(model: Model): Stats.Stats?
 	local player = Players:GetPlayerFromCharacter(model)
 	if player then
 		-- Player character - get stats from PlayerStats (server-side only)
-		if RunService:IsServer() then
-			local PlayerStatsModule = getPlayerStats()
-			if PlayerStatsModule then
-				return PlayerStatsModule.getPlayerStats(player)
-			end
-		end
-		return nil
+		return PlayerStats.getPlayerStats(player)
 	end
 
 	-- Check if it's an NPC entity

@@ -8,24 +8,12 @@
 
 	Part of the ProjectileManager system.
 ]]
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Players = game:GetService("Players")
-local ServerScriptService = game:GetService("ServerScriptService")
-
--- CombatSystem is now server-only (lazy load to avoid error on client)
-local CombatSystem = nil
-local function getCombatSystem()
-	if not CombatSystem then
-		local RunService = game:GetService("RunService")
-		if RunService:IsServer() then
-			CombatSystem = require(ServerScriptService:WaitForChild("Server"):WaitForChild("combat"):WaitForChild("CombatSystem"))
-		end
-	end
-	return CombatSystem
-end
-
-local CombatFeedback = require(script.Parent.Parent:WaitForChild("visual-effects"):WaitForChild("CombatFeedback"))
+local CombatSystem = require(script.Parent.CombatSystem)
 local StatsProvider = require(script.Parent.StatsProvider)
+local AOETelegraph = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("VisualFX"):WaitForChild("AOETelegraph"))
 
 -- Type imports (safe to use even if module not loaded)
 type ProjectileInstance = {
@@ -135,7 +123,7 @@ end
 	@param position - Impact position
 ]]
 local function showImpactEffect(projectile: ProjectileInstance, position: Vector3)
-	local CS = getCombatSystem()
+	local CS = CombatSystem
 	if not CS then
 		return
 	end
@@ -178,7 +166,7 @@ local function showImpactEffect(projectile: ProjectileInstance, position: Vector
 		end)
 
 		-- Also show AOE radius circle briefly
-		local AOETelegraph = require(script.Parent.Parent:WaitForChild("visual-effects"):WaitForChild("AOETelegraph"))
+
 		local circle = AOETelegraph.showCircleTelegraph(
 			position,
 			weaponConfig.aoeRadius or 10,
@@ -208,7 +196,7 @@ local function applyDamage(projectile: ProjectileInstance, entity: Model, hitPar
 	-- - XP tracking
 	-- - Feedback
 	-- - Entity aggro
-	local CS = getCombatSystem()
+	local CS = CombatSystem
 	if CS then
 		CS.applyDamageToEntity(projectile.attacker, entity, projectile.weapon, {
 			hitPart = hitPart,
@@ -278,7 +266,7 @@ local function handleRaycastHit(
 	raycastResult: RaycastResult
 ): boolean
 	-- Check for AOE on impact (before handling normal collision)
-	local CS = getCombatSystem()
+	local CS = CombatSystem
 	if not CS then
 		return true -- Destroy projectile
 	end
@@ -382,7 +370,7 @@ function ProjectilePhysics.updateProjectile(
 		print(`Projectile {projectile.weapon} reached max range`)
 
 		-- Trigger AOE at final position if configured
-		local CS = getCombatSystem()
+		local CS = CombatSystem
 		if CS then
 			local weaponConfig = CS.getWeaponConfig(projectile.weapon)
 			if weaponConfig and weaponConfig.aoeOnImpact then

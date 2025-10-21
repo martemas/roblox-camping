@@ -1,3 +1,4 @@
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 --!strict
 
 --[[
@@ -10,7 +11,8 @@
 	Client can read formulas but cannot manipulate stats.
 ]]
 
-local GameConfig = require(script.Parent.Parent:WaitForChild("config"))
+local GameConfig = require(script.Parent.Parent.Config.GameConfig)
+local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Core"):WaitForChild("RemoteEvents"))
 
 -- Export types
 export type Stats = {
@@ -223,5 +225,38 @@ function Stats.calculateXPReward(victimType: string, victimLevel: number): numbe
 	local scaledXP = baseXP * (1 + victimLevel * multiplier)
 	return math.floor(scaledXP)
 end
+
+
+local function getXPForNextLevel(_: Player, currentLevel: number)
+	warn(`Invoked getXPForNextLevel {currentLevel}`)
+	local xpForNext = Stats.getXPForNextLevel(currentLevel)
+
+	local xpForCurrent = 0
+	if currentLevel > 1 then
+		xpForCurrent = Stats.getXPForNextLevel(currentLevel - 1)
+	end
+
+	return {
+		xpForNext = xpForNext,
+		xpForCurrent = xpForCurrent 
+	}
+end
+
+local function getDerivedStats(player: Player, stats: Stats)
+	warn(`Invoked getDerivedStats for player: {player.Name}`)
+	warn(`Stats received:`, stats)
+
+	if not stats then
+		warn("ERROR: Stats parameter is nil!")
+		return nil
+	end
+
+	local result = Stats.getDerivedStats(stats)
+	warn(`Returning derived stats:`, result)
+	return result
+end
+
+RemoteEvents.Functions.GetXPForNextLevel.OnServerInvoke = getXPForNextLevel
+RemoteEvents.Functions.GetDerivedStats.OnServerInvoke = getDerivedStats
 
 return Stats

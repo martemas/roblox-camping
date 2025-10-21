@@ -17,15 +17,14 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local TargetingSystem = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("player"):WaitForChild("TargetingSystem"))
-local PlayerSettingsManager = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("player"):WaitForChild("PlayerSettingsManager"))
-local PlayerSettings = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("player"):WaitForChild("PlayerSettings"))
-local Types = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("Types"))
-local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("RemoteEvents"))
-local CombatUtils = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("combat"):WaitForChild("CombatUtils"))
+local TargetingSystem = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Player"):WaitForChild("TargetingSystem"))
+local PlayerSettingsManager = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Player"):WaitForChild("PlayerSettingsManager"))
+local PlayerSettings = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Player"):WaitForChild("PlayerSettings"))
+local Types = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Core"):WaitForChild("Types"))
+local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Core"):WaitForChild("RemoteEvents"))
+local CombatUtils = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Combat"):WaitForChild("CombatUtils"))
 local Items = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Data"):WaitForChild("Items"):WaitForChild("Items"))
-local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("config"))
-local ProjectileLOS = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("combat"):WaitForChild("ProjectileLOS"))
+local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 
 -- Import TargetHUD component
 local TargetHUD = require(script.Parent.ui.TargetHUD)
@@ -41,6 +40,53 @@ local updateConnection: RBXScriptConnection? = nil
 
 -- Initialize player settings
 PlayerSettingsManager.initialize()
+
+local function validateLOSPath(
+	origin: vector,
+	targetPosition: vector,
+	attacker: Model
+): boolean
+	-- Initialize raycasting setup
+	local raycastParams = RaycastParams.new()
+
+	-- Setup raycast parameters
+	raycastParams.FilterType = Enum.RaycastFilterType.Exclude
+
+	-- Build ignore list: attacker + all characters/entities
+	local ignoreList = {attacker}
+
+	-- Add all player characters
+	local Players = game:GetService("Players")
+	for _, player in Players:GetPlayers() do
+		if player.Character then
+			table.insert(ignoreList, player.Character)
+		end
+	end
+
+	-- Add all NPCs/entities (models with Humanoid)
+	for _, descendant in workspace:GetDescendants() do
+		if descendant:IsA("Humanoid") and descendant.Parent and descendant.Parent ~= attacker then
+			local model = descendant.Parent
+			if model:IsA("Model") then
+				table.insert(ignoreList, model)
+			end
+		end
+	end
+
+	raycastParams.FilterDescendantsInstances = ignoreList
+
+	-- Perform raycast from origin to target
+	local direction = targetPosition - origin
+	local raycastResult = workspace:Raycast(origin, direction, raycastParams)
+
+	if raycastResult then
+		-- Hit something (structure, resource, terrain)
+		return false
+	end
+
+	-- Clear path
+	return true
+end
 
 -- Calculate border color and status based on attack readiness
 local function calculateAttackStatus(targetInfo: TargetInfo): (Color3, string)
@@ -103,12 +149,15 @@ local function calculateAttackStatus(targetInfo: TargetInfo): (Color3, string)
 
 	-- Check distance
 	local distance = (targetRoot.Position - playerRoot.Position).Magnitude
+
+	print("Range is ")
+	print(weaponConfig)
 	local inRange = distance <= weaponConfig.range
 
 	if not inRange then
 		return Color3.fromRGB(255, 150, 0), "OUT OF RANGE"
 	end
-
+print("B")
 	-- Check facing (if required)
 	local requireFacing = weaponConfig.requireFacingForDamage
 	if requireFacing == nil then
@@ -126,11 +175,11 @@ local function calculateAttackStatus(targetInfo: TargetInfo): (Color3, string)
 
 	-- Check LOS (for projectile and hitscan weapons)
 	local hasLOS = true
+
 	if weaponConfig.requiresLineOfSight and (weaponConfig.type == "projectile" or weaponConfig.type == "hitscan") then
 		local origin = playerRoot.Position + vector.create(0, 1, 0)
 		local targetPos = targetRoot.Position + vector.create(0, 1, 0)
-		local losResult = ProjectileLOS.validatePath(origin, targetPos, character)
-		hasLOS = losResult.hasLineOfSight
+		local hasLOS = validateLOSPath(origin, targetPos, character)
 
 		if not hasLOS then
 			return Color3.fromRGB(255, 50, 50), "BLOCKED"
@@ -255,6 +304,7 @@ local function initialize()
 
 	print("[TargetHUD] Orchestrator initialized")
 end
+
 
 -- Start everything
 initialize()

@@ -13,7 +13,7 @@ export type ToolSpec = {
 }
 
 ToolStats.Stats = {
-	BasicAxe = {
+	Axe = {
 		category = "Axe",
 		miningSpeed = 1.0,
 		swingCooldown = 0.2,
@@ -27,7 +27,7 @@ ToolStats.Stats = {
 		weaponRef = "Axe",
 	},
 
-	BasicPickaxe = {
+	Pickaxe = {
 		category = "Pickaxe",
 		miningSpeed = 1.0,
 		swingCooldown = 0.5,

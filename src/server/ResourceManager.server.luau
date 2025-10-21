@@ -7,12 +7,12 @@ local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 
 local GameConfig = require(ServerScriptService:WaitForChild("Server"):WaitForChild("Config"):WaitForChild("GameConfig"))
-local EntityStats = require(ServerScriptService:WaitForChild("Server"):WaitForChild("Data"):WaitForChild("Entities"):WaitForChild("EntityStats"))
+local Entities = require(ServerScriptService:WaitForChild("Server"):WaitForChild("Data"):WaitForChild("Entities"))
 local ToolStats = require(ServerScriptService:WaitForChild("Server"):WaitForChild("Data"):WaitForChild("Items"):WaitForChild("ToolStats"))
 local Items = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Data"):WaitForChild("Items"):WaitForChild("Items"))
-local Types = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("Types"))
-local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("RemoteEvents"))
-local Utils = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("Utils"))
+local Types = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Core"):WaitForChild("Types"))
+local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Core"):WaitForChild("RemoteEvents"))
+local Utils = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Core"):WaitForChild("Utils"))
 
 type ResourceNode = Types.ResourceNode
 
@@ -65,7 +65,7 @@ end
 -- Create a resource node
 local function createResourceNode(resourceType: string, position: vector): ResourceNode?
 	
-	local entity = EntityStats.getEntity(resourceType)
+	local entity = Entities.getEntity(resourceType)
 
 	if not entity then
 		warn(`No entity config found for resource type {resourceType}`)
@@ -927,7 +927,7 @@ local function registerManualNodes()
 
 		if model:IsA("Model") and model:GetAttribute("EntityId") then
 			local resourceId: string = model:GetAttribute("EntityId")
-			local config = EntityStats.getEntity(resourceId)
+			local config = Entities.getEntity(resourceId)
 
 			local mainPart = model.PrimaryPart or model:FindFirstChildOfClass("BasePart")
 			if mainPart then

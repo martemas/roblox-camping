@@ -20,7 +20,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Items = require(script.Parent.Parent:WaitForChild("Data"):WaitForChild("Items"):WaitForChild("Items"))
-local GameConfig = require(script.Parent.Parent:WaitForChild("config"))
+local GameConfig = require(script.Parent.Parent:WaitForChild("Config"))
 
 local CombatUtils = {}
 

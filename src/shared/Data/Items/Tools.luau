@@ -13,7 +13,7 @@ export type ToolDisplayData = {
 }
 
 Tools.Display = {
-	BasicAxe = {
+	Axe = {
 		displayName = "Basic Axe",
 		category = "Axe",
 		description = "Chops wood efficiently",
@@ -25,7 +25,7 @@ Tools.Display = {
 		description = "Faster wood chopping",
 	},
 
-	BasicPickaxe = {
+	Pickaxe = {
 		displayName = "Basic Pickaxe",
 		category = "Pickaxe",
 		description = "Mines stone and ore",

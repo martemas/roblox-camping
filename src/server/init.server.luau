@@ -12,18 +12,22 @@ print("Server initializing...")
 local serverFolder = ServerScriptService:FindFirstChild("Server")
 
 -- Wait for shared modules to load
-local GameConfig = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("config")
-local Types = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("Types")
-local RemoteEvents = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("RemoteEvents")
+local GameConfig = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config")
+local Types = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Core"):WaitForChild("Types")
+local RemoteEvents = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Core"):WaitForChild("RemoteEvents")
 
 -- Initialize ProjectileManager (now in server/combat)
 if serverFolder then
-	local ProjectileManager = require(serverFolder:WaitForChild("combat"):WaitForChild("ProjectileManager"))
+	local ProjectileManager = require(serverFolder:WaitForChild("Combat"):WaitForChild("ProjectileManager"))
 	ProjectileManager.initialize()
 
 	-- Pre-warm animation cache FIRST (before other systems)
 	local AnimationCache = require(serverFolder:WaitForChild("AnimationCache"))
 	AnimationCache.Initialize()
+
+	-- Initialize Stats (sets up RemoteFunction callbacks)
+	local Stats = require(serverFolder:WaitForChild("Combat"):WaitForChild("Stats"))
+	print("✓ Stats RemoteFunctions initialized")
 
 	-- Initialize PlayerStats (sets up ProfileStore and PlayerAdded connection)
 	local PlayerStats = require(serverFolder:WaitForChild("PlayerStats"))

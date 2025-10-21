@@ -9,9 +9,9 @@ local Players = game:GetService("Players")
 local player = Players.LocalPlayer
 
 -- Wait for shared modules to load
-local GameConfig = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("config")
-local Types = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("Types")
-local RemoteEvents = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("RemoteEvents")
+local GameConfig = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config")
+local Types = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Core"):WaitForChild("Types")
+local RemoteEvents = ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Core"):WaitForChild("RemoteEvents")
 
 print(`Client initializing for {player.Name}`)
 

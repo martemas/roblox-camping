@@ -15,22 +15,13 @@ local GameConfig = {
 		miningInteraction = "hold", -- "tap" or "hold"
 		miningHoldDuration = 1.0, -- seconds (if hold mode)
 	},
-
 	-- Player Settings
 	player = {
 		maxHealth = 100,
-		inventorySize = 5,
 		startingTools = { "Axe", "Pickaxe", "Bow", "MagicMissile", "Fireball" },
 		healthRegenRate = 5, -- Percentage per interval
 		healthRegenInterval = 5, -- Seconds
 		respawnTimeout = 10, -- Seconds
-
-		-- Movement settings
-		walkSpeed = 16,
-		sprintSpeed = 24,
-		maxStamina = 100,
-		staminaDrainRate = 20, -- Per second while sprinting
-		staminaRegenRate = 30, -- Per second while not sprinting
 	},
 
 	-- Wildlife Settings
@@ -49,9 +40,6 @@ local GameConfig = {
 
 		-- Auto-Aim System
 		autoAim = false,
-
-		-- Click-Targeting System
-		clickTargetSearchRadius = 10,
 
 		-- Invulnerability Frames
 		invulnerabilityFrames = true,

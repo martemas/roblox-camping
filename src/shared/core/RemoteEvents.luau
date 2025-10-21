@@ -104,6 +104,8 @@ local RemoteFunctions = {
 	-- Data requests
 	GetPlayerData = createRemoteFunction("GetPlayerData"),
 	GetTeamResources = createRemoteFunction("GetTeamResources"),
+	GetXPForNextLevel = createRemoteFunction("GetXPForNextLevel"),
+	GetDerivedStats = createRemoteFunction("GetDerivedStats"),
 }
 
 return {

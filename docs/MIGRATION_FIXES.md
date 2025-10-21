@@ -14,7 +14,7 @@ PlayerStats was using `require(ReplicatedStorage.Shared.config)` which now retur
 **Fix:**
 ```lua
 -- BEFORE (wrong - using client config)
-local GameConfig = require(ReplicatedStorage.Shared:WaitForChild("config"))
+local GameConfig = require(ReplicatedStorage.Shared:WaitForChild("Config"))
 
 -- AFTER (correct - using server config)
 local GameConfig = require(script.Parent.Config:WaitForChild("GameConfig"))
@@ -101,7 +101,7 @@ TownhallManager was importing ResourcesConfig which was removed during refactori
 **Fix:**
 ```lua
 -- BEFORE (importing removed config)
-local ResourcesConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("config"):WaitForChild("ResourcesConfig"))
+local ResourcesConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"):WaitForChild("ResourcesConfig"))
 type ResourceType = ResourcesConfig.ResourceType
 
 // AFTER (using string type directly)

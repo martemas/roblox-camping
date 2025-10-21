@@ -9,8 +9,8 @@
 
 local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Core"):WaitForChild("RemoteEvents"))
 
-local Stats = require(ReplicatedStorage.Shared:WaitForChild("combat"):WaitForChild("Stats"))
 local UIConfig = require(script.Parent.Parent:WaitForChild("UIConfig"))
 
 local XPBar = {}
@@ -87,10 +87,18 @@ function XPBar.update(currentXP: number, currentLevel: number)
 	end
 
 	local config = UIConfig.xpBar
+	
+	local success, result = pcall(function()
+		return RemoteEvents.Functions.GetXPForNextLevel:InvokeServer(currentLevel)
+	end)
 
-	-- Calculate XP progress
-	local xpForNext = Stats.getXPForNextLevel(currentLevel)
-	local xpForCurrent = currentLevel > 1 and Stats.getXPForNextLevel(currentLevel - 1) or 0
+	if not success then
+		warn("ERROR - Unable to retrieve XP for next level:", result)
+	end
+
+	local xpForCurrent = result.xpForCurrent
+	local xpForNext = result.xpForNext
+
 	local xpInLevel = currentXP - xpForCurrent
 	local xpNeeded = xpForNext - xpForCurrent
 

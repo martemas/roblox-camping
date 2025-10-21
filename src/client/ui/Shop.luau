@@ -18,7 +18,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local UIConfig = require(script.Parent.Parent:WaitForChild("UIConfig"))
 local UIComponent = require(script.Parent:WaitForChild("UIComponent"))
-local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("RemoteEvents"))
+local RemoteEvents = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Core"):WaitForChild("RemoteEvents"))
 
 local Shop = UIComponent.new("Shop")
 

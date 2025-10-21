@@ -115,8 +115,8 @@ Items.Database = {
 	-- ========================================
 	-- TOOLS (with weapon capabilities)
 	-- ========================================
-	BasicAxe = {
-		id = "BasicAxe",
+	Axe = {
+		id = "Axe",
 		name = "Basic Axe",
 		type = "Tool",
 		description = "Chop trees and defend yourself",
@@ -139,8 +139,8 @@ Items.Database = {
 		weaponData = "Axe",
 	},
 
-	BasicPickaxe = {
-		id = "BasicPickaxe",
+	Pickaxe = {
+		id = "Pickaxe",
 		name = "Basic Pickaxe",
 		type = "Tool",
 		description = "Mine stone and ore",
@@ -209,6 +209,41 @@ Items.Database = {
 		droppable = true,
 		dropModel = "Items/Fireball",
 		weaponData = "Fireball",
+	},
+
+	-- ========================================
+	-- NPC WEAPONS (can be dropped as loot)
+	-- ========================================
+	WolfClaw = {
+		id = "WolfClaw",
+		name = "Wolf Claw",
+		type = "Weapon",
+		description = "A wolf's natural weapon - high damage melee",
+		stackable = false,
+		droppable = true,
+		dropModel = "Items/WolfClaw",
+		weaponData = "WolfClaw",
+	},
+
+	BearClaw = {
+		id = "BearClaw",
+		name = "Bear Claw",
+		type = "Weapon",
+		description = "A bear's natural weapon - high damage melee",
+		stackable = false,
+		droppable = true,
+		dropModel = "Items/BearClaw",
+		weaponData = "BearClaw",
+	},
+
+	ZombieBite = {
+		id = "ZombieBite",
+		name = "Zombie Bite",
+		type = "Weapon",
+		description = "Infected bite attack",
+		stackable = false,
+		droppable = false, -- Not droppable by default
+		weaponData = "ZombieBite",
 	},
 
 	-- ========================================

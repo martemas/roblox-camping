@@ -19,8 +19,8 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Utils = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("Utils"))
-local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("config"))
+local Utils = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Core"):WaitForChild("Utils"))
+local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
 local EntityController = require(script.Parent:WaitForChild("EntityController"))
 local Entities = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Data"):WaitForChild("Entities"):WaitForChild("Entities"))
 
@@ -220,7 +220,7 @@ function EntitySpawner.spawnEntity(config: SpawnConfig): Model?
 		local patrolPointsJson = game:GetService("HttpService"):JSONEncode(config.patrolPoints)
 		model:SetAttribute("PatrolPoints", patrolPointsJson)
 	end
-	
+
 	-- Initialize entity with EntityController (handles AI, stats, animations)
 	local entity = EntityController.initializeEntity(model, config.entityType)
 	if not entity then

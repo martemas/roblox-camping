@@ -29,7 +29,7 @@ local StatsProvider = nil
 export type AOEZone = {
 	position: Vector3,
 	radius: number,
-	weaponName: string,
+	weaponId: string,
 	attacker: Model,
 	attackingPlayer: Player?,
 	startTime: number,
@@ -64,7 +64,7 @@ end
 ]]
 local function getStatsProvider()
 	if not StatsProvider then
-		StatsProvider = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("combat"):WaitForChild("StatsProvider"))
+		StatsProvider = require(ServerScriptService:WaitForChild("Server"):WaitForChild("Combat"):WaitForChild("StatsProvider"))
 	end
 	return StatsProvider
 end
@@ -134,7 +134,7 @@ end
 local function tickZone(zone: AOEZone)
 	local CS = getCombatSystem()
 	local SP = getStatsProvider()
-	local weaponConfig = CS.getWeaponConfig(zone.weaponName)
+	local weaponConfig = CS.getWeaponConfig(zone.weaponId)
 	if not weaponConfig then
 		return
 	end
@@ -163,7 +163,7 @@ local function tickZone(zone: AOEZone)
 			-- Apply damage via applyDamageToEntity (respects all rules)
 			local damage = weaponConfig.aoeDamage or weaponConfig.damage or 0
 
-			CS.applyDamageToEntity(zone.attacker, entity, zone.weaponName, {
+			CS.applyDamageToEntity(zone.attacker, entity, zone.weaponId, {
 				damageOverride = damage,
 				hitPosition = zone.position,
 				bypassInvulnerability = false, -- Each tick respects invulnerability
@@ -198,7 +198,7 @@ local function updateAllZones(currentTime: number)
 
 			-- Remove from registry
 			table.remove(activeZones, i)
-			print(`AOEZone expired: {zone.weaponName}`)
+			print(`AOEZone expired: {zone.weaponId}`)
 			continue
 		end
 
@@ -235,7 +235,7 @@ end
 
 	@param position - Center position of zone
 	@param radius - Radius of zone
-	@param weaponName - Name of weapon creating zone
+	@param weaponId - Name of weapon creating zone
 	@param attacker - Entity that created zone
 	@param attackingPlayer - Player if attacker is player character
 	@param duration - How long zone lasts (seconds)
@@ -245,7 +245,7 @@ end
 function AOEZoneManager.createZone(
 	position: Vector3,
 	radius: number,
-	weaponName: string,
+	weaponId: string,
 	attacker: Model,
 	attackingPlayer: Player?,
 	duration: number,
@@ -255,7 +255,7 @@ function AOEZoneManager.createZone(
 	initialize()
 
 	local CS = getCombatSystem()
-	local weaponConfig = CS.getWeaponConfig(weaponName)
+	local weaponConfig = CS.getWeaponConfig(weaponId)
 
 	-- Create visual effect
 	local visual = createZoneVisual(position, radius, weaponConfig)
@@ -264,7 +264,7 @@ function AOEZoneManager.createZone(
 	local zone: AOEZone = {
 		position = position,
 		radius = radius,
-		weaponName = weaponName,
+		weaponId = weaponId,
 		attacker = attacker,
 		attackingPlayer = attackingPlayer,
 		startTime = tick(),
@@ -280,7 +280,7 @@ function AOEZoneManager.createZone(
 	-- Perform initial tick immediately
 	tickZone(zone)
 
-	print(`AOEZone created: {weaponName} at {position} (duration: {duration}s, tickRate: {tickRate}s)`)
+	print(`AOEZone created: {weaponId} at {position} (duration: {duration}s, tickRate: {tickRate}s)`)
 
 	return zone
 end

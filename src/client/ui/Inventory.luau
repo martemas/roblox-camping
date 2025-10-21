@@ -15,8 +15,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local UIConfig = require(script.Parent.Parent:WaitForChild("UIConfig"))
 local UIComponent = require(script.Parent:WaitForChild("UIComponent"))
-local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("config"))
-local Types = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("core"):WaitForChild("Types"))
+local GameConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Config"))
+local Types = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Core"):WaitForChild("Types"))
 
 type PlayerInventory = Types.PlayerInventory
 

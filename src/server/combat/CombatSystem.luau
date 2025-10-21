@@ -8,13 +8,13 @@ local ServerScriptService = game:GetService("ServerScriptService")
 -- Server-side imports
 local GameConfig = require(script.Parent.Parent:WaitForChild("Config"):WaitForChild("GameConfig"))
 local Items = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Data"):WaitForChild("Items"):WaitForChild("Items"))
-local CombatFeedback = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("visual-effects"):WaitForChild("CombatFeedback"))
-local ProjectileLOS = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("combat"):WaitForChild("ProjectileLOS"))
-local HitscanEffects = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("visual-effects"):WaitForChild("HitscanEffects"))
+local CombatFeedback = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("VisualFX"):WaitForChild("CombatFeedback"))
+local ProjectileLOS = require(ServerScriptService:WaitForChild("Server"):WaitForChild("Combat"):WaitForChild("ProjectileLOS"))
+local HitscanEffects = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("VisualFX"):WaitForChild("HitscanEffects"))
 
 -- Server-side modules (now in same directory)
 local DamageCalculator = require(script.Parent:WaitForChild("DamageCalculator"))
-local StatsProvider = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("combat"):WaitForChild("StatsProvider"))
+local StatsProvider = require(ServerScriptService:WaitForChild("Server"):WaitForChild("Combat"):WaitForChild("StatsProvider"))
 
 -- Lazy-loaded server modules (avoid circular dependency)
 local XPRewardManager
@@ -115,17 +115,17 @@ export type ProjectileInstance = {
 
 local CombatSystem = {}
 
--- Server-side weapon stats
-local WeaponStats = require(script.Parent.Parent:WaitForChild("Data"):WaitForChild("Items"):WaitForChild("WeaponStats"))
+-- Server-side Items module (provides access to all item stats)
+local Items = require(script.Parent.Parent:WaitForChild("Data"):WaitForChild("Items"))
 
--- Get weapon config from WeaponStats (server-only now)
-function CombatSystem.getWeaponConfig(weaponName: string): WeaponConfig?
-	local weaponConfig = WeaponStats.Stats[weaponName]
-	if not weaponConfig then
-		warn(`Weapon config not found: {weaponName}`)
+-- Get weapon config from Items module
+function CombatSystem.getWeaponConfig(weaponId: string): WeaponConfig?
+	local item = Items.getItem(weaponId)
+	if not item or not item.Stats then
+		warn(`Weapon config not found: {weaponId}`)
 		return nil
 	end
-	return weaponConfig
+	return item.Stats
 end
 
 -- Get entity's weapon (for wildlife/enemies)
@@ -222,7 +222,7 @@ local function findEntityFromPart(part: BasePart): Model?
 end
 
 -- Check if target is invulnerable to this weapon type
-local function checkInvulnerability(targetModel: Model, weaponName: string): boolean
+local function checkInvulnerability(targetModel: Model, weaponId: string): boolean
 	local humanoid = targetModel:FindFirstChildOfClass("Humanoid")
 	if not humanoid then
 		return false
@@ -234,13 +234,13 @@ local function checkInvulnerability(targetModel: Model, weaponName: string): boo
 	end
 
 	-- Check weapon-specific invulnerability
-	local invulnAttr = `InvulnerableTo_{weaponName}`
+	local invulnAttr = `InvulnerableTo_{weaponId}`
 	local isInvulnerable = humanoid:GetAttribute(invulnAttr)
 	return isInvulnerable == true
 end
 
 -- Set invulnerability for a target to a specific weapon type
-local function setInvulnerability(targetModel: Model, weaponName: string, duration: number)
+local function setInvulnerability(targetModel: Model, weaponId: string, duration: number)
 	local humanoid = targetModel:FindFirstChildOfClass("Humanoid")
 	if not humanoid then
 		return
@@ -250,7 +250,7 @@ local function setInvulnerability(targetModel: Model, weaponName: string, durati
 		return
 	end
 
-	local invulnAttr = `InvulnerableTo_{weaponName}`
+	local invulnAttr = `InvulnerableTo_{weaponId}`
 	humanoid:SetAttribute(invulnAttr, true)
 
 	-- Clear invulnerability after duration
@@ -334,7 +334,7 @@ end
 function CombatSystem.attemptMeleeAttack(
 	attacker: Model,
 	target: Model?,
-	weaponName: string,
+	weaponId: string,
 	attackingPlayer: Player?,
 	options: {
 		attackerStats: any?,
@@ -343,7 +343,7 @@ function CombatSystem.attemptMeleeAttack(
 	}?
 ): AttackResult
 	local opts = options or {}
-	local weaponConfig = CombatSystem.getWeaponConfig(weaponName)
+	local weaponConfig = CombatSystem.getWeaponConfig(weaponId)
 	if not weaponConfig then
 		return {
 			hit = false,
@@ -404,7 +404,7 @@ function CombatSystem.attemptMeleeAttack(
 			-- Target out of range - dodged or miss
 			if targetModel == target then
 				-- Primary target dodged
-				CombatFeedback.showDamage(targetModel, nil, weaponName, "dodge", attackingPlayer)
+				CombatFeedback.showDamage(targetModel, nil, weaponId, "dodge", attackingPlayer)
 			end
 			continue
 		end
@@ -413,7 +413,7 @@ function CombatSystem.attemptMeleeAttack(
 		if not isFacingTarget(attackerRoot, targetRoot, nil) then
 			-- Not facing target - blocked
 			if targetModel == target then
-				CombatFeedback.showDamage(targetModel, nil, weaponName, "blocked", attackingPlayer)
+				CombatFeedback.showDamage(targetModel, nil, weaponId, "blocked", attackingPlayer)
 			end
 			continue
 		end
@@ -421,7 +421,7 @@ function CombatSystem.attemptMeleeAttack(
 		-- Use centralized damage system (handles PvP, invuln, calculation, damage, XP, feedback, aggro)
 		local targetHumanoid = targetModel:FindFirstChildOfClass("Humanoid")
 		if targetHumanoid and targetHumanoid.Health > 0 then
-			local result = CombatSystem.applyDamageToEntity(attacker, targetModel, weaponName, {
+			local result = CombatSystem.applyDamageToEntity(attacker, targetModel, weaponId, {
 				attackingPlayer = attackingPlayer,
 				hitPart = nil, -- Melee doesn't track specific part yet
 				attackerStats = opts.attackerStats,
@@ -511,7 +511,7 @@ end
 function CombatSystem.performAOEAttack(
 	attacker: Model,
 	targetPosition: Vector3,
-	weaponName: string,
+	weaponId: string,
 	attackingPlayer: Player?,
 	options: {
 		damageOverride: number?,
@@ -534,9 +534,9 @@ function CombatSystem.performAOEAttack(
 	-- StatsProvider already imported at top
 	local opts = options or {}
 
-	local weaponConfig = CombatSystem.getWeaponConfig(weaponName)
+	local weaponConfig = CombatSystem.getWeaponConfig(weaponId)
 	if not weaponConfig then
-		warn(`performAOEAttack: Weapon {weaponName} not found`)
+		warn(`performAOEAttack: Weapon {weaponId} not found`)
 		return {}
 	end
 
@@ -577,7 +577,7 @@ function CombatSystem.performAOEAttack(
 			end
 
 			-- Check invulnerability
-			if checkInvulnerability(entity, weaponName) then
+			if checkInvulnerability(entity, weaponId) then
 				continue
 			end
 
@@ -598,7 +598,7 @@ function CombatSystem.performAOEAttack(
 				local targetStats = StatsProvider.getStats(entity)
 
 				-- Apply damage via central system
-				local result = CombatSystem.applyDamageToEntity(attacker, entity, weaponName, {
+				local result = CombatSystem.applyDamageToEntity(attacker, entity, weaponId, {
 					damageOverride = finalDamage,
 					hitPosition = targetPosition,
 					attackerStats = attackerStats, -- Reused attacker stats
@@ -626,7 +626,7 @@ function CombatSystem.performAOEAttack(
 		AOEZoneManager.createZone(
 			targetPosition,
 			radius,
-			weaponName,
+			weaponId,
 			attacker,
 			attackingPlayer,
 			weaponConfig.duration,
@@ -634,7 +634,7 @@ function CombatSystem.performAOEAttack(
 		)
 	end
 
-	print(`AOE attack {weaponName} hit {#hits} entities at {targetPosition}`)
+	print(`AOE attack {weaponId} hit {#hits} entities at {targetPosition}`)
 	return hits
 end
 
@@ -653,7 +653,7 @@ export type DamageApplicationResult = {
 function CombatSystem.applyDamageToEntity(
 	attacker: Model,
 	target: Model,
-	weaponName: string,
+	weaponId: string,
 	options: {
 		damageOverride: number?,
 		hitPosition: Vector3?,
@@ -697,8 +697,8 @@ function CombatSystem.applyDamageToEntity(
 	end
 
 	-- Check invulnerability (unless bypassed)
-	if not opts.bypassInvulnerability and checkInvulnerability(target, weaponName) then
-		print(`{target.Name} is invulnerable to {weaponName}`)
+	if not opts.bypassInvulnerability and checkInvulnerability(target, weaponId) then
+		print(`{target.Name} is invulnerable to {weaponId}`)
 		return {
 			success = false,
 			damage = nil,
@@ -711,7 +711,7 @@ function CombatSystem.applyDamageToEntity(
 	end
 
 	-- Get weapon config
-	local weaponConfig = CombatSystem.getWeaponConfig(weaponName)
+	local weaponConfig = CombatSystem.getWeaponConfig(weaponId)
 	if not weaponConfig then
 		return {
 			success = false,
@@ -732,7 +732,7 @@ function CombatSystem.applyDamageToEntity(
 	local damageResult = DamageCalculator.calculateDamage({
 		attacker = attacker,
 		target = target,
-		weaponName = weaponName,
+		weaponId = weaponId,
 		hitPart = opts.hitPart or (opts.hitPosition and target:FindFirstChild("HumanoidRootPart") :: BasePart? or nil),
 		attackerStats = attackerStats,
 		targetStats = targetStats,
@@ -741,7 +741,7 @@ function CombatSystem.applyDamageToEntity(
 	if not damageResult.wasHit then
 		-- Show dodge feedback if target dodged
 		if damageResult.wasDodged then
-			CombatFeedback.showDamage(target, 0, weaponName, "dodge", attacker)
+			CombatFeedback.showDamage(target, 0, weaponId, "dodge", attacker)
 		end
 		return {
 			success = false,
@@ -783,7 +783,7 @@ function CombatSystem.applyDamageToEntity(
 
 	-- Set invulnerability (unless bypassed)
 	if not opts.bypassInvulnerability then
-		setInvulnerability(target, weaponName, GameConfig.combat.invulnerabilityDuration or 0.5)
+		setInvulnerability(target, weaponId, GameConfig.combat.invulnerabilityDuration or 0.5)
 	end
 
 	-- Determine damage type for feedback
@@ -805,7 +805,7 @@ function CombatSystem.applyDamageToEntity(
 	end
 
 	-- Show damage feedback
-	CombatFeedback.showDamage(target, math.abs(finalDamage), weaponName, damageType, attacker)
+	CombatFeedback.showDamage(target, math.abs(finalDamage), weaponId, damageType, attacker)
 
 	-- Play hit sound
 	CombatFeedback.playHitSound(target, "Hit")
@@ -830,12 +830,12 @@ end
 function CombatSystem.performHitscan(
 	origin: Vector3,
 	direction: Vector3,
-	weaponName: string,
+	weaponId: string,
 	attacker: Model,
 	attackingPlayer: Player?,
 	lockedTarget: Model?
 ): AttackResult
-	local weaponConfig = CombatSystem.getWeaponConfig(weaponName)
+	local weaponConfig = CombatSystem.getWeaponConfig(weaponId)
 	if not weaponConfig or weaponConfig.type ~= "hitscan" then
 		return {
 			hit = false,
@@ -899,7 +899,7 @@ function CombatSystem.performHitscan(
 				HitscanEffects.showBeam(
 					origin,
 					origin + (direction.Unit * weaponConfig.range),
-					weaponName,
+					weaponId,
 					0.15,
 					weaponConfig.damage and weaponConfig.damage < 0
 				)
@@ -921,8 +921,8 @@ function CombatSystem.performHitscan(
 		if not hitEntity then
 			-- Hit terrain/wall
 			if weaponConfig.visualEffect == "beam" then
-				HitscanEffects.showBeam(origin, hitPosition, weaponName, 0.3, weaponConfig.damage and weaponConfig.damage < 0)
-				HitscanEffects.showHitEffect(hitPosition, hitNormal, weaponName, weaponConfig.damage and weaponConfig.damage < 0)
+				HitscanEffects.showBeam(origin, hitPosition, weaponId, 0.3, weaponConfig.damage and weaponConfig.damage < 0)
+				HitscanEffects.showHitEffect(hitPosition, hitNormal, weaponId, weaponConfig.damage and weaponConfig.damage < 0)
 			end
 			return {
 				hit = false,
@@ -945,7 +945,7 @@ function CombatSystem.performHitscan(
 			if targetPlayer ~= attackerPlayer then
 				-- TODO: Add team support when teams are implemented
 				if weaponConfig.visualEffect == "beam" then
-					HitscanEffects.showBeam(origin, hitPosition, weaponName, 0.3, weaponConfig.damage and weaponConfig.damage < 0)
+					HitscanEffects.showBeam(origin, hitPosition, weaponId, 0.3, weaponConfig.damage and weaponConfig.damage < 0)
 				end
 				print(`Target filter blocked: {weaponConfig.name} can only target allies`)
 				return {
@@ -961,7 +961,7 @@ function CombatSystem.performHitscan(
 			-- Can only target enemies (different player or NPCs)
 			if targetPlayer == attackerPlayer then
 				if weaponConfig.visualEffect == "beam" then
-					HitscanEffects.showBeam(origin, hitPosition, weaponName, 0.3, weaponConfig.damage and weaponConfig.damage < 0)
+					HitscanEffects.showBeam(origin, hitPosition, weaponId, 0.3, weaponConfig.damage and weaponConfig.damage < 0)
 				end
 				print(`Target filter blocked: {weaponConfig.name} can only target enemies`)
 				return {
@@ -977,16 +977,16 @@ function CombatSystem.performHitscan(
 	end
 
 	-- Apply damage via central function
-	local result = CombatSystem.applyDamageToEntity(attacker, hitEntity, weaponName, {
+	local result = CombatSystem.applyDamageToEntity(attacker, hitEntity, weaponId, {
 		hitPosition = hitPosition,
 	})
 
 	-- Show visual effects (even if damage failed due to invuln/PvP)
 	if weaponConfig.visualEffect == "beam" then
 		-- Beam lingers for 0.3s to show the path
-		HitscanEffects.showBeam(origin, hitPosition, weaponName, 0.3, weaponConfig.damage and weaponConfig.damage < 0)
+		HitscanEffects.showBeam(origin, hitPosition, weaponId, 0.3, weaponConfig.damage and weaponConfig.damage < 0)
 		if result.success then
-			HitscanEffects.showHitEffect(hitPosition, hitNormal, weaponName, weaponConfig.damage and weaponConfig.damage < 0)
+			HitscanEffects.showHitEffect(hitPosition, hitNormal, weaponId, weaponConfig.damage and weaponConfig.damage < 0)
 		end
 	end
 
@@ -1022,14 +1022,14 @@ end
 function CombatSystem.performProjectileAttack(
 	origin: Vector3,
 	direction: Vector3,
-	weaponName: string,
+	weaponId: string,
 	attacker: Model,
 	attackingPlayer: Player?,
 	lockedTarget: Model?
 ): boolean
-	local weaponConfig = CombatSystem.getWeaponConfig(weaponName)
+	local weaponConfig = CombatSystem.getWeaponConfig(weaponId)
 	if not weaponConfig or weaponConfig.type ~= "projectile" then
-		warn(`Weapon {weaponName} is not a projectile weapon`)
+		warn(`Weapon {weaponId} is not a projectile weapon`)
 		return false
 	end
 
@@ -1052,7 +1052,7 @@ function CombatSystem.performProjectileAttack(
 	end
 
 	-- Return true - caller (ProjectileManager) will spawn projectile
-	print(`Projectile attack validated for {attacker.Name} with {weaponName}`)
+	print(`Projectile attack validated for {attacker.Name} with {weaponId}`)
 	return true
 end
 

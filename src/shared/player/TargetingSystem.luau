@@ -4,9 +4,9 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local GameConfig = require(script.Parent.Parent:WaitForChild("config"))
+local GameConfig = require(script.Parent.Parent:WaitForChild("Config"))
 local Entities = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Data"):WaitForChild("Entities"):WaitForChild("Entities"))
-local Types = require(script.Parent.Parent:WaitForChild("core"):WaitForChild("Types"))
+local Types = require(script.Parent.Parent:WaitForChild("Core"):WaitForChild("Types"))
 
 type TargetInfo = Types.TargetInfo
 type EntityType = Types.EntityType
@@ -42,7 +42,6 @@ local function isTargetable(model: Model): boolean
 		return false
 	end
 
-	print('Found entity type: ' .. entityType)
 	-- Check if entity exists in Entities.Database
 	local entityData = Entities.Database[entityId]
 

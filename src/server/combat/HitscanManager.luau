@@ -16,8 +16,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 
 local CombatSystem = require(script.Parent:WaitForChild("CombatSystem"))
-local HitscanEffects = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("visual-effects"):WaitForChild("HitscanEffects"))
+local HitscanEffects = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("VisualFX"):WaitForChild("HitscanEffects"))
 local GameConfig = require(ServerScriptService:WaitForChild("Server"):WaitForChild("Config"):WaitForChild("GameConfig"))
+local ProjectileLOS = require(ServerScriptService:WaitForChild("Server"):WaitForChild("Combat"):WaitForChild("ProjectileLOS"))
 
 local HitscanManager = {}
 
@@ -26,7 +27,7 @@ local HitscanManager = {}
 
 	@param origin - Starting position of hitscan
 	@param direction - Direction vector (auto-aim or look direction)
-	@param weaponName - Name of weapon (e.g., "MagicMissile")
+	@param weaponId - Name of weapon (e.g., "MagicMissile")
 	@param attacker - Entity firing the hitscan
 	@param attackingPlayer - Player if attacker is player character
 	@param lockedTarget - Locked target (for auto-aim and range validation)
@@ -35,7 +36,7 @@ local HitscanManager = {}
 function HitscanManager.performHitscan(
 	origin: Vector3,
 	direction: Vector3,
-	weaponName: string,
+	weaponId: string,
 	attacker: Model,
 	attackingPlayer: Player?,
 	lockedTarget: Model?
@@ -44,7 +45,7 @@ function HitscanManager.performHitscan(
 	local result = CombatSystem.performHitscan(
 		origin,
 		direction,
-		weaponName,
+		weaponId,
 		attacker,
 		attackingPlayer,
 		lockedTarget
@@ -115,18 +116,18 @@ end
 
 	@param attacker - Entity attempting to attack
 	@param lockedTarget - Locked target (required for auto-aim)
-	@param weaponName - Name of weapon
+	@param weaponId - Name of weapon
 	@return boolean - True if valid, false otherwise
 	@return string? - Error message if invalid
 ]]
 function HitscanManager.validateAttack(
 	attacker: Model,
 	lockedTarget: Model?,
-	weaponName: string
+	weaponId: string
 ): (boolean, string?)
-	local weaponConfig = CombatSystem.getWeaponConfig(weaponName)
+	local weaponConfig = CombatSystem.getWeaponConfig(weaponId)
 	if not weaponConfig or weaponConfig.type ~= "hitscan" then
-		return false, `Invalid weapon: {weaponName}`
+		return false, `Invalid weapon: {weaponId}`
 	end
 
 	-- Check combat mode
@@ -165,7 +166,6 @@ function HitscanManager.validateAttack(
 
 	-- Check line of sight (if required)
 	if weaponConfig.requiresLineOfSight and lockedTarget then
-		local ProjectileLOS = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("combat"):WaitForChild("ProjectileLOS"))
 		local losResult = ProjectileLOS.canTargetEntity(attacker, lockedTarget)
 
 		if not losResult.hasLineOfSight then
