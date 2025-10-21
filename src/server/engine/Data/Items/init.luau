@@ -1,13 +1,38 @@
+--!strict
+
+-- ENGINE MODULE: Item loader that combines base data with game-specific stats
+-- Type definitions are in server/engine/Data/ItemTypes.luau (to avoid circular deps)
+-- Game-specific stats are defined in src/server/games/{gameName}/Data/Items/
+
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local ConsumableData = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Data"):WaitForChild("Items"):WaitForChild("Consumables"))
-local ToolData = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Data"):WaitForChild("Items"):WaitForChild("Tools"))
-local WeaponData = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Data"):WaitForChild("Items"):WaitForChild("Weapons"))
+local ServerScriptService = game:GetService("ServerScriptService")
 
-local ItemDatabase = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Data"):WaitForChild("Items"):WaitForChild("Items"))
+-- Import and re-export types from ItemTypes module
+local ItemTypes = require(script.Parent.ItemTypes)
+export type WeaponType = ItemTypes.WeaponType
+export type ProjectileConfig = ItemTypes.ProjectileConfig
+export type WeaponSpec = ItemTypes.WeaponSpec
+export type ToolCategory = ItemTypes.ToolCategory
+export type ToolSpec = ItemTypes.ToolSpec
+export type ConsumableEffect = ItemTypes.ConsumableEffect
+export type ConsumableSpec = ItemTypes.ConsumableSpec
 
-local ConsumableStats = require(script:WaitForChild("ConsumableStats"))
-local ToolStats = require(script:WaitForChild("ToolStats"))
-local WeaponStats = require(script:WaitForChild("WeaponStats"))
+-- ═══════════════════════════════════════════════════
+-- DEPENDENCIES
+-- ═══════════════════════════════════════════════════
+
+-- Game-specific data (from Games folder - ReplicatedStorage)
+local GamesDataFolder = ReplicatedStorage:WaitForChild("Games"):WaitForChild("Data"):WaitForChild("Items")
+local ItemDatabase = require(GamesDataFolder:WaitForChild("Items"))
+local ConsumableData = require(GamesDataFolder:WaitForChild("Consumables"))
+local ToolData = require(GamesDataFolder:WaitForChild("Tools"))
+local WeaponData = require(GamesDataFolder:WaitForChild("Weapons"))
+
+-- Game-specific stats (from Games folder - ServerScriptService)
+local GamesFolder = ServerScriptService:WaitForChild("Games"):WaitForChild("Data"):WaitForChild("Items")
+local ConsumableStats = require(GamesFolder:WaitForChild("ConsumableStats"))
+local ToolStats = require(GamesFolder:WaitForChild("ToolStats"))
+local WeaponStats = require(GamesFolder:WaitForChild("WeaponStats"))
 
 local Items = {}
 

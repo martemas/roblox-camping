@@ -1,16 +1,14 @@
 --!strict
 
--- SERVER-ONLY: Actual tool stats (NEVER sent to client)
+-- GAME-SPECIFIC: Alpha game tool stats
+-- Type definitions are in server/engine/Data/ItemTypes.luau
+
+local ServerScriptService = game:GetService("ServerScriptService")
+local ItemTypes = require(ServerScriptService:WaitForChild("Engine"):WaitForChild("Data"):WaitForChild("ItemTypes"))
+
 local ToolStats = {}
 
-export type ToolCategory = "Axe" | "Pickaxe"
-
-export type ToolSpec = {
-	category: ToolCategory,
-	miningSpeed: number, -- Multiplier for resource gathering
-	swingCooldown: number,
-	weaponRef: string, -- References WeaponStats for combat
-}
+export type ToolSpec = ItemTypes.ToolSpec
 
 ToolStats.Stats = {
 	Axe = {

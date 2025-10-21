@@ -1,47 +1,14 @@
 --!strict
 
--- SERVER-ONLY: Actual weapon stats (NEVER sent to client)
+-- GAME-SPECIFIC: Alpha game weapon stats
+-- Type definitions are in server/engine/Data/ItemTypes.luau
+
+local ServerScriptService = game:GetService("ServerScriptService")
+local ItemTypes = require(ServerScriptService:WaitForChild("Engine"):WaitForChild("Data"):WaitForChild("ItemTypes"))
+
 local WeaponStats = {}
 
-export type WeaponType = "melee" | "projectile" | "hitscan" | "aoe"
-
-export type ProjectileConfig = {
-	modelPath: string,
-	trailEnabled: boolean,
-	trailColor: Color3,
-	impactEffect: string,
-}
-
-export type WeaponSpec = {
-	type: WeaponType,
-	name: string,
-	damage: number,
-	range: number,
-	cooldown: number,
-	castDuration: number,
-
-	-- Projectile properties
-	projectileSpeed: number?,
-	requiresLineOfSight: boolean?,
-	damageTargetOnly: boolean?,
-	penetratesEntities: boolean?,
-	projectileConfig: ProjectileConfig?,
-
-	-- Hitscan properties
-	visualEffect: string?,
-	targetFilter: string?,
-	requiresTarget: boolean?,
-	requireFacingForDamage: boolean?,
-
-	-- AOE properties
-	aoeOnImpact: boolean?,
-	aoeDamage: number?,
-	aoeRadius: number?,
-	aoeFalloff: boolean?,
-	maxTargets: number?,
-	duration: number?,
-	tickRate: number?,
-}
+export type WeaponSpec = ItemTypes.WeaponSpec
 
 WeaponStats.Stats = {
 	-- ========================================

@@ -1,59 +1,15 @@
 --!strict
 
--- SERVER-ONLY: Actual wildlife stats, AI behavior, drops
+-- GAME-SPECIFIC: Alpha game wildlife stats, AI behavior, drops
 -- Client only sees display data from shared/Data/Entities/Wildlife.luau
+-- Type definitions are in server/engine/Data/EntityTypes.luau
+
+local ServerScriptService = game:GetService("ServerScriptService")
+local EntityTypes = require(ServerScriptService:WaitForChild("Engine"):WaitForChild("Data"):WaitForChild("EntityTypes"))
 
 local WildlifeStats = {}
 
-export type AIBehavior = {
-	profile: string,
-	behaviors: {
-		idle: string,
-		onDamaged: string,
-		onPlayerNear: string,
-	},
-	targetPriority: { string }?,
-	aggroRange: number?,
-	wanderRadius: number?,
-	returnToSpawn: boolean?,
-	returnSpeed: number?,
-	retargetBehavior: string?,
-}
-
-export type DropConfig = {
-	chance: number,
-	min: number,
-	max: number,
-	chanceModifiers: { [string]: number }?,
-	maxChance: number?,
-	excludeIf: { string }?,
-	requireIf: { string }?,
-}
-
-export type WildlifeStats = {
-	-- Health & Movement
-	health: number,
-	walkSpeed: number,
-	runSpeed: number,
-	jumpCooldown: number?,
-	canJump: boolean?,
-	canTakeDamage: boolean?,
-
-	-- Combat
-	primaryWeapon: string, -- Reference to Weapons (e.g., "WolfClaw" from Items/Weapons)
-	baseStats: {
-		strength: number,
-		magic: number,
-		stamina: number,
-		accuracy: number,
-	},
-
-	-- Drops (reference item IDs from Items.Database)
-	drops: { [string]: DropConfig }?,
-
-	-- AI Behavior
-	ai: AIBehavior?,
-}
+export type WildlifeStats = EntityTypes.WildlifeStats
 
 WildlifeStats.Stats = {
 	Wolf = {

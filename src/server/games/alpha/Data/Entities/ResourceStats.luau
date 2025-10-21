@@ -1,36 +1,16 @@
 --!strict
 
--- SERVER-ONLY: Actual resource node stats, health, drops
+-- GAME-SPECIFIC: Alpha game resource node stats, health, drops
 -- Client only sees display data from shared/Data/Entities/Resources.luau
+-- Type definitions are in server/engine/Data/EntityTypes.luau
 -- Note: This is for resource NODES (entities), not resource ITEMS
+
+local ServerScriptService = game:GetService("ServerScriptService")
+local EntityTypes = require(ServerScriptService:WaitForChild("Engine"):WaitForChild("Data"):WaitForChild("EntityTypes"))
 
 local ResourceStats = {}
 
-export type DropConfig = {
-	chance: number,
-	min: number,
-	max: number,
-	chanceModifiers: { [string]: number }?,
-	maxChance: number?,
-	excludeIf: { string }?,
-	requireIf: { string }?,
-}
-
-export type ResourceStats = {
-	-- Health
-	health: number,
-	canTakeDamage: boolean?,
-	-- spawnMode: string?,
-	nodesCount: number?, -- Number of times this resource can be harvested before depletion
-
-	-- Harvesting
-	requiredToolCategory: string?, -- Tool category required (e.g., "Axe", "Pickaxe")
-	hitsRequired: number?,
-	miningDuration: number?, -- Base time to harvest (modified by tool stats)
-
-	-- Drops (reference item IDs from Items.Database)
-	drops: { [string]: DropConfig },
-}
+export type ResourceStats = EntityTypes.ResourceStats
 
 ResourceStats.Stats = {
 	Tree = {

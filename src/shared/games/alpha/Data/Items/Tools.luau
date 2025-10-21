@@ -1,16 +1,15 @@
 --!strict
 
--- CLIENT-VISIBLE: Display information only
+-- GAME-SPECIFIC: Alpha game tool display data
+-- Type definitions are in shared/engine/Data/ItemDisplayTypes.luau
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ItemDisplayTypes = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Data"):WaitForChild("ItemDisplayTypes"))
+
 local Tools = {}
 
-export type ToolCategory = "Axe" | "Pickaxe"
-
-export type ToolDisplayData = {
-	displayName: string,
-	category: ToolCategory,
-	description: string?,
-	icon: string?,
-}
+export type ToolCategory = ItemDisplayTypes.ToolCategory
+export type ToolDisplayData = ItemDisplayTypes.ToolDisplayData
 
 Tools.Display = {
 	Axe = {

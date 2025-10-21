@@ -23,8 +23,8 @@ local PlayerSettings = require(ReplicatedStorage:WaitForChild("Engine"):WaitForC
 local Types = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Core"):WaitForChild("Types"))
 local RemoteEvents = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Core"):WaitForChild("RemoteEvents"))
 local CombatUtils = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Combat"):WaitForChild("CombatUtils"))
-local Items = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Data"):WaitForChild("Items"):WaitForChild("Items"))
 local GameConfig = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Config"))
+local WeaponInfoCache = require(script.Parent.WeaponInfoCache)
 
 -- Import TargetHUD component
 local TargetHUD = require(script.Parent.ui.TargetHUD)
@@ -108,20 +108,20 @@ local function calculateAttackStatus(targetInfo: TargetInfo): (Color3, string)
 		return Color3.fromRGB(150, 150, 150), "NO WEAPON"
 	end
 
-	-- Get weapon display data from Items (client-safe)
-	local weaponData = Items.Database[weaponName]
-	if not weaponData or not weaponData.weaponData then
+	-- Get weapon info from cache (fetches from server if needed)
+	local weaponInfo = WeaponInfoCache.getWeaponInfo(weaponName)
+	if not weaponInfo then
 		return Color3.fromRGB(150, 150, 150), "NO WEAPON DATA"
 	end
 
-	-- Use approximate weapon config from Items display data
+	-- Use weapon config for UI feedback
 	-- Note: This is for UI feedback only. Server validates actual attacks.
 	local weaponConfig = {
-		range = weaponData.range or 10,
-		targetFilter = weaponData.targetFilter,
-		requireFacingForDamage = weaponData.requireFacingForDamage,
-		requiresLineOfSight = weaponData.requiresLineOfSight,
-		type = weaponData.weaponType or "melee",
+		range = weaponInfo.range,
+		targetFilter = weaponInfo.targetFilter,
+		requireFacingForDamage = weaponInfo.requireFacingForDamage,
+		requiresLineOfSight = weaponInfo.requiresLineOfSight,
+		type = weaponInfo.weaponType,
 	}
 
 	-- Check target filter first (allies/enemies)
@@ -149,15 +149,12 @@ local function calculateAttackStatus(targetInfo: TargetInfo): (Color3, string)
 
 	-- Check distance
 	local distance = (targetRoot.Position - playerRoot.Position).Magnitude
-
-	print("Range is ")
-	print(weaponConfig)
 	local inRange = distance <= weaponConfig.range
 
 	if not inRange then
 		return Color3.fromRGB(255, 150, 0), "OUT OF RANGE"
 	end
-print("B")
+
 	-- Check facing (if required)
 	local requireFacing = weaponConfig.requireFacingForDamage
 	if requireFacing == nil then

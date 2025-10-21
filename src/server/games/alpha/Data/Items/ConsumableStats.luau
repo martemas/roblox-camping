@@ -1,20 +1,14 @@
 --!strict
 
--- SERVER-ONLY: Actual consumable effects (NEVER sent to client)
+-- GAME-SPECIFIC: Alpha game consumable stats
+-- Type definitions are in server/engine/Data/ItemTypes.luau
+
+local ServerScriptService = game:GetService("ServerScriptService")
+local ItemTypes = require(ServerScriptService:WaitForChild("Engine"):WaitForChild("Data"):WaitForChild("ItemTypes"))
+
 local ConsumableStats = {}
 
-export type ConsumableEffect = {
-	type: "heal" | "buff" | "debuff",
-	value: number,
-	duration: number?,
-	stat: string?,
-}
-
-export type ConsumableSpec = {
-	effects: { ConsumableEffect },
-	cooldown: number?,
-	soundEffect: string?,
-}
+export type ConsumableSpec = ItemTypes.ConsumableSpec
 
 ConsumableStats.Stats = {
 	SmallMeat = {

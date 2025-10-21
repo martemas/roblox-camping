@@ -1,21 +1,15 @@
 --!strict
 
--- CLIENT-VISIBLE: Display information only for resource nodes
--- Actual stats, drops, health are in server/Data/Entities/ResourceStats.luau
+-- GAME-SPECIFIC: Alpha game resource display data
+-- Type definitions are in shared/engine/Data/EntityDisplayTypes.luau
 -- Note: This is for resource NODES (entities), not resource ITEMS (see Items/Resources.luau)
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local EntityDisplayTypes = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Data"):WaitForChild("EntityDisplayTypes"))
 
 local Resources = {}
 
-export type ResourceDisplayData = {
-	displayName: string,
-	description: string?,
-	icon: string?,
-	harvestTool: string?, -- Tool type required (Axe, Pickaxe, etc.)
-	sounds: {
-		harvest: string?,
-		destroyed: string?,
-	}?,
-}
+export type ResourceDisplayData = EntityDisplayTypes.ResourceDisplayData
 
 Resources.Display = {
 	Tree = {

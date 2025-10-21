@@ -1,14 +1,14 @@
 --!strict
 
--- CLIENT-VISIBLE: Display information only
+-- GAME-SPECIFIC: Alpha game consumable display data
+-- Type definitions are in shared/engine/Data/ItemDisplayTypes.luau
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ItemDisplayTypes = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Data"):WaitForChild("ItemDisplayTypes"))
+
 local Consumables = {}
 
-export type ConsumableDisplayData = {
-	displayName: string,
-	description: string,
-	icon: string?,
-	useSound: string?,
-}
+export type ConsumableDisplayData = ItemDisplayTypes.ConsumableDisplayData
 
 Consumables.Display = {
 	SmallMeat = {

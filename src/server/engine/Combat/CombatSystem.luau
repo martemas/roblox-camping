@@ -953,6 +953,30 @@ function CombatSystem.performHitscan(
 				blockedByInvulnerability = false
 			}
 		end
+
+		-- Validate range to hit entity (check distance from attacker to entity)
+		local attackerRoot = attacker:FindFirstChild("HumanoidRootPart") :: BasePart?
+		if attackerRoot then
+			local targetRoot = hitEntity:FindFirstChild("HumanoidRootPart") or hitEntity:FindFirstChild("Torso") :: BasePart?
+			if targetRoot and targetRoot:IsA("BasePart") then
+				local distance = getDistance(attackerRoot.Position, targetRoot.Position)
+				if distance > weaponConfig.range then
+					-- Hit entity is out of range
+					if weaponConfig.visualEffect == "beam" then
+						HitscanEffects.showBeam(origin, hitPosition, weaponId, 0.3, weaponConfig.damage and weaponConfig.damage < 0)
+					end
+					print(`Hitscan {weaponId} hit {hitEntity.Name} but target is out of range ({distance} > {weaponConfig.range})`)
+					return {
+						hit = false,
+						target = hitEntity,
+						damage = nil,
+						wasInRange = false,
+						wasDodged = true,
+						blockedByInvulnerability = false
+					}
+				end
+			end
+		end
 	end
 
 	-- Check target filter (allies/enemies)

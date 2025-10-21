@@ -22,7 +22,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Utils = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Core"):WaitForChild("Utils"))
 local GameConfig = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Config"))
 local EntityController = require(script.Parent:WaitForChild("EntityController"))
-local Entities = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Data"):WaitForChild("Entities"):WaitForChild("Entities"))
+local Entities = require(ReplicatedStorage:WaitForChild("Games"):WaitForChild("Data"):WaitForChild("Entities"):WaitForChild("Entities"))
 
 -- Types
 export type SpawnLocation =

@@ -186,6 +186,20 @@ end
 	@param hitPart - The specific body part that was hit
 ]]
 local function applyDamage(projectile: ProjectileInstance, entity: Model, hitPart: BasePart?)
+	-- Validate range before applying damage
+	local attackerRoot = projectile.attacker:FindFirstChild("HumanoidRootPart") :: BasePart?
+	local targetRoot = entity:FindFirstChild("HumanoidRootPart") or entity:FindFirstChild("Torso") :: BasePart?
+
+	if attackerRoot and targetRoot and targetRoot:IsA("BasePart") then
+		local distance = (targetRoot.Position - attackerRoot.Position).Magnitude
+
+		-- Check if target is within weapon range
+		if distance > projectile.maxRange then
+			warn(`Projectile {projectile.weapon} hit {entity.Name} but target is out of range ({distance} > {projectile.maxRange})`)
+			return
+		end
+	end
+
 	-- Get stats for damage calculation
 	local attackerStats = StatsProvider.getStats(projectile.attacker)
 	local targetStats = StatsProvider.getStats(entity)

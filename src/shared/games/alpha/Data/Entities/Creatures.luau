@@ -1,29 +1,14 @@
 --!strict
 
--- CLIENT-VISIBLE: Display information only (names, animations, sounds, icons)
--- Actual stats, AI behavior, drops are in server/Data/Entities/CreatureStats.luau
+-- GAME-SPECIFIC: Alpha game creature display data
+-- Type definitions are in shared/engine/Data/EntityDisplayTypes.luau
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local EntityDisplayTypes = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Data"):WaitForChild("EntityDisplayTypes"))
 
 local Creatures = {}
 
-export type CreatureDisplayData = {
-	displayName: string,
-	description: string?,
-	icon: string?,
-	animationIds: {
-		walk: string?,
-		run: string?,
-		jump: string?,
-		attack: string?,
-		idle: string?,
-		death: string?,
-	}?,
-	sounds: {
-		idle: string?,
-		attack: string?,
-		hurt: string?,
-		death: string?,
-	}?,
-}
+export type CreatureDisplayData = EntityDisplayTypes.CreatureDisplayData
 
 Creatures.Display = {
 	Zombie = {

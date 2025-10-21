@@ -1,16 +1,14 @@
 --!strict
 
--- CLIENT-VISIBLE: Display information only (names, animations, sounds, icons)
+-- GAME-SPECIFIC: Alpha game weapon display data
+-- Type definitions are in shared/engine/Data/ItemDisplayTypes.luau
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ItemDisplayTypes = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Data"):WaitForChild("ItemDisplayTypes"))
+
 local Weapons = {}
 
-export type WeaponDisplayData = {
-	displayName: string,
-	description: string?,
-	icon: string?,
-	animationId: string?,
-	attackSound: string?,
-	equipModel: string?,
-}
+export type WeaponDisplayData = ItemDisplayTypes.WeaponDisplayData
 
 Weapons.Display = {
 	Axe = {

@@ -1,16 +1,42 @@
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local EntityDatabase = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Data"):WaitForChild("Entities"):WaitForChild("Entities"))
-local CreatureData = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Data"):WaitForChild("Entities"):WaitForChild("Creatures"))
-local NPCData = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Data"):WaitForChild("Entities"):WaitForChild("NPCs"))
-local ResourceData = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Data"):WaitForChild("Entities"):WaitForChild("Resources"))
-local StructureData = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Data"):WaitForChild("Entities"):WaitForChild("Structures"))
-local WildlifeData = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Data"):WaitForChild("Entities"):WaitForChild("Wildlife"))
+--!strict
 
-local Creature = require(script.CreatureStats)
-local NPCStats = require(script.NPCStats)
-local ResourceStats = require(script.ResourceStats)
-local StructureStats = require(script.StructureStats)
-local WildlifeStats = require(script.WildlifeStats)
+-- ENGINE MODULE: Entity loader that combines base data with game-specific stats
+-- Type definitions are in server/engine/Data/EntityTypes.luau (to avoid circular deps)
+-- Game-specific stats are defined in src/server/games/{gameName}/Data/Entities/
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
+
+-- Import and re-export types from EntityTypes module
+local EntityTypes = require(script.Parent.EntityTypes)
+export type AIBehavior = EntityTypes.AIBehavior
+export type DropConfig = EntityTypes.DropConfig
+export type CreatureStats = EntityTypes.CreatureStats
+export type NPCStats = EntityTypes.NPCStats
+export type ResourceStats = EntityTypes.ResourceStats
+export type StructureStats = EntityTypes.StructureStats
+export type WildlifeStats = EntityTypes.WildlifeStats
+
+-- ═══════════════════════════════════════════════════
+-- DEPENDENCIES
+-- ═══════════════════════════════════════════════════
+
+-- Game-specific data (from Games folder - ReplicatedStorage)
+local GamesDataFolder = ReplicatedStorage:WaitForChild("Games"):WaitForChild("Data"):WaitForChild("Entities")
+local EntityDatabase = require(GamesDataFolder:WaitForChild("Entities"))
+local CreatureData = require(GamesDataFolder:WaitForChild("Creatures"))
+local NPCData = require(GamesDataFolder:WaitForChild("NPCs"))
+local ResourceData = require(GamesDataFolder:WaitForChild("Resources"))
+local StructureData = require(GamesDataFolder:WaitForChild("Structures"))
+local WildlifeData = require(GamesDataFolder:WaitForChild("Wildlife"))
+
+-- Game-specific stats (from Games folder - ServerScriptService)
+local GamesFolder = ServerScriptService:WaitForChild("Games"):WaitForChild("Data"):WaitForChild("Entities")
+local Creature = require(GamesFolder:WaitForChild("CreatureStats"))
+local NPCStats = require(GamesFolder:WaitForChild("NPCStats"))
+local ResourceStats = require(GamesFolder:WaitForChild("ResourceStats"))
+local StructureStats = require(GamesFolder:WaitForChild("StructureStats"))
+local WildlifeStats = require(GamesFolder:WaitForChild("WildlifeStats"))
 
 local Entities = {}
 
