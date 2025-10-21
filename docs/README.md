@@ -115,10 +115,17 @@ docs/
 
 src/
 ├── client/
+│   ├── init.client.luau                   ← Client entry point
+│   ├── UI.client.luau                     ← UI orchestrator
 │   ├── UIConfig.luau                      ← ALL UI SETTINGS
-│   ├── UI.client.luau                     ← Unified UI orchestrator
 │   ├── UIManager.luau                     ← Component lifecycle & registry
-│   └── ui/                                ← UI components (all 10)
+│   ├── BuildingController.client.luau     ← Building placement
+│   ├── EntityTargeting.client.luau        ← Entity selection & targeting
+│   ├── HealthBarAttacher.client.luau      ← Entity health bar display
+│   ├── MovementController.client.luau     ← Player movement
+│   ├── TargetHUD.client.luau              ← Target display UI
+│   ├── ToolClickHandler.client.luau       ← Tool interaction handler
+│   └── ui/                                ← UI components
 │       ├── UIComponent.luau               ← Base component class
 │       ├── XPBar.luau
 │       ├── StatsPanel.luau
@@ -128,22 +135,94 @@ src/
 │       ├── PhaseTimer.luau
 │       ├── HealthBar.luau
 │       ├── StaminaBar.luau
+│       ├── TargetHUD.luau
 │       ├── Notification.luau
 │       └── Shop.luau
 │
 ├── server/
-│   ├── PlayerStats.luau                   ← Stats & XP backend
-│   ├── XPRewardManager.luau               ← XP tracking
-│   └── SpawnManager.server.luau           ← High-level spawning logic
+│   ├── init.server.luau                   ← Server entry point
+│   ├── Config/
+│   │   ├── GameConfig.luau                ← Server-side game rules
+│   │   └── Economy.luau                   ← Prices & costs
+│   ├── Data/
+│   │   ├── Items/
+│   │   │   ├── init.luau                  ← Item stats aggregator
+│   │   │   ├── WeaponStats.luau           ← Weapon stats (server-only)
+│   │   │   ├── ToolStats.luau             ← Tool stats (server-only)
+│   │   │   └── ConsumableStats.luau       ← Consumable effects (server-only)
+│   │   └── Entities/
+│   │       ├── init.luau                  ← Entity stats aggregator
+│   │       ├── WildlifeStats.luau         ← Wildlife stats (server-only)
+│   │       ├── CreatureStats.luau         ← Creature stats (server-only)
+│   │       ├── NPCStats.luau              ← NPC stats (server-only)
+│   │       ├── StructureStats.luau        ← Structure stats (server-only)
+│   │       └── ResourceStats.luau         ← Resource node stats (server-only)
+│   ├── Combat/
+│   │   ├── CombatSystem.luau              ← Central damage system
+│   │   ├── DamageCalculator.luau          ← Damage calculations
+│   │   ├── Stats.luau                     ← Stats calculations
+│   │   ├── StatsProvider.luau             ← Entity stats provider
+│   │   ├── ProjectileManager.luau         ← Projectile weapon handling
+│   │   ├── ProjectilePhysics.luau         ← Projectile physics
+│   │   ├── ProjectileLOS.luau             ← Line-of-sight checks
+│   │   ├── HitscanManager.luau            ← Hitscan weapon handling
+│   │   └── AOEZoneManager.luau            ← AOE damage zones
+│   ├── Entities/
+│   │   ├── EntitySpawner.luau             ← Entity spawning facade
+│   │   └── EntityController.luau          ← AI & entity management
+│   ├── PlayerStats.luau                   ← Player stats & XP backend
+│   ├── XPRewardManager.luau               ← XP tracking & rewards
+│   ├── SpawnManager.server.luau           ← Spawn orchestration
+│   ├── EntityAIManager.server.luau        ← AI behavior management
+│   ├── TargetManager.server.luau          ← Target selection backend
+│   ├── InventoryManager.server.luau       ← Inventory backend
+│   ├── ShopManager.server.luau            ← Shop transactions
+│   ├── ToolManager.server.luau            ← Tool equipping & usage
+│   ├── DropSystem.luau                    ← Item drops & loot
+│   ├── ResourceManager.server.luau        ← Resource node management
+│   ├── TownhallManager.server.luau        ← Townhall/base management
+│   ├── DayNightCycle.server.luau          ← Day/night system
+│   ├── HealthBarManager.luau              ← Health bar replication
+│   ├── AnimationManager.luau              ← Animation handling
+│   └── ProfileStore.luau                  ← Data persistence
 │
 └── shared/
-    ├── EntitySpawner.luau                 ← Stateless spawning facade
-    ├── EntityController.luau              ← AI & entity management
-    ├── UIConfig.luau                      ← UI configuration
-    ├── Stats.luau                         ← Stats calculations
-    ├── DamageCalculator.luau              ← Damage calculations
-    ├── CombatSystem.luau                  ← Central damage system
-    └── RemoteEvents.luau                  ← Client-server events
+    ├── Core/
+    │   ├── Types.luau                     ← Type definitions
+    │   ├── RemoteEvents.luau              ← Client-server events
+    │   └── Utils.luau                     ← Utility functions
+    ├── Config/
+    │   ├── init.luau                      ← Config aggregator
+    │   ├── ClientSettings.luau            ← UI/display settings
+    │   ├── DayNightCycleConfig.luau       ← Day/night settings
+    │   └── SpawnConfig.luau               ← Spawn configuration
+    ├── Data/
+    │   ├── Items/
+    │   │   ├── Items.luau                 ← Master item registry
+    │   │   ├── Weapons.luau               ← Weapon display data
+    │   │   ├── Tools.luau                 ← Tool display data
+    │   │   ├── Consumables.luau           ← Consumable display data
+    │   │   └── Resources.luau             ← Resource item data
+    │   └── Entities/
+    │       ├── Entities.luau              ← Master entity registry
+    │       ├── Wildlife.luau              ← Wildlife display data
+    │       ├── Creatures.luau             ← Creature display data
+    │       ├── NPCs.luau                  ← NPC display data
+    │       ├── Structures.luau            ← Structure display data
+    │       └── Resources.luau             ← Resource node display data
+    ├── Systems/
+    │   └── Inventory/
+    │       └── ItemValidator.luau         ← Item validation logic
+    ├── Player/
+    │   ├── PlayerSettings.luau            ← Player preferences
+    │   ├── PlayerSettingsManager.luau     ← Settings management
+    │   └── TargetingSystem.luau           ← Targeting utilities
+    ├── Combat/
+    │   └── CombatUtils.luau               ← Combat utility functions
+    └── VisualFX/
+        ├── AOETelegraph.luau              ← AOE visual indicators
+        ├── HitscanEffects.luau            ← Hitscan visual effects
+        └── CombatFeedback.luau            ← Combat feedback visuals
 ```
 
 ## 🚀 Getting Started
