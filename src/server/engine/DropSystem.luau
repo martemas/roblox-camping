@@ -26,7 +26,7 @@ local Engine = ServerScriptService:WaitForChild("Engine")
 local EngineShared = ReplicatedStorage:WaitForChild("Engine")
 
 local GameConfig = require(Engine.Config.GameConfig)
-local Items = require(ReplicatedStorage:WaitForChild("Games"):WaitForChild("Data"):WaitForChild("Items"):WaitForChild("Items"))
+local Items = require(ReplicatedStorage:WaitForChild("Games"):WaitForChild("Data"):WaitForChild("Items"))
 
 -- Types
 export type DropItemConfig = {

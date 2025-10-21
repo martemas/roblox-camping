@@ -1,7 +1,7 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Items = require(ReplicatedStorage:WaitForChild("Games"):WaitForChild("Data"):WaitForChild("Items"):WaitForChild("Items"))
+local Items = require(ReplicatedStorage:WaitForChild("Games"):WaitForChild("Data"):WaitForChild("Items"))
 
 local ItemValidator = {}
 

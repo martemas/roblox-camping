@@ -5,7 +5,7 @@ local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local GameConfig = require(script.Parent.Parent:WaitForChild("Config"))
-local Entities = require(ReplicatedStorage:WaitForChild("Games"):WaitForChild("Data"):WaitForChild("Entities"):WaitForChild("Entities"))
+local Entities = require(ReplicatedStorage:WaitForChild("Games"):WaitForChild("Data"):WaitForChild("Entities"))
 local Types = require(script.Parent.Parent:WaitForChild("Core"):WaitForChild("Types"))
 
 type TargetInfo = Types.TargetInfo

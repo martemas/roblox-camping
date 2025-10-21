@@ -658,7 +658,12 @@ local function onToolSwingWithTarget(player: Player, itemId: ToolType, clickTarg
 	local toolConfig = Items.getItem(itemId)
 
 	print(`Tool config for itemId {itemId}`, toolConfig)
-	
+
+	-- Return early if item is not a tool/weapon (e.g., Building items)
+	if not toolConfig then
+		return
+	end
+
 	-- Get weapon config for cooldown
 	local weaponConfig = toolConfig.Stats
 	if not weaponConfig then

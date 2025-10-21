@@ -5,7 +5,6 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local Players = game:GetService("Players")
 
 local GameConfig = require(ServerScriptService:WaitForChild("Engine"):WaitForChild("Config"):WaitForChild("GameConfig"))
-local Items = require(ReplicatedStorage:WaitForChild("Games"):WaitForChild("Data"):WaitForChild("Items"):WaitForChild("Items"))
 local ItemValidator = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Systems"):WaitForChild("Inventory"):WaitForChild("ItemValidator"))
 local Types = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Core"):WaitForChild("Types"))
 local RemoteEvents = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Core"):WaitForChild("RemoteEvents"))

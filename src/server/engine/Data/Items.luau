@@ -23,7 +23,7 @@ export type ConsumableSpec = ItemTypes.ConsumableSpec
 
 -- Game-specific data (from Games folder - ReplicatedStorage)
 local GamesDataFolder = ReplicatedStorage:WaitForChild("Games"):WaitForChild("Data"):WaitForChild("Items")
-local ItemDatabase = require(GamesDataFolder:WaitForChild("Items"))
+local ItemDatabase = require(GamesDataFolder)
 local ConsumableData = require(GamesDataFolder:WaitForChild("Consumables"))
 local ToolData = require(GamesDataFolder:WaitForChild("Tools"))
 local WeaponData = require(GamesDataFolder:WaitForChild("Weapons"))

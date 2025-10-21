@@ -23,7 +23,7 @@ export type WildlifeStats = EntityTypes.WildlifeStats
 
 -- Game-specific data (from Games folder - ReplicatedStorage)
 local GamesDataFolder = ReplicatedStorage:WaitForChild("Games"):WaitForChild("Data"):WaitForChild("Entities")
-local EntityDatabase = require(GamesDataFolder:WaitForChild("Entities"))
+local EntityDatabase = require(GamesDataFolder)
 local CreatureData = require(GamesDataFolder:WaitForChild("Creatures"))
 local NPCData = require(GamesDataFolder:WaitForChild("NPCs"))
 local ResourceData = require(GamesDataFolder:WaitForChild("Resources"))
