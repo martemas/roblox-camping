@@ -6,15 +6,15 @@ local RunService = game:GetService("RunService")
 local ServerScriptService = game:GetService("ServerScriptService")
 
 -- Server-side imports
-local GameConfig = require(script.Parent.Parent:WaitForChild("Config"):WaitForChild("GameConfig"))
-local Items = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Data"):WaitForChild("Items"):WaitForChild("Items"))
-local CombatFeedback = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("VisualFX"):WaitForChild("CombatFeedback"))
-local ProjectileLOS = require(ServerScriptService:WaitForChild("Server"):WaitForChild("Combat"):WaitForChild("ProjectileLOS"))
-local HitscanEffects = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("VisualFX"):WaitForChild("HitscanEffects"))
+local GameConfig = require(script.Parent.Parent.Config.GameConfig)
+local Items = require(script.Parent.Parent.Data.Items)
+local CombatFeedback = require(ReplicatedStorage.Shared.VisualFX.CombatFeedback)
+local ProjectileLOS = require(script.Parent.ProjectileLOS)
+local HitscanEffects = require(ReplicatedStorage.Shared.VisualFX.HitscanEffects)
 
--- Server-side modules (now in same directory)
-local DamageCalculator = require(script.Parent:WaitForChild("DamageCalculator"))
-local StatsProvider = require(ServerScriptService:WaitForChild("Server"):WaitForChild("Combat"):WaitForChild("StatsProvider"))
+-- Server-side modules (in same directory)
+local DamageCalculator = require(script.Parent.DamageCalculator)
+local StatsProvider = require(script.Parent.StatsProvider)
 
 -- Lazy-loaded server modules (avoid circular dependency)
 local XPRewardManager
@@ -115,9 +115,6 @@ export type ProjectileInstance = {
 
 local CombatSystem = {}
 
--- Server-side Items module (provides access to all item stats)
-local Items = require(script.Parent.Parent:WaitForChild("Data"):WaitForChild("Items"))
-
 -- Get weapon config from Items module
 function CombatSystem.getWeaponConfig(weaponId: string): WeaponConfig?
 	local item = Items.getItem(weaponId)
@@ -149,8 +146,8 @@ function CombatSystem.getPlayerWeapon(player: Player): string?
 	for _, child in character:GetChildren() do
 		if child:IsA("Tool") then
 			local toolName = child.Name
-			-- Check Items database for weapon reference
-			local itemData = Items.Database[toolName]
+			-- Check Items for weapon reference
+			local itemData = Items.getItem(toolName)
 			if itemData and itemData.weaponData then
 				-- Item has weapon data (e.g., BasicAxe → Axe)
 				return itemData.weaponData
