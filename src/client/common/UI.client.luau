@@ -24,8 +24,11 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
+local StarterPlayer = game:GetService("StarterPlayer")
 
-local UIManager = require(script.Parent:WaitForChild("UIManager"))
+local Common = StarterPlayer.StarterPlayerScripts:WaitForChild("Common")
+local ClientFramework = require(Common:WaitForChild("ClientFramework"))
+local UIManager = require(Common:WaitForChild("UIManager"))
 local RemoteEvents = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Core"):WaitForChild("RemoteEvents"))
 
 local player = Players.LocalPlayer
@@ -241,7 +244,7 @@ end
 -- Start the UI system
 initialize()
 
--- Export to global _G for other client scripts to access
-_G.GameUI = UI
+-- Register with ClientFramework
+ClientFramework.register("UI", UI)
 
 return UI

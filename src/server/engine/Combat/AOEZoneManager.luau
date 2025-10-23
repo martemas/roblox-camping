@@ -19,6 +19,7 @@
 
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerStorage = game:GetService("ServerStorage")
 local Debris = game:GetService("Debris")
 
 -- Forward declare CombatSystem and StatsProvider (loaded on first use to avoid circular dependency)
@@ -79,7 +80,7 @@ end
 ]]
 local function createZoneVisual(position: Vector3, radius: number, weaponConfig: any): Instance?
 	-- Try to load template
-	local modelsFolder = ReplicatedStorage:FindFirstChild("Models")
+	local modelsFolder = ServerStorage:FindFirstChild("Assets")
 	if not modelsFolder then
 		return nil
 	end

@@ -12,6 +12,7 @@
 local TweenService = game:GetService("TweenService")
 local Debris = game:GetService("Debris")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerStorage = game:GetService("ServerStorage")
 
 local HitscanEffects = {}
 
@@ -29,7 +30,7 @@ local function getBeamTemplate(): Model?
 		return beamTemplate
 	end
 
-	local modelsFolder = ReplicatedStorage:FindFirstChild("Models")
+	local modelsFolder = ServerStorage:FindFirstChild("Assets")
 	if not modelsFolder then
 		warn("ReplicatedStorage.Models not found")
 		return nil
@@ -67,7 +68,7 @@ local function getImpactTemplate(): Model?
 		return impactTemplate
 	end
 
-	local modelsFolder = ReplicatedStorage:FindFirstChild("Models")
+	local modelsFolder = ServerStorage:FindFirstChild("Assets")
 	if not modelsFolder then
 		return nil
 	end

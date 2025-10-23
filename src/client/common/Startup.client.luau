@@ -1,41 +1,37 @@
 --!strict
 
--- Main client entry point for the camping game
--- This script initializes all client-side systems
+--[[
+	Main Client Entry Point
 
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+	This script delegates to the active game's client initialization system.
+	The game (mapped in default.project.json) controls which client-side
+	modules are loaded and how they're configured.
+]]
+
+local StarterPlayer = game:GetService("StarterPlayer")
+local StarterPlayerScripts = StarterPlayer.StarterPlayerScripts
 local Players = game:GetService("Players")
 
 local player = Players.LocalPlayer
 
--- Wait for shared modules to load
-local GameConfig = ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Config")
-local Types = ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Core"):WaitForChild("Types")
-local RemoteEvents = ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Core"):WaitForChild("RemoteEvents")
+print("═══════════════════════════════════════════════════")
+print(`Client starting for {player.Name}...`)
+print("═══════════════════════════════════════════════════")
 
-print(`Client initializing for {player.Name}`)
+-- Load active game from Games folder (mapped in default.project.json)
+local Games = StarterPlayerScripts:WaitForChild("Games")
+local ClientGameInit = require(Games.ClientGameInit)
 
--- Initialize client systems
--- These .client.luau scripts auto-initialize:
--- - GameUI.client.luau (UI system)
--- - MovementController.client.luau (Sprint/movement)
+-- Game initializes client framework and runs game-specific setup
+ClientGameInit.initialize()
 
--- TODO: Initialize other client systems as they are added
--- - Input handling for building placement
--- - Camera effects for day/night transitions
--- - Sound management
--- - Particle effects
-
-print("Client initialization complete")
+print("═══════════════════════════════════════════════════")
+print("✓ Client ready")
+print("═══════════════════════════════════════════════════")
 
 -- Handle character spawning
 player.CharacterAdded:Connect(function(character)
 	print(`Character spawned for {player.Name}`)
-
-	-- TODO: Set up character-specific client features
-	-- - Tool animations
-	-- - Movement effects
-	-- - Health regeneration visual feedback
 end)
 
 -- Handle existing character if player already spawned

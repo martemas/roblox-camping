@@ -3,10 +3,11 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local ServerScriptService = game:GetService("ServerScriptService")
-
+local ServerStorage = game:GetService("ServerStorage")
 local Engine = ServerScriptService:WaitForChild("Engine")
 local EngineShared = ReplicatedStorage:WaitForChild("Engine")
 
+local Framework = require(Engine.Framework)
 local GameConfig = require(Engine.Config.GameConfig)
 local Items = require(Engine.Data.Items)
 local Types = require(EngineShared.Core.Types)
@@ -23,6 +24,7 @@ type ToolType = Types.ToolType
 
 local ToolManager = {}
 local playerCooldowns: {[Player]: {[string]: number}} = {}
+local isInitialized = false
 
 -- Play tool swing animation (custom or fallback to default)
 local function playToolAnimation(player: Player, toolType: ToolType)
@@ -526,7 +528,7 @@ local function onPlaceBuilding(player: Player, buildingItemId: string, placement
 	print(`{player.Name} placing {buildingItemId} at {position}`) -- DEBUG
 
 	-- Validate the building item exists
-	local modelsFolder = ReplicatedStorage:FindFirstChild("Models")
+	local modelsFolder = ServerStorage:FindFirstChild("Assets")
 	if not modelsFolder then
 		RemoteEvents.Events.ShowNotification:FireClient(player, "Models folder not found")
 		return
@@ -689,7 +691,7 @@ end
 
 -- Create a tool for the player
 local function createTool(itemId: ToolType): Tool?
-	local modelsFolder = ReplicatedStorage:FindFirstChild("Models")
+	local modelsFolder = ServerStorage:FindFirstChild("Assets")
 	if not modelsFolder then
 		warn("Models folder not found in ReplicatedStorage")
 		return nil
@@ -872,7 +874,14 @@ function ToolManager.HandleBuildingToolActivation(player: Player, tool: Tool)
 end
 
 -- Initialize the tool manager
-local function initialize()
+function ToolManager.initialize()
+	if isInitialized then
+		warn("[ToolManager] Already initialized")
+		return
+	end
+
+	isInitialized = true
+
 	-- Connect player events
 	Players.PlayerAdded:Connect(onPlayerAdded)
 	Players.PlayerRemoving:Connect(onPlayerRemoving)
@@ -888,13 +897,7 @@ local function initialize()
 	RemoteEvents.Events.SwingToolWithTarget.OnServerEvent:Connect(onToolSwingWithTarget)
 	RemoteEvents.Events.PlaceBuilding.OnServerEvent:Connect(onPlaceBuilding)
 
-	print("ToolManager initialized")
+	print("[ToolManager] ✓ Initialized")
 end
-
--- Start the system
-initialize()
-
--- Export to global _G for other servers to access
-_G.ToolManager = ToolManager
 
 return ToolManager

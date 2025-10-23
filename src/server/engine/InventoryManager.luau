@@ -13,6 +13,7 @@ type PlayerInventory = Types.PlayerInventory
 
 local InventoryManager = {}
 local playerInventories: {[Player]: PlayerInventory} = {}
+local isInitialized = false
 
 -- Initialize empty inventory
 local function createEmptyInventory(): PlayerInventory
@@ -175,7 +176,14 @@ function InventoryManager.GetMaxSize(): number
 end
 
 -- Initialize the inventory manager
-local function initialize()
+function InventoryManager.initialize()
+	if isInitialized then
+		warn("[InventoryManager] Already initialized")
+		return
+	end
+
+	isInitialized = true
+
 	-- Connect player events
 	Players.PlayerAdded:Connect(onPlayerAdded)
 	Players.PlayerRemoving:Connect(onPlayerRemoving)
@@ -188,13 +196,7 @@ local function initialize()
 	-- Connect remote functions
 	RemoteEvents.Functions.GetPlayerData.OnServerInvoke = onGetPlayerData
 
-	print("InventoryManager initialized")
+	print("[InventoryManager] ✓ Initialized")
 end
-
--- Start the system
-initialize()
-
--- Export to global _G for other servers to access
-_G.InventoryManager = InventoryManager
 
 return InventoryManager

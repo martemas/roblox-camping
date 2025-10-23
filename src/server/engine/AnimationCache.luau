@@ -1,6 +1,7 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerStorage = game:GetService("ServerStorage")
 local Types = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Core"):WaitForChild("Types"))
 
 type ToolType = Types.ToolType
@@ -59,7 +60,7 @@ end
 function AnimationCache.Initialize(): ()
 
 	-- Find Models.Tools folder
-	local modelsFolder = ReplicatedStorage:FindFirstChild("Models")
+	local modelsFolder = ServerStorage:FindFirstChild("Assets")
 	if not modelsFolder then
 		warn("[AnimationCache] Models folder not found in ReplicatedStorage")
 		return

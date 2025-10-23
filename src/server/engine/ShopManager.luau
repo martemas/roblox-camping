@@ -4,24 +4,29 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
+local ServerStorage = game:GetService("ServerStorage")
 local Players = game:GetService("Players")
 
 local Engine = ServerScriptService:WaitForChild("Engine")
 local EngineShared = ReplicatedStorage:WaitForChild("Engine")
 
+local Framework = require(Engine.Framework)
 local GameConfig = require(Engine.Config.GameConfig)
 local Types = require(EngineShared.Core.Types)
 local RemoteEvents = require(EngineShared.Core.RemoteEvents)
 
 local ShopManager = {}
-
--- Reference to TownhallManager (will be set after initialization)
-local TownhallManager = nil
+local isInitialized = false
 
 -- Check if team has enough resources for an item
 local function canAffordItem(itemId: string): boolean
 	local itemConfig = GameConfig.shop[itemId]
 	if not itemConfig then
+		return false
+	end
+
+	local TownhallManager = Framework.get("TownhallManager")
+	if not TownhallManager then
 		return false
 	end
 
@@ -45,6 +50,8 @@ end
 -- Deduct resources from team storage
 local function deductResources(itemId: string): boolean
 	local itemConfig = GameConfig.shop[itemId]
+	local TownhallManager = Framework.get("TownhallManager")
+
 	if not itemConfig or not TownhallManager then
 		return false
 	end
@@ -79,7 +86,7 @@ end
 
 -- Create building tool for player
 local function createBuildingTool(player: Player, itemId: string): Tool?
-	local modelsFolder = ReplicatedStorage:FindFirstChild("Models")
+	local modelsFolder = ServerStorage:FindFirstChild("Assets")
 	if not modelsFolder then
 		warn("Models folder not found in ReplicatedStorage")
 		return nil
@@ -201,28 +208,19 @@ function ShopManager.CanAfford(itemId: string): boolean
 end
 
 -- Initialize shop manager
-local function initialize()
-	-- Get reference to TownhallManager after it's loaded
-	task.spawn(function()
-		-- Wait for TownhallManager to be available in global scope
-		while not _G.TownhallManager do
-			task.wait(0.1)
-		end
-		TownhallManager = _G.TownhallManager
-		print("ShopManager connected to TownhallManager")
-	end)
+function ShopManager.initialize()
+	if isInitialized then
+		warn("[ShopManager] Already initialized")
+		return
+	end
+
+	isInitialized = true
 
 	-- Connect remote events
 	RemoteEvents.Events.OpenShop.OnServerEvent:Connect(onOpenShop)
 	RemoteEvents.Events.PurchaseItem.OnServerEvent:Connect(onPurchaseItem)
 
-	print("ShopManager initialized")
+	print("[ShopManager] ✓ Initialized")
 end
-
--- Start the system
-initialize()
-
--- Export to global _G for other servers to access
-_G.ShopManager = ShopManager
 
 return ShopManager

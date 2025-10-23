@@ -2,6 +2,7 @@
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerStorage = game:GetService("ServerStorage")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
@@ -28,7 +29,7 @@ local mobileControlsGui: ScreenGui? = nil
 
 -- Create preview model
 local function createPreviewModel(itemId: string): Model?
-	local modelsFolder = ReplicatedStorage:FindFirstChild("Models")
+	local modelsFolder = ServerStorage:FindFirstChild("Assets")
 	if not modelsFolder then
 		return nil
 	end
@@ -471,8 +472,5 @@ end
 -- Connect to remote events
 RemoteEvents.Events.StartBuildingMode.OnClientEvent:Connect(startBuildingMode)
 RemoteEvents.Events.ActivateBuildingTool.OnClientEvent:Connect(onBuildingToolActivated)
-
--- Export to global for other scripts to access
-_G.BuildingController = BuildingController
 
 return BuildingController

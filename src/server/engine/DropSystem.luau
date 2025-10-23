@@ -20,6 +20,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
+local ServerStorage = game:GetService("ServerStorage")
 local Debris = game:GetService("Debris")
 
 local Engine = ServerScriptService:WaitForChild("Engine")
@@ -72,7 +73,7 @@ local function findItemModel(itemId: string): Model?
 		return nil
 	end
 
-	local modelsFolder = ReplicatedStorage:FindFirstChild("Models")
+	local modelsFolder = ServerStorage:FindFirstChild("Assets")
 	if not modelsFolder then
 		warn("[DropSystem] Models folder not found in ReplicatedStorage")
 		return nil

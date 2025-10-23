@@ -6,7 +6,10 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
+local StarterPlayer = game:GetService("StarterPlayer")
 
+local Common = StarterPlayer.StarterPlayerScripts:WaitForChild("Common")
+local ClientFramework = require(Common.ClientFramework)
 local GameConfig = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Config"))
 local RemoteEvents = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Core"):WaitForChild("RemoteEvents"))
 
@@ -38,8 +41,8 @@ local function updateStamina(deltaTime: number)
 		currentStamina = math.min(SPRINT_STAMINA_MAX, currentStamina + (STAMINA_REGEN_RATE * deltaTime))
 	end
 
-	-- Update UI via GameUI
-	local GameUI = _G.GameUI
+	-- Update UI via ClientFramework
+	local GameUI = ClientFramework.get("UI")
 	if GameUI and GameUI.updateStaminaUI then
 		GameUI.updateStaminaUI(currentStamina, SPRINT_STAMINA_MAX)
 	end

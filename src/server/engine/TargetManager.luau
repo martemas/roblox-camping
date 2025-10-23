@@ -7,8 +7,8 @@ local Players = game:GetService("Players")
 local TargetingSystem = require(EngineShared.Player.TargetingSystem)
 local RemoteEvents = require(EngineShared.Core.RemoteEvents)
 
--- Initialize the targeting system
-TargetingSystem.initialize()
+local TargetManager = {}
+local isInitialized = false
 
 -- Handle target selection from clients
 local function onSelectTarget(player: Player, targetModel: Model)
@@ -49,12 +49,27 @@ local function onRequestClosestTarget(player: Player)
 	end
 end
 
--- Connect remote events
-RemoteEvents.Events.SelectTarget.OnServerEvent:Connect(onSelectTarget)
-RemoteEvents.Events.DeselectTarget.OnServerEvent:Connect(onDeselectTarget)
-RemoteEvents.Events.RequestClosestTarget.OnServerEvent:Connect(onRequestClosestTarget)
+-- Initialize TargetManager
+function TargetManager.initialize()
+	if isInitialized then
+		warn("[TargetManager] Already initialized")
+		return
+	end
 
--- Export to global for other systems to access
-_G.TargetingSystem = TargetingSystem
+	isInitialized = true
 
-print("TargetManager server initialized")
+	-- Initialize the targeting system
+	TargetingSystem.initialize()
+
+	-- Connect remote events
+	RemoteEvents.Events.SelectTarget.OnServerEvent:Connect(onSelectTarget)
+	RemoteEvents.Events.DeselectTarget.OnServerEvent:Connect(onDeselectTarget)
+	RemoteEvents.Events.RequestClosestTarget.OnServerEvent:Connect(onRequestClosestTarget)
+
+	print("[TargetManager] ✓ Initialized")
+end
+
+-- Export TargetingSystem methods for convenience
+TargetManager.TargetingSystem = TargetingSystem
+
+return TargetManager

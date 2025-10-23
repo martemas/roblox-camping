@@ -21,7 +21,6 @@ local Engine = ServerScriptService:WaitForChild("Engine")
 local GameConfig = require(Engine.Config.GameConfig)
 local EntitySpawner = require(script.Parent.Entities.EntitySpawner)
 local EntityController = require(script.Parent.Entities.EntityController)
-local WorkspaceSpawnLoader = require(script.Parent.Parent.Games.WorkspaceSpawnLoader)
 
 local SpawnManager = {}
 
@@ -31,11 +30,8 @@ local isNightActive = false
 local currentNight = 0
 local nextWaveTime = 0
 
--- Store workspace spawn points
-local workspaceSpawnPoints = {}
-
--- Initialize EntityController
-EntityController.initialize()
+-- Initialization guard
+local isInitialized = false
 
 -- Maintain wildlife population (passive spawning)
 local function maintainWildlifePopulation()
@@ -217,56 +213,25 @@ function SpawnManager.clearAllEntities()
 	print("All entities cleared")
 end
 
--- Spawn entities from workspace spawn points
-function SpawnManager.spawnFromWorkspacePoints()
-	if #workspaceSpawnPoints == 0 then
-		warn("[SpawnManager] No workspace spawn points loaded. Cannot spawn.")
+-- Initialize SpawnManager
+function SpawnManager.initialize()
+	if isInitialized then
+		warn("[SpawnManager] Already initialized")
 		return
 	end
 
-	for _, spawnPoint in workspaceSpawnPoints do
-		local spawnConfig = {
-			entityType = spawnPoint.entityType,
-			location = {
-				type = "area",
-				center = spawnPoint.position,
-				radius = spawnPoint.spawnRadius,
-			},
-			count = spawnPoint.count,
-			level = 1, -- Default level, can be enhanced later
-		}
+	isInitialized = true
 
-		print(`[SpawnManager] Spawning {spawnPoint.count} {spawnPoint.entityType}(s) at {spawnPoint.position}`)
-		EntitySpawner.spawnWave({spawnConfig})
-	end
-end
-
--- Get workspace spawn points (for external access)
-function SpawnManager.getWorkspaceSpawnPoints()
-	return workspaceSpawnPoints
-end
-
--- Initialize
-local function initialize()
-	-- Load workspace spawn configurations
-	workspaceSpawnPoints = WorkspaceSpawnLoader.loadSpawnConfigs()
-	print(`[SpawnManager] Loaded {#workspaceSpawnPoints} workspace spawn point(s)`)
+	-- Initialize EntityController
+	EntityController.initialize()
 
 	-- Start update loop
 	RunService.Heartbeat:Connect(update)
 
-	-- Initial wildlife spawn
+	-- Initial wildlife spawn (disabled for now)
 	-- maintainWildlifePopulation()
 
-	-- Spawn entities from workspace spawn points on server start
-	SpawnManager.spawnFromWorkspacePoints()
-
-	print("SpawnManager initialized")
+	print("[SpawnManager] ✓ Initialized")
 end
-
-initialize()
-
--- Export to global for other systems
-_G.SpawnManager = SpawnManager
 
 return SpawnManager

@@ -10,8 +10,13 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 
+local Engine = ServerScriptService:WaitForChild("Engine")
+
 local RemoteEvents = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Core"):WaitForChild("RemoteEvents"))
-local Items = require(ServerScriptService:WaitForChild("Engine"):WaitForChild("Data"):WaitForChild("Items"))
+local Items = require(Engine.Data.Items)
+
+local WeaponInfoProvider = {}
+local isInitialized = false
 
 -- Client-safe weapon info structure
 export type WeaponDisplayInfo = {
@@ -50,7 +55,19 @@ local function getWeaponInfo(player: Player, weaponId: string): WeaponDisplayInf
 	}
 end
 
--- Register RemoteFunction handler
-RemoteEvents.Functions.GetWeaponInfo.OnServerInvoke = getWeaponInfo
+-- Initialize WeaponInfoProvider
+function WeaponInfoProvider.initialize()
+	if isInitialized then
+		warn("[WeaponInfoProvider] Already initialized")
+		return
+	end
 
-print("[WeaponInfoProvider] Initialized")
+	isInitialized = true
+
+	-- Register RemoteFunction handler
+	RemoteEvents.Functions.GetWeaponInfo.OnServerInvoke = getWeaponInfo
+
+	print("[WeaponInfoProvider] ✓ Initialized")
+end
+
+return WeaponInfoProvider

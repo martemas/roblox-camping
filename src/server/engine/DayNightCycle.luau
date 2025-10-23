@@ -9,6 +9,7 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local Engine = ServerScriptService:WaitForChild("Engine")
 local EngineShared = ReplicatedStorage:WaitForChild("Engine")
 
+local Framework = require(Engine.Framework)
 local GameConfig = require(Engine.Config.GameConfig)
 local Types = require(EngineShared.Core.Types)
 local RemoteEvents = require(EngineShared.Core.RemoteEvents)
@@ -20,6 +21,7 @@ local currentPhase: GamePhase = "Day"
 local phaseStartTime: number = 0
 local phaseEndTime: number = 0
 local isTransitioning: boolean = false
+local isInitialized: boolean = false
 
 -- Build lighting settings from GameConfig
 local function buildLightingSettings()
@@ -83,7 +85,7 @@ local function updateLighting(targetSettings: {[string]: any})
 	if next(tweenableSettings) then
 		local tween = TweenService:Create(Lighting, tweenInfo, tweenableSettings)
 		tween:Play()
-		tween.Completed:Wait()
+		-- Note: Not waiting for tween completion - transitions happen asynchronously
 	end
 end
 
@@ -140,11 +142,12 @@ local function startPhase(newPhase: GamePhase)
 
 		-- Signal SpawnManager to start spawning
 		task.spawn(function()
-			-- Wait for SpawnManager to be available in global scope
-			while not _G.SpawnManager do
-				task.wait(0.1)
+			local SpawnManager = Framework.get("SpawnManager")
+			if SpawnManager then
+				SpawnManager.startNightWave()
+			else
+				warn("[DayNightCycle] SpawnManager not available - cannot start night wave")
 			end
-			_G.SpawnManager.startNightWave()
 		end)
 	end
 end
@@ -224,7 +227,14 @@ function DayNightCycle.GetPhaseProgress(): number
 end
 
 -- Initialize the day/night cycle
-local function initialize()
+function DayNightCycle.initialize()
+	if isInitialized then
+		warn("[DayNightCycle] Already initialized")
+		return
+	end
+
+	isInitialized = true
+
 	-- Set initial lighting to day
 	for property, value in pairs(LIGHTING_SETTINGS.Day) do
 		if Lighting[property] ~= nil then
@@ -238,13 +248,7 @@ local function initialize()
 	-- Start the update loop
 	RunService.Heartbeat:Connect(updateCycle)
 
-	print("DayNightCycle initialized - starting with Day phase")
+	print("[DayNightCycle] ✓ Initialized - starting with Day phase")
 end
-
--- Start the system
-initialize()
-
--- Export to global _G for other servers to access
-_G.DayNightCycle = DayNightCycle
 
 return DayNightCycle

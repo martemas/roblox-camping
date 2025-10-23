@@ -18,11 +18,13 @@
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerStorage = game:GetService("ServerStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
 
 local Utils = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Core"):WaitForChild("Utils"))
 local GameConfig = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Config"))
 local EntityController = require(script.Parent:WaitForChild("EntityController"))
-local Entities = require(ReplicatedStorage:WaitForChild("Games"):WaitForChild("Data"):WaitForChild("Entities"))
+local Entities = require(ServerScriptService:WaitForChild("Engine"):WaitForChild("Data"):WaitForChild("Entities"))
 
 -- Types
 export type SpawnLocation =
@@ -115,7 +117,7 @@ end
 -- Create entity model from template
 local function createEntityModel(entityType: string, position: Vector3): Model?
 	-- Get entity data from new Entities.Database
-	local entityData = Entities.Database[entityType]
+	local entityData = Entities.getEntity(entityType)
 
 	if not entityData then
 		warn(`Entity type '{entityType}' not found in Entities.Database`)
@@ -131,7 +133,7 @@ local function createEntityModel(entityType: string, position: Vector3): Model?
 	local modelPath = entityData.spawnModel
 	local pathParts = string.split(modelPath, "/")
 
-	local modelsFolder = ReplicatedStorage:FindFirstChild("Models")
+	local modelsFolder = ServerStorage:FindFirstChild("Assets")
 	if not modelsFolder then
 		warn("Models folder not found in ReplicatedStorage")
 		return nil
@@ -191,7 +193,7 @@ end
 -- Spawn a single entity
 function EntitySpawner.spawnEntity(config: SpawnConfig): Model?
 	-- Validate entity type exists
-	local entityConfig = Entities.Database[config.entityType]
+	local entityConfig = Entities.getEntity(config.entityType)
 	if not entityConfig then
 		warn(`Entity type '{config.entityType}' not found in GameConfig.entities`)
 		return nil
@@ -265,7 +267,7 @@ end
 
 -- Get spawn configuration for entity type (helper for quick spawning)
 function EntitySpawner.getDefaultSpawnConfig(entityType: string): SpawnConfig?
-	local entityData = Entities.Database[entityType]
+	local entityData = Entities.getEntity(entityType)
 	if not entityData then
 		return nil
 	end

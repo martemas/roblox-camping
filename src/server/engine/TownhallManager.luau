@@ -1,8 +1,13 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
+local ServerStorage = game:GetService("ServerStorage")
 local Players = game:GetService("Players")
 
+local Engine = ServerScriptService:WaitForChild("Engine")
+
+local Framework = require(Engine.Framework)
 local Types = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Core"):WaitForChild("Types"))
 local RemoteEvents = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Core"):WaitForChild("RemoteEvents"))
 local Utils = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Core"):WaitForChild("Utils"))
@@ -11,6 +16,7 @@ type TeamResources = Types.TeamResources
 type PlayerInventory = Types.PlayerInventory
 
 local TownhallManager = {}
+local isInitialized = false
 local townhall: Model? = nil
 local teamResources: TeamResources = {
 	Wood = 0,
@@ -18,9 +24,6 @@ local teamResources: TeamResources = {
 	Metal = 0,
 	Gem = 0
 }
-
--- Reference to InventoryManager (will be set after initialization)
-local InventoryManager = nil
 
 
 -- Update all players with current team resources
@@ -36,6 +39,7 @@ local function onTownhallTouched(hit: BasePart, player: Player)
 	end
 
 	-- Get player's inventory
+	local InventoryManager = Framework.get("InventoryManager")
 	if not InventoryManager then
 		warn("InventoryManager not initialized yet")
 		return
@@ -100,7 +104,7 @@ end
 
 -- Create or find the warehouse building
 local function setupTownhall()
-	local modelsFolder = ReplicatedStorage:FindFirstChild("Models")
+	local modelsFolder = ServerStorage:FindFirstChild("Assets")
 	if not modelsFolder then
 		warn("Models folder not found in ReplicatedStorage")
 		return
@@ -233,16 +237,13 @@ function TownhallManager.GetTownhall(): Model?
 end
 
 -- Initialize townhall manager
-local function initialize()
-	-- Get reference to InventoryManager after it's loaded
-	task.spawn(function()
-		-- Wait for InventoryManager to be available in global scope
-		while not _G.InventoryManager do
-			task.wait(0.1)
-		end
-		InventoryManager = _G.InventoryManager
-		print("TownhallManager connected to InventoryManager")
-	end)
+function TownhallManager.initialize()
+	if isInitialized then
+		warn("[TownhallManager] Already initialized")
+		return
+	end
+
+	isInitialized = true
 
 	-- Set up the townhall building
 	setupTownhall()
@@ -266,13 +267,7 @@ local function initialize()
 		end)
 	end
 
-	print("TownhallManager initialized")
+	print("[TownhallManager] ✓ Initialized")
 end
-
--- Start the system
-initialize()
-
--- Export to global _G for other servers to access
-_G.TownhallManager = TownhallManager
 
 return TownhallManager

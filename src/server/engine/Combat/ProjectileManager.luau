@@ -14,6 +14,7 @@
 
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerStorage = game:GetService("ServerStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 local Debris = game:GetService("Debris")
 
@@ -161,7 +162,7 @@ function ProjectileManager.spawnProjectile(
 
 	-- Navigate to projectile model
 	-- Path: ReplicatedStorage.Models.Tools.Projectiles.[WeaponName].[ModelPath]
-	local modelsFolder = ReplicatedStorage:FindFirstChild("Models")
+	local modelsFolder = ServerStorage:FindFirstChild("Assets")
 	if not modelsFolder then
 		warn("ReplicatedStorage.Models folder not found")
 		return nil

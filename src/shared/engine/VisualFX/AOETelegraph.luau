@@ -13,6 +13,7 @@
 ]]
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerStorage = game:GetService("ServerStorage")
 local TweenService = game:GetService("TweenService")
 local Debris = game:GetService("Debris")
 
@@ -39,7 +40,7 @@ local function getTelegraphTemplate(): Model
 		templateSearched = true
 
 		-- Try to load template from ReplicatedStorage
-		local modelsFolder = ReplicatedStorage:FindFirstChild("Models")
+		local modelsFolder = ServerStorage:FindFirstChild("Assets")
 		if modelsFolder then
 			local effectsFolder = modelsFolder:FindFirstChild("Effects")
 			if effectsFolder then

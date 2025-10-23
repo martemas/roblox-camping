@@ -2,17 +2,22 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
+local ServerStorage = game:GetService("ServerStorage")
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 
-local GameConfig = require(ServerScriptService:WaitForChild("Engine"):WaitForChild("Config"):WaitForChild("GameConfig"))
-local Entities = require(ServerScriptService:WaitForChild("Engine"):WaitForChild("Data"):WaitForChild("Entities"))
+local Engine = ServerScriptService:WaitForChild("Engine")
+
+local Framework = require(Engine.Framework)
+local GameConfig = require(Engine.Config.GameConfig)
+local Entities = require(Engine.Data.Entities)
 local ToolStats = require(ServerScriptService:WaitForChild("Games"):WaitForChild("Data"):WaitForChild("Items"):WaitForChild("ToolStats"))
 local Items = require(ReplicatedStorage:WaitForChild("Games"):WaitForChild("Data"):WaitForChild("Items"))
 local Types = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Core"):WaitForChild("Types"))
 local RemoteEvents = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Core"):WaitForChild("RemoteEvents"))
 local Utils = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Core"):WaitForChild("Utils"))
+local ResourceStats = require(ServerScriptService:WaitForChild("Games"):WaitForChild("Data"):WaitForChild("Entities"):WaitForChild("ResourceStats"))
 
 type ResourceNode = Types.ResourceNode
 
@@ -20,8 +25,9 @@ local ResourceManager = {}
 local resourceNodes: {[BasePart]: ResourceNode} = {}
 local playerInventories: {[Player]: Types.PlayerInventory} = {}
 local activeMiningTasks: {[Player]: Types.MiningSession} = {}
+local isInitialized = false
 
-local resourcesFolder = ReplicatedStorage:WaitForChild("Models"):WaitForChild("Resources")
+local resourcesFolder = ServerStorage:WaitForChild("Assets"):WaitForChild("Resources")
 
 -- Initialize empty inventory for a player
 local function createEmptyInventory(): Types.PlayerInventory
@@ -394,14 +400,14 @@ local function startAutoMining(player: Player, node: ResourceNode)
 	end
 
 	-- Get resource config
-	local resourceConfig = ResourceStats.Nodes[node.resourceType]
+	local resourceConfig = ResourceStats.Stats[node.resourceType]
 	if not resourceConfig then
 		warn(`No resource config found for {node.resourceType}`)
 		return
 	end
 
 	-- Check inventory space FIRST before touching tools
-	local InventoryManager = _G.InventoryManager
+	local InventoryManager = Framework.get("InventoryManager")
 	local availableSpace = 0
 
 	if InventoryManager then
@@ -437,7 +443,7 @@ local function startAutoMining(player: Player, node: ResourceNode)
 
 	if not hasTool then
 		-- Auto-equip a tool from the category
-		local ToolManager = _G.ToolManager
+		local ToolManager = Framework.get("ToolManager")
 		if not ToolManager then
 			RemoteEvents.Events.ShowNotification:FireClient(player, `Need a {resourceConfig.requiredToolCategory} to mine!`)
 			return
@@ -675,7 +681,7 @@ local function startAutoMining(player: Player, node: ResourceNode)
 			-- Give resources (same logic as HandleToolHit)
 			node.currentHits += 1
 
-			local InventoryManager = _G.InventoryManager
+			local InventoryManager = Framework.get("InventoryManager")
 			if InventoryManager then
 				local success = InventoryManager.AddItem(player, node.resourceType, amountToMine)
 				if success then
@@ -772,7 +778,7 @@ local function spawnResourceNodes()
 	local spawnRadius = GameConfig.map.resourceSpawnRadius
 	local centerPosition = vector.create(0, 0, 0) -- Map center
 
-	for resourceType, config in ResourceStats.Nodes do
+	for resourceType, config in ResourceStats.Stats do
 		-- Only spawn nodes with spawnMode = "random"
 		if config.spawnMode == "random" then
 			for i = 1, config.nodesCount do
@@ -853,7 +859,7 @@ function ResourceManager.HandleToolHit(player: Player, hitPart: BasePart, resour
 	end
 
 	-- Check inventory space
-	local InventoryManager = _G.InventoryManager
+	local InventoryManager = Framework.get("InventoryManager")
 	if InventoryManager then
 		-- workout the drop amount
 		-- TODO: Implement drop logic here
@@ -876,7 +882,7 @@ function ResourceManager.HandleToolHit(player: Player, hitPart: BasePart, resour
 	-- TODO: Show mining particles when particle assets are ready
 
 	-- Give resource to player via InventoryManager
-	local InventoryManager = _G.InventoryManager
+	local InventoryManager = Framework.get("InventoryManager")
 	if InventoryManager then
 		local success = InventoryManager.AddItem(player, resourceType, resourceConfig.yieldPerMine)
 		if success then
@@ -985,7 +991,14 @@ local function connectProximityPrompts()
 end
 
 -- Initialize the resource manager
-local function initialize()
+function ResourceManager.initialize()
+	if isInitialized then
+		warn("[ResourceManager] Already initialized")
+		return
+	end
+
+	isInitialized = true
+
 	-- Connect player events
 	Players.PlayerAdded:Connect(onPlayerAdded)
 	Players.PlayerRemoving:Connect(onPlayerRemoving)
@@ -1004,13 +1017,7 @@ local function initialize()
 	-- Connect ProximityPrompt events (if auto mode)
 	connectProximityPrompts()
 
-	print("ResourceManager initialized")
+	print("[ResourceManager] ✓ Initialized")
 end
-
--- Start the system
--- initialize()
-
--- Export to global _G for other servers to access
-_G.ResourceManager = ResourceManager
 
 return ResourceManager
