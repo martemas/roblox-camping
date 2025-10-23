@@ -1079,6 +1079,7 @@ end
 -- Initialize the controller system
 function EntityController.initialize()
 	if isInitialized then
+		warn("Entity Controller already initialized")
 		return
 	end
 
