@@ -313,11 +313,21 @@ function DropSystem.spawnScatteredDrops(drops: { ResolvedDrop }, position: Vecto
 				itemModel:MoveTo(spawnPosition)
 			end
 
-			-- Add attributes for pickup system (future)
+			-- Add attributes for pickup system
 			itemModel:SetAttribute("IsDroppedItem", true)
 			itemModel:SetAttribute("ItemId", drop.itemId)
 			itemModel:SetAttribute("SpawnTime", workspace:GetServerTimeNow())
 			itemModel:SetAttribute("DespawnTime", despawnTime)
+
+			-- Add Highlight instance for client-side selection
+			local highlight = Instance.new("Highlight")
+			highlight.Name = "PickupHighlight"
+			highlight.FillColor = Color3.fromRGB(255, 220, 100) -- Golden
+			highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+			highlight.FillTransparency = 0.7
+			highlight.OutlineTransparency = 0.5
+			highlight.Enabled = false -- Client will enable for nearest item
+			highlight.Parent = itemModel
 
 			-- Parent to workspace
 			itemModel.Parent = droppedItemsFolder

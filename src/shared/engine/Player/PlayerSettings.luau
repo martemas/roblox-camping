@@ -40,6 +40,7 @@ export type ControlSettings = {
 	clearTargetKey: Enum.KeyCode,
 	toggleRunKey: Enum.KeyCode,
 	toggleBuildModeKey: Enum.KeyCode,
+	pickupItemKey: Enum.KeyCode,
 	targetingMouseButton: "Left" | "Right" | "Middle",
 }
 
@@ -97,6 +98,7 @@ local DEFAULT_SETTINGS: PlayerSettingsData = {
 			clearTargetKey = Enum.KeyCode.Escape,
 			toggleRunKey = Enum.KeyCode.LeftShift,
 			toggleBuildModeKey = Enum.KeyCode.B,
+			pickupItemKey = Enum.KeyCode.F,
 			targetingMouseButton = "Left",
 		},
 
@@ -207,6 +209,7 @@ local function validateSettings(settings: any): PlayerSettingsData
 				clearTargetKey = validateKeyCode(safeGet(settings, {"gameplay", "controls", "clearTargetKey"})) or DEFAULT_SETTINGS.gameplay.controls.clearTargetKey,
 				toggleRunKey = validateKeyCode(safeGet(settings, {"gameplay", "controls", "toggleRunKey"})) or DEFAULT_SETTINGS.gameplay.controls.toggleRunKey,
 				toggleBuildModeKey = validateKeyCode(safeGet(settings, {"gameplay", "controls", "toggleBuildModeKey"})) or DEFAULT_SETTINGS.gameplay.controls.toggleBuildModeKey,
+				pickupItemKey = validateKeyCode(safeGet(settings, {"gameplay", "controls", "pickupItemKey"})) or DEFAULT_SETTINGS.gameplay.controls.pickupItemKey,
 				targetingMouseButton = (function()
 					local mouseButton = safeGet(settings, {"gameplay", "controls", "targetingMouseButton"})
 					if mouseButton == "Left" or mouseButton == "Right" or mouseButton == "Middle" then

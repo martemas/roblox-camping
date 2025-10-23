@@ -80,6 +80,11 @@ function GameInit.initialize()
 	InventoryManager.initialize()
 	Framework.register("InventoryManager", InventoryManager)
 
+	-- Pickup System (depends on InventoryManager)
+	local PickupSystem = require(Engine.PickupSystem)
+	PickupSystem.initialize()
+	Framework.register("PickupSystem", PickupSystem)
+
 	-- Day/Night cycle
 	local DayNightCycle = require(Engine.DayNightCycle)
 	DayNightCycle.initialize()
