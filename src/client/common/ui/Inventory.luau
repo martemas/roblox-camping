@@ -15,7 +15,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local UIConfig = require(script.Parent.Parent:WaitForChild("UIConfig"))
 local UIComponent = require(script.Parent:WaitForChild("UIComponent"))
-local GameConfig = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Config"))
+local RemoteEvents = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Core"):WaitForChild("RemoteEvents"))
 local Types = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Core"):WaitForChild("Types"))
 
 type PlayerInventory = Types.PlayerInventory
@@ -24,6 +24,7 @@ local Inventory = UIComponent.new("Inventory")
 
 -- Component state
 local inventoryFrame: Frame? = nil
+local inventorySize: number = 5 -- Default, will be fetched from server
 
 --[[
 	Create the Inventory UI
@@ -33,6 +34,17 @@ local inventoryFrame: Frame? = nil
 ]]
 function Inventory.create(parent: ScreenGui): Frame
 	local config = UIConfig.inventory
+
+	-- Fetch inventory size from server
+	local success, result = pcall(function()
+		return RemoteEvents.Functions.GetInventorySize:InvokeServer()
+	end)
+
+	if success and typeof(result) == "number" then
+		inventorySize = result
+	else
+		warn("[Inventory] Failed to fetch inventory size from server, using default:", result)
+	end
 
 	-- Main Frame
 	inventoryFrame = Instance.new("Frame")
@@ -51,14 +63,14 @@ function Inventory.create(parent: ScreenGui): Frame
 	invTitle.Size = UDim2.new(1, 0, 0, 20)
 	invTitle.Position = UDim2.new(0, 0, 0, 0)
 	invTitle.BackgroundTransparency = 1
-	invTitle.Text = "Inventory (0/5)"
+	invTitle.Text = `Inventory (0/{inventorySize})`
 	invTitle.TextColor3 = config.textColor
 	invTitle.TextScaled = true
 	invTitle.Font = config.font
 	invTitle.Parent = inventoryFrame
 
 	-- Create inventory slots
-	for i = 1, GameConfig.player.inventorySize do
+	for i = 1, inventorySize do
 		local slot = Instance.new("Frame")
 		slot.Name = `Slot{i}`
 		slot.Size = UDim2.new(0, config.slotSize, 0, config.slotSize)
@@ -118,11 +130,11 @@ function Inventory.update(inventory: PlayerInventory)
 		totalItems += amount
 	end
 
-	invTitle.Text = `Inventory ({totalItems}/{GameConfig.player.inventorySize})`
+	invTitle.Text = `Inventory ({totalItems}/{inventorySize})`
 
 	-- Update slots
 	local slotIndex = 1
-	for resourceType, amount in inventory do
+	for resourceId, amount in inventory do
 		if amount > 0 then
 			local slot = inventoryFrame:FindFirstChild(`Slot{slotIndex}`)
 			if slot then
@@ -130,7 +142,7 @@ function Inventory.update(inventory: PlayerInventory)
 				local quantity = slot:FindFirstChild("Quantity") :: TextLabel
 
 				-- TODO: Set icon image when UI assets are ready
-				-- icon.Image = `rbxasset://textures/{resourceType}Icon.png`
+				-- icon.Image = `rbxasset://textures/{resourceId}Icon.png`
 
 				quantity.Text = tostring(amount)
 				slot.BackgroundColor3 = config.slotFilledColor
@@ -140,7 +152,7 @@ function Inventory.update(inventory: PlayerInventory)
 	end
 
 	-- Clear remaining slots
-	for i = slotIndex, GameConfig.player.inventorySize do
+	for i = slotIndex, inventorySize do
 		local slot = inventoryFrame:FindFirstChild(`Slot{i}`)
 		if slot then
 			local quantity = slot:FindFirstChild("Quantity") :: TextLabel

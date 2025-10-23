@@ -11,6 +11,7 @@
 
 local ServerScriptService = game:GetService("ServerScriptService")
 local Engine = ServerScriptService:WaitForChild("Engine")
+local SpawnLoader = require(script.Parent.SpawnLoader)
 
 local Framework = require(Engine.Framework)
 
@@ -133,8 +134,7 @@ end
 ]]
 function GameInit.setupSpawning()
 	-- Load spawn points from workspace parts
-	local WorkspaceSpawnLoader = require(script.Parent.WorkspaceSpawnLoader)
-	local spawnPoints = WorkspaceSpawnLoader.loadSpawnConfigs()
+	local spawnPoints = SpawnLoader.loadSpawnConfigs()
 
 	local SpawnManager = Framework.get("SpawnManager")
 	if not SpawnManager then

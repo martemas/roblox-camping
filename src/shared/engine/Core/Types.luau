@@ -27,7 +27,7 @@ export type PlayerInventory = {
 }
 
 export type ResourceNode = {
-	resourceType: string, -- itemId for resource (Wood, Stone, Metal, Gem)
+	resourceId: string, -- itemId for resource (Wood, Stone, Metal, Gem)
 	currentHits: number,
 	maxHits: number,
 	isActive: boolean,

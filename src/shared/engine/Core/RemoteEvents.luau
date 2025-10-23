@@ -107,6 +107,7 @@ local RemoteFunctions = {
 	GetXPForNextLevel = createRemoteFunction("GetXPForNextLevel"),
 	GetDerivedStats = createRemoteFunction("GetDerivedStats"),
 	GetWeaponInfo = createRemoteFunction("GetWeaponInfo"), -- Client → Server: Get weapon display info
+	GetInventorySize = createRemoteFunction("GetInventorySize"), -- Client → Server: Get player inventory size
 }
 
 return {

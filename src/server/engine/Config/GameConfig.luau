@@ -21,6 +21,7 @@ local GameConfig = {
 	-- Player Settings
 	player = {
 		maxHealth = 100,
+		inventorySize = 5,
 		startingTools = { "Axe", "Pickaxe", "Bow", "MagicMissile", "Fireball" },
 		healthRegenRate = 5, -- Percentage per interval
 		healthRegenInterval = 5, -- Seconds

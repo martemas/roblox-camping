@@ -93,6 +93,8 @@ export type ResourceStats = {
 	requiredToolCategory: string?, -- Tool category required (e.g., "Axe", "Pickaxe")
 	hitsRequired: number?,
 	miningDuration: number?, -- Base time to harvest (modified by tool stats)
+	harvestTime: number?, -- Alternative to miningDuration
+	respawnTime: number?, -- Time in seconds before resource respawns
 
 	-- Drops (reference item IDs from Items.Database)
 	drops: { [string]: DropConfig },

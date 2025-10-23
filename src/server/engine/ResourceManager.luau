@@ -18,6 +18,7 @@ local Types = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Cor
 local RemoteEvents = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Core"):WaitForChild("RemoteEvents"))
 local Utils = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Core"):WaitForChild("Utils"))
 local ResourceStats = require(ServerScriptService:WaitForChild("Games"):WaitForChild("Data"):WaitForChild("Entities"):WaitForChild("ResourceStats"))
+local DropSystem = require(Engine.DropSystem)
 
 type ResourceNode = Types.ResourceNode
 
@@ -48,6 +49,34 @@ local function getInventoryCount(player: Player): number
 	return count
 end
 
+-- Calculate resource drops using DropSystem or fallback to yieldPerMine
+-- Returns table of {itemId = amount} or total amount if yieldPerMine exists
+local function calculateResourceDrops(resourceConfig: any, playerStats: any?): ({[string]: number}, number)
+	-- If yieldPerMine exists, use it (legacy support)
+	if resourceConfig.yieldPerMine then
+		-- Return single drop with total amount
+		return {}, resourceConfig.yieldPerMine
+	end
+
+	-- Otherwise use drop system
+	if resourceConfig.drops then
+		local resolvedDrops = DropSystem.resolveDrops(resourceConfig.drops, playerStats)
+		local dropTable: {[string]: number} = {}
+		local totalAmount = 0
+
+		for _, drop in resolvedDrops do
+			dropTable[drop.itemId] = (dropTable[drop.itemId] or 0) + drop.quantity
+			totalAmount += drop.quantity
+		end
+
+		return dropTable, totalAmount
+	end
+
+	-- No drops configured
+	warn("Resource has neither yieldPerMine nor drops configured")
+	return {}, 0
+end
+
 -- Check if player has any tool in the required category
 local function hasRequiredToolCategory(player: Player, category: string): (boolean, string?)
 	local character = player.Character
@@ -69,12 +98,12 @@ local function hasRequiredToolCategory(player: Player, category: string): (boole
 end
 
 -- Create a resource node
-local function createResourceNode(resourceType: string, position: vector): ResourceNode?
+local function createResourceNode(resourceId: string, position: vector): ResourceNode?
 	
-	local entity = Entities.getEntity(resourceType)
+	local entity = Entities.getEntity(resourceId)
 
 	if not entity then
-		warn(`No entity config found for resource type {resourceType}`)
+		warn(`No entity config found for resource type {resourceId}`)
 		return nil
 	end
 	
@@ -83,9 +112,9 @@ local function createResourceNode(resourceType: string, position: vector): Resou
 		return nil
 	end
 
-	local nodeTemplate = resourcesFolder:FindFirstChild(resourceType)
+	local nodeTemplate = resourcesFolder:FindFirstChild(resourceId)
 	if not nodeTemplate then
-		warn(`Resource node template '{resourceType}' not found in Models folder`)
+		warn(`Resource node template '{resourceId}' not found in Models folder`)
 		return nil
 	end
 
@@ -101,7 +130,7 @@ local function createResourceNode(resourceType: string, position: vector): Resou
 		if firstPart then
 			firstPart.CFrame = CFrame.new(position)
 		else
-			warn(`No BasePart found in {resourceType} model for positioning`)
+			warn(`No BasePart found in {resourceId} model for positioning`)
 			nodeModel:Destroy()
 			return nil
 		end
@@ -110,21 +139,21 @@ local function createResourceNode(resourceType: string, position: vector): Resou
 	-- Find the main part for the resource node
 	local mainPart = nodeModel.PrimaryPart or nodeModel:FindFirstChildOfClass("BasePart")
 	if not mainPart then
-		warn(`No BasePart found in {resourceType}`)
+		warn(`No BasePart found in {resourceId}`)
 		nodeModel:Destroy()
 		return nil
 	end
 
 	local resourceNodeConfig = entity.Stats
 	if not resourceNodeConfig then
-		warn(`No resource node config found for {resourceType}`)
+		warn(`No resource node config found for {resourceId}`)
 		nodeModel:Destroy()
 		return nil
 	end
 
 	local maxHits = resourceNodeConfig.hitsRequired
 	local resourceNode: ResourceNode = {
-		resourceType = resourceType,
+		resourceId = resourceId,
 		currentHits = 0,
 		maxHits = maxHits,
 		isActive = true,
@@ -142,8 +171,8 @@ local function createResourceNode(resourceType: string, position: vector): Resou
 	-- Add ProximityPrompt for mining
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.Name = "MiningPrompt"
-	prompt.ActionText = `Mine {resourceType}`
-	prompt.ObjectText = resourceType
+	prompt.ActionText = `Mine {resourceId}`
+	prompt.ObjectText = resourceId
 	prompt.KeyboardKeyCode = Enum.KeyCode.E
 	prompt.MaxActivationDistance = 10
 
@@ -176,20 +205,20 @@ end
 -- 		return
 -- 	end
 
--- 	print(`Checking tool for {node.resourceType}...`) -- DEBUG
+-- 	print(`Checking tool for {node.resourceId}...`) -- DEBUG
 
 -- 	-- Check if player has required tool
--- 	if not hasRequiredTool(player, node.resourceType) then
--- 		local requiredTool = GameConfig.resources[node.resourceType].requiredTool
--- 		print(`{player.Name} doesn't have {requiredTool} for {node.resourceType}`) -- DEBUG
--- 		RemoteEvents.Events.ShowNotification:FireClient(player, `You need a {requiredTool} to mine {node.resourceType}`)
+-- 	if not hasRequiredTool(player, node.resourceId) then
+-- 		local requiredTool = GameConfig.resources[node.resourceId].requiredTool
+-- 		print(`{player.Name} doesn't have {requiredTool} for {node.resourceId}`) -- DEBUG
+-- 		RemoteEvents.Events.ShowNotification:FireClient(player, `You need a {requiredTool} to mine {node.resourceId}`)
 -- 		return
 -- 	end
 
--- 	print(`{player.Name} has correct tool, mining {node.resourceType}...`) -- DEBUG
+-- 	print(`{player.Name} has correct tool, mining {node.resourceId}...`) -- DEBUG
 
 -- 	-- Get resource configuration
--- 	local resourceConfig = GameConfig.resources[node.resourceType]
+-- 	local resourceConfig = GameConfig.resources[node.resourceId]
 
 -- 	-- Check inventory space
 -- 	local InventoryManager = _G.InventoryManager
@@ -215,9 +244,9 @@ end
 -- 	-- Give resource to player via InventoryManager
 -- 	local InventoryManager = _G.InventoryManager
 -- 	if InventoryManager then
--- 		local success = InventoryManager.AddItem(player, node.resourceType, resourceConfig.yieldPerHit)
+-- 		local success = InventoryManager.AddItem(player, node.resourceId, resourceConfig.yieldPerHit)
 -- 		if not success then
--- 			print(`Failed to add {node.resourceType} to {player.Name}'s inventory - might be full`) -- DEBUG
+-- 			print(`Failed to add {node.resourceId} to {player.Name}'s inventory - might be full`) -- DEBUG
 -- 		end
 -- 	else
 -- 		warn("InventoryManager not available - falling back to local inventory")
@@ -227,7 +256,7 @@ end
 -- 			inventory = createEmptyInventory()
 -- 			playerInventories[player] = inventory
 -- 		end
--- 		inventory[node.resourceType] += resourceConfig.yieldPerHit
+-- 		inventory[node.resourceId] += resourceConfig.yieldPerHit
 -- 		RemoteEvents.Events.UpdateInventory:FireClient(player, inventory)
 -- 	end
 
@@ -273,7 +302,7 @@ local function hideResourceNode(node: ResourceNode)
 		prompt.Enabled = false
 	end
 
-	print(`Hid {node.resourceType} node`) -- DEBUG
+	print(`Hid {node.resourceId} node`) -- DEBUG
 end
 
 -- Show resource node (make it visible and enable collisions)
@@ -297,7 +326,7 @@ local function showResourceNode(node: ResourceNode)
 		prompt.Enabled = true
 	end
 
-	print(`Showed {node.resourceType} node`) -- DEBUG
+	print(`Showed {node.resourceId} node`) -- DEBUG
 end
 
 -- Create progress bar BillboardGui above resource node
@@ -400,9 +429,9 @@ local function startAutoMining(player: Player, node: ResourceNode)
 	end
 
 	-- Get resource config
-	local resourceConfig = ResourceStats.Stats[node.resourceType]
+	local resourceConfig = ResourceStats.Stats[node.resourceId]
 	if not resourceConfig then
-		warn(`No resource config found for {node.resourceType}`)
+		warn(`No resource config found for {node.resourceId}`)
 		return
 	end
 
@@ -427,8 +456,11 @@ local function startAutoMining(player: Player, node: ResourceNode)
 		return -- Return BEFORE touching any tools
 	end
 
+	-- Calculate drops using drop system or yieldPerMine
+	local dropTable, totalDropAmount = calculateResourceDrops(resourceConfig, nil)
+
 	-- Calculate how much we can actually mine (partial fill allowed)
-	local amountToMine = math.min(resourceConfig.yieldPerMine, availableSpace)
+	local amountToMine = math.min(totalDropAmount, availableSpace)
 
 	-- Check if player has required tool category
 	local hasTool, equippedToolName = hasRequiredToolCategory(player, resourceConfig.requiredToolCategory)
@@ -511,8 +543,9 @@ local function startAutoMining(player: Player, node: ResourceNode)
 	local toolConfig = ToolStats.Stats[equippedToolName]
 	local miningSpeed = (toolConfig and toolConfig.miningSpeed) or 1.0
 
-	-- Calculate mining duration
-	local duration = resourceConfig.miningDuration / miningSpeed
+	-- Calculate mining duration (use harvestTime or miningDuration)
+	local baseDuration = resourceConfig.miningDuration or resourceConfig.harvestTime or 2.0
+	local duration = baseDuration / miningSpeed
 
 	-- Get character and starting position
 	local character = player.Character
@@ -595,8 +628,8 @@ local function startAutoMining(player: Player, node: ResourceNode)
 	}
 	activeMiningTasks[player] = session
 
-	print(`{player.Name} started mining {node.resourceType} with {equippedToolName} (duration: {duration}s)`) -- DEBUG
-	RemoteEvents.Events.MiningStarted:FireClient(player, node.resourceType)
+	print(`{player.Name} started mining {node.resourceId} with {equippedToolName} (duration: {duration}s)`) -- DEBUG
+	RemoteEvents.Events.MiningStarted:FireClient(player, node.resourceId)
 
 	-- Start mining task
 	session.task = task.spawn(function()
@@ -682,38 +715,64 @@ local function startAutoMining(player: Player, node: ResourceNode)
 			node.currentHits += 1
 
 			local InventoryManager = Framework.get("InventoryManager")
-			if InventoryManager then
-				local success = InventoryManager.AddItem(player, node.resourceType, amountToMine)
-				if success then
-					print(`{player.Name} mined {node.resourceType}, added {amountToMine} to inventory`) -- DEBUG
-					RemoteEvents.Events.MiningCompleted:FireClient(player, node.resourceType, amountToMine)
-					if amountToMine < resourceConfig.yieldPerMine then
-						RemoteEvents.Events.ShowNotification:FireClient(player, `Inventory nearly full! Only added {amountToMine} {node.resourceType}`)
+
+			-- Add items based on drop table or direct resource
+			if next(dropTable) then
+				-- Using drop system - add each item type
+				for itemId, quantity in dropTable do
+					local itemsToAdd = math.min(quantity, availableSpace)
+					if InventoryManager then
+						InventoryManager.AddItem(player, itemId, itemsToAdd)
+					else
+						local inventory = playerInventories[player]
+						if not inventory then
+							inventory = createEmptyInventory()
+							playerInventories[player] = inventory
+						end
+						inventory[itemId] = (inventory[itemId] or 0) + itemsToAdd
 					end
-				else
-					print(`Failed to add {node.resourceType} to {player.Name}'s inventory`) -- DEBUG
+					availableSpace -= itemsToAdd
+					print(`{player.Name} mined {node.resourceId}, received {itemsToAdd}x {itemId}`) -- DEBUG
+				end
+				RemoteEvents.Events.MiningCompleted:FireClient(player, node.resourceId, amountToMine)
+				if not InventoryManager then
+					RemoteEvents.Events.UpdateInventory:FireClient(player, playerInventories[player])
 				end
 			else
-				-- Fallback to local inventory
-				local inventory = playerInventories[player]
-				if not inventory then
-					inventory = createEmptyInventory()
-					playerInventories[player] = inventory
+				-- Using yieldPerMine - add resource directly
+				if InventoryManager then
+					local success = InventoryManager.AddItem(player, node.resourceId, amountToMine)
+					if success then
+						print(`{player.Name} mined {node.resourceId}, added {amountToMine} to inventory`) -- DEBUG
+						RemoteEvents.Events.MiningCompleted:FireClient(player, node.resourceId, amountToMine)
+						if amountToMine < totalDropAmount then
+							RemoteEvents.Events.ShowNotification:FireClient(player, `Inventory nearly full! Only added {amountToMine} {node.resourceId}`)
+						end
+					else
+						print(`Failed to add {node.resourceId} to {player.Name}'s inventory`) -- DEBUG
+					end
+				else
+					-- Fallback to local inventory
+					local inventory = playerInventories[player]
+					if not inventory then
+						inventory = createEmptyInventory()
+						playerInventories[player] = inventory
+					end
+					inventory[node.resourceId] = (inventory[node.resourceId] or 0) + amountToMine
+					RemoteEvents.Events.UpdateInventory:FireClient(player, inventory)
+					RemoteEvents.Events.MiningCompleted:FireClient(player, node.resourceId, amountToMine)
+					if amountToMine < totalDropAmount then
+						RemoteEvents.Events.ShowNotification:FireClient(player, `Inventory nearly full! Only added {amountToMine} {node.resourceId}`)
+					end
+					print(`{player.Name} mined {node.resourceId}, now has {inventory[node.resourceId]}`) -- DEBUG
 				end
-				inventory[node.resourceType] += amountToMine
-				RemoteEvents.Events.UpdateInventory:FireClient(player, inventory)
-				RemoteEvents.Events.MiningCompleted:FireClient(player, node.resourceType, amountToMine)
-				if amountToMine < resourceConfig.yieldPerMine then
-					RemoteEvents.Events.ShowNotification:FireClient(player, `Inventory nearly full! Only added {amountToMine} {node.resourceType}`)
-				end
-				print(`{player.Name} mined {node.resourceType}, now has {inventory[node.resourceType]}`) -- DEBUG
 			end
 
 			-- Check if node is depleted
 			if node.currentHits >= node.maxHits then
 				node.isActive = false
 				hideResourceNode(node)
-				print(`{node.resourceType} node depleted, will respawn in {resourceConfig.respawnTime} seconds`) -- DEBUG
+				print(`{node.resourceId} node depleted, will respawn in {resourceConfig.respawnTime} seconds`) -- DEBUG
 
 				-- Schedule respawn
 				task.spawn(function()
@@ -722,7 +781,7 @@ local function startAutoMining(player: Player, node: ResourceNode)
 						node.currentHits = 0
 						node.isActive = true
 						showResourceNode(node)
-						print(`{node.resourceType} node respawned`) -- DEBUG
+						print(`{node.resourceId} node respawned`) -- DEBUG
 					end
 				end)
 			end
@@ -765,7 +824,7 @@ local function startAutoMining(player: Player, node: ResourceNode)
 		-- Re-enable ProximityPrompt
 		if prompt and node.isActive then
 			prompt.Enabled = true
-			prompt.ObjectText = node.resourceType
+			prompt.ObjectText = node.resourceId
 		end
 
 		activeMiningTasks[player] = nil
@@ -778,16 +837,16 @@ local function spawnResourceNodes()
 	local spawnRadius = GameConfig.map.resourceSpawnRadius
 	local centerPosition = vector.create(0, 0, 0) -- Map center
 
-	for resourceType, config in ResourceStats.Stats do
+	for resourceId, config in ResourceStats.Stats do
 		-- Only spawn nodes with spawnMode = "random"
 		if config.spawnMode == "random" then
 			for i = 1, config.nodesCount do
 				-- Generate random position with ground detection
 				local position = Utils.getRandomGroundPosition(centerPosition, 50, spawnRadius)
-				local node = createResourceNode(resourceType, position)
+				local node = createResourceNode(resourceId, position)
 
 				if not node then
-					warn(`Failed to create {resourceType} node {i}`)
+					warn(`Failed to create {resourceId} node {i}`)
 				end
 			end
 		end
@@ -812,13 +871,13 @@ function ResourceManager.GetPlayerInventory(player: Player): Types.PlayerInvento
 	return playerInventories[player]
 end
 
-function ResourceManager.RemoveFromInventory(player: Player, resourceType: string, amount: number): boolean
+function ResourceManager.RemoveFromInventory(player: Player, resourceId: string, amount: number): boolean
 	local inventory = playerInventories[player]
-	if not inventory or inventory[resourceType] < amount then
+	if not inventory or inventory[resourceId] < amount then
 		return false
 	end
 
-	inventory[resourceType] -= amount
+	inventory[resourceId] -= amount
 	RemoteEvents.Events.UpdateInventory:FireClient(player, inventory)
 	return true
 end
@@ -828,7 +887,7 @@ function ResourceManager.GetInventoryCount(player: Player): number
 end
 
 -- Handle tool hit on resource node (called from ToolManager)
-function ResourceManager.HandleToolHit(player: Player, hitPart: BasePart, resourceType: string)
+function ResourceManager.HandleToolHit(player: Player, hitPart: BasePart, resourceId: string)
 	-- Find the resource node
 	local node = resourceNodes[hitPart]
 	if not node then
@@ -852,18 +911,19 @@ function ResourceManager.HandleToolHit(player: Player, hitPart: BasePart, resour
 	-- end
 
 	-- Get resource configuration
-	local resourceConfig = node
+	local resourceConfig = ResourceStats.Stats[node.resourceId]
 	if not resourceConfig then
-		warn(`No resource config found for {resourceType}`)
+		warn(`No resource config found for {resourceId}`)
 		return
 	end
+
+	-- Calculate drops using drop system or yieldPerMine
+	local dropTable, totalDropAmount = calculateResourceDrops(resourceConfig, nil)
 
 	-- Check inventory space
 	local InventoryManager = Framework.get("InventoryManager")
 	if InventoryManager then
-		-- workout the drop amount
-		-- TODO: Implement drop logic here
-		if not InventoryManager.HasSpace(player, 1) then --resourceConfig.yieldPerMine) then
+		if not InventoryManager.HasSpace(player, totalDropAmount) then
 			RemoteEvents.Events.ShowNotification:FireClient(player, "Inventory full! Deposit resources at the warehouse.")
 			return
 		end
@@ -882,24 +942,44 @@ function ResourceManager.HandleToolHit(player: Player, hitPart: BasePart, resour
 	-- TODO: Show mining particles when particle assets are ready
 
 	-- Give resource to player via InventoryManager
-	local InventoryManager = Framework.get("InventoryManager")
-	if InventoryManager then
-		local success = InventoryManager.AddItem(player, resourceType, resourceConfig.yieldPerMine)
-		if success then
-			print(`{player.Name} mined {resourceType}, added {resourceConfig.yieldPerMine} to inventory`) -- DEBUG
-		else
-			print(`Failed to add {resourceType} to {player.Name}'s inventory - might be full`) -- DEBUG
+	if next(dropTable) then
+		-- Using drop system - add each item type
+		for itemId, quantity in dropTable do
+			if InventoryManager then
+				InventoryManager.AddItem(player, itemId, quantity)
+			else
+				local inventory = playerInventories[player]
+				if not inventory then
+					inventory = createEmptyInventory()
+					playerInventories[player] = inventory
+				end
+				inventory[itemId] = (inventory[itemId] or 0) + quantity
+			end
+			print(`{player.Name} mined {node.resourceId}, received {quantity}x {itemId}`) -- DEBUG
+		end
+		if not InventoryManager then
+			RemoteEvents.Events.UpdateInventory:FireClient(player, playerInventories[player])
 		end
 	else
-		warn("InventoryManager not available - falling back to local inventory")
-		-- Fallback to local inventory
-		local inventory = playerInventories[player]
-		if not inventory then
-			inventory = createEmptyInventory()
-			playerInventories[player] = inventory
+		-- Using yieldPerMine - add resource directly
+		if InventoryManager then
+			local success = InventoryManager.AddItem(player, resourceId, totalDropAmount)
+			if success then
+				print(`{player.Name} mined {resourceId}, added {totalDropAmount} to inventory`) -- DEBUG
+			else
+				print(`Failed to add {resourceId} to {player.Name}'s inventory - might be full`) -- DEBUG
+			end
+		else
+			warn("InventoryManager not available - falling back to local inventory")
+			-- Fallback to local inventory
+			local inventory = playerInventories[player]
+			if not inventory then
+				inventory = createEmptyInventory()
+				playerInventories[player] = inventory
+			end
+			inventory[resourceId] = (inventory[resourceId] or 0) + totalDropAmount
+			RemoteEvents.Events.UpdateInventory:FireClient(player, inventory)
 		end
-		inventory[resourceType] += resourceConfig.yieldPerMine
-		RemoteEvents.Events.UpdateInventory:FireClient(player, inventory)
 	end
 
 	-- Check if node is depleted
@@ -916,7 +996,7 @@ function ResourceManager.HandleToolHit(player: Player, hitPart: BasePart, resour
 				node.currentHits = 0
 				node.isActive = true
 				showResourceNode(node)
-				print(`{resourceType} node respawned`) -- DEBUG
+				print(`{resourceId} node respawned`) -- DEBUG
 				-- TODO: Restart mining particles when assets are ready
 			end
 		end)
@@ -933,16 +1013,22 @@ local function registerManualNodes()
 
 		if model:IsA("Model") and model:GetAttribute("EntityId") then
 			local resourceId: string = model:GetAttribute("EntityId")
-			local config = Entities.getEntity(resourceId)
+			local entity = Entities.getEntity(resourceId)
+
+			if not entity or not entity.Stats then
+				warn(`No entity or stats found for manually placed node: {resourceId}`)
+				continue
+			end
 
 			local mainPart = model.PrimaryPart or model:FindFirstChildOfClass("BasePart")
 			if mainPart then
 				local node: ResourceNode = {
 					resourceId = resourceId,
 					currentHits = 0,
-					maxHits = config.hitsRequired,
+					maxHits = entity.Stats.hitsRequired or 1,
 					isActive = true,
 					part = mainPart,
+					stats = entity.Stats,
 				}
 
 				model:SetAttribute("EntityType", "Resource")

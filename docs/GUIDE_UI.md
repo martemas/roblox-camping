@@ -312,7 +312,7 @@ inventory = {
 ```lua
 teamResources = {
     enabled = true,
-    resourceTypes = {"Wood", "Stone", "Metal"},
+    resourceIds = {"Wood", "Stone", "Metal"},
     resourceBgColor = Color3.fromRGB(80, 80, 80),
 }
 ```

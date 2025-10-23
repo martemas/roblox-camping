@@ -38,8 +38,8 @@ local function canAffordItem(itemId: string): boolean
 	local teamResources = TownhallManager.GetTeamResources()
 
 	-- Check each required resource
-	for resourceType, requiredAmount in itemConfig.cost do
-		if requiredAmount > 0 and (teamResources[resourceType] or 0) < requiredAmount then
+	for resourceId, requiredAmount in itemConfig.cost do
+		if requiredAmount > 0 and (teamResources[resourceId] or 0) < requiredAmount then
 			return false
 		end
 	end
@@ -57,11 +57,11 @@ local function deductResources(itemId: string): boolean
 	end
 
 	-- Deduct each resource cost
-	for resourceType, cost in itemConfig.cost do
+	for resourceId, cost in itemConfig.cost do
 		if cost > 0 then
-			local success = TownhallManager.ConsumeResources(resourceType, cost)
+			local success = TownhallManager.ConsumeResources(resourceId, cost)
 			if not success then
-				warn(`Failed to deduct {cost} {resourceType} for {itemId}`)
+				warn(`Failed to deduct {cost} {resourceId} for {itemId}`)
 				return false
 			end
 		end

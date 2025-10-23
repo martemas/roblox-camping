@@ -102,15 +102,15 @@ TownhallManager was importing ResourcesConfig which was removed during refactori
 ```lua
 -- BEFORE (importing removed config)
 local ResourcesConfig = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Config"):WaitForChild("ResourcesConfig"))
-type ResourceType = ResourcesConfig.ResourceType
+type resourceId = ResourcesConfig.resourceId
 
 // AFTER (using string type directly)
 -- No ResourcesConfig import needed
--- Functions use string for resourceType
+-- Functions use string for resourceId
 
-function TownhallManager.HasResources(resourceType: string, amount: number): boolean
-function TownhallManager.ConsumeResources(resourceType: string, amount: number): boolean
-function TownhallManager.AddResources(resourceType: string, amount: number)
+function TownhallManager.HasResources(resourceId: string, amount: number): boolean
+function TownhallManager.ConsumeResources(resourceId: string, amount: number): boolean
+function TownhallManager.AddResources(resourceId: string, amount: number)
 ```
 
 **Result:** ✅ TownhallManager works without ResourcesConfig. Uses string item IDs like the new inventory system.
@@ -206,7 +206,7 @@ When updating files that reference old configs:
 3. **Update type annotations:**
    ```lua
    -- ❌ OLD
-   type ResourceType = ResourcesConfig.ResourceType
+   type resourceId = ResourcesConfig.resourceId
 
    -- ✅ NEW
    -- Just use string (itemId)

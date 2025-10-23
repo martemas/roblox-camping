@@ -11,7 +11,6 @@ local DayNightCycleConfig = require(script.DayNightCycleConfig)
 local ClientConfig = {
 	player = {
 		-- Movement settings
-		inventorySize = 5,
 		walkSpeed = 16,
 		sprintSpeed = 24,
 		maxStamina = 100,

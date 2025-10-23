@@ -69,10 +69,10 @@ local function onTownhallTouched(hit: BasePart, player: Player)
 	if hasResources then
 
 		local deposited = {}
-		for resourceType, amount in pairs(playerInventory) do
+		for resourceId, amount in pairs(playerInventory) do
 			if amount > 0 then
-				teamResources[resourceType] += amount
-				deposited[resourceType] = amount
+				teamResources[resourceId] += amount
+				deposited[resourceId] = amount
 			end
 		end
 
@@ -81,8 +81,8 @@ local function onTownhallTouched(hit: BasePart, player: Player)
 
 		-- Create deposit summary message
 		local depositedList = {}
-		for resourceType, amount in pairs(deposited) do
-			table.insert(depositedList, `{amount} {resourceType}`)
+		for resourceId, amount in pairs(deposited) do
+			table.insert(depositedList, `{amount} {resourceId}`)
 		end
 
 		local message = "Deposited: " .. table.concat(depositedList, ", ")
@@ -213,22 +213,22 @@ function TownhallManager.GetTeamResources(): TeamResources
 	return teamResources
 end
 
-function TownhallManager.HasResources(resourceType: string, amount: number): boolean
-	return teamResources[resourceType] >= amount
+function TownhallManager.HasResources(resourceId: string, amount: number): boolean
+	return teamResources[resourceId] >= amount
 end
 
-function TownhallManager.ConsumeResources(resourceType: string, amount: number): boolean
-	if teamResources[resourceType] < amount then
+function TownhallManager.ConsumeResources(resourceId: string, amount: number): boolean
+	if teamResources[resourceId] < amount then
 		return false
 	end
 
-	teamResources[resourceType] -= amount
+	teamResources[resourceId] -= amount
 	broadcastTeamResources()
 	return true
 end
 
-function TownhallManager.AddResources(resourceType: string, amount: number)
-	teamResources[resourceType] += amount
+function TownhallManager.AddResources(resourceId: string, amount: number)
+	teamResources[resourceId] += amount
 	broadcastTeamResources()
 end
 

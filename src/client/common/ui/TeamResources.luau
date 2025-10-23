@@ -57,16 +57,16 @@ function TeamResources.create(parent: ScreenGui): Frame
 	teamTitle.Parent = teamResourcesFrame
 
 	-- Resource displays
-	local resourceTypes = config.resourceTypes
-	for i, resourceType in resourceTypes do
+	local resourceIds = config.resourceIds
+	for i, resourceId in resourceIds do
 		local resourceLabel = Instance.new("TextLabel")
-		resourceLabel.Name = resourceType
+		resourceLabel.Name = resourceId
 		resourceLabel.Size = UDim2.new(0.33, -5, 0, 30)
 		resourceLabel.Position = UDim2.new((i - 1) * 0.33, 5, 0, 25)
 		resourceLabel.BackgroundColor3 = config.resourceBgColor
 		resourceLabel.BorderSizePixel = 1
 		resourceLabel.BorderColor3 = config.borderColor
-		resourceLabel.Text = `{resourceType}: 0`
+		resourceLabel.Text = `{resourceId}: 0`
 		resourceLabel.TextColor3 = config.textColor
 		resourceLabel.TextScaled = true
 		resourceLabel.Font = config.font
@@ -88,10 +88,10 @@ function TeamResources.update(teamResources: TeamResourcesType)
 		return
 	end
 
-	for resourceType, amount in teamResources do
-		local label = teamResourcesFrame:FindFirstChild(resourceType) :: TextLabel?
+	for resourceId, amount in teamResources do
+		local label = teamResourcesFrame:FindFirstChild(resourceId) :: TextLabel?
 		if label then
-			label.Text = `{resourceType}: {amount}`
+			label.Text = `{resourceId}: {amount}`
 		end
 	end
 end

@@ -80,7 +80,7 @@ local swingHits: {[Player]: {[number]: boolean}} = {}
 -- Note: We use the default Roblox character.Animate.toolslash animation instead of a pre-created one
 
 -- Play tool sound effect
-local function playToolSound(player: Player, toolType: ToolType, soundType: string?, resourceType: string?)
+local function playToolSound(player: Player, toolType: ToolType, soundType: string?, resourceId: string?)
 	local character = player.Character
 	if not character then return end
 
@@ -88,15 +88,15 @@ local function playToolSound(player: Player, toolType: ToolType, soundType: stri
 	if not tool or not tool:IsA("Tool") then return end
 
 	local soundName: string
-	if soundType == "resource" and resourceType then
+	if soundType == "resource" and resourceId then
 		-- Resource-specific mining sounds
-		if toolType == "Axe" and resourceType == "Wood" then
+		if toolType == "Axe" and resourceId == "Wood" then
 			-- Randomly select between Wood1 and Wood2
 			soundName = math.random() > 0.5 and "Wood1" or "Wood2"
-		elseif toolType == "Pickaxe" and resourceType == "Stone" then
+		elseif toolType == "Pickaxe" and resourceId == "Stone" then
 			-- Randomly select between Stone1 and Stone2
 			soundName = math.random() > 0.5 and "Stone1" or "Stone2"
-		elseif toolType == "Pickaxe" and resourceType == "Metal" then
+		elseif toolType == "Pickaxe" and resourceId == "Metal" then
 			soundName = "Metal"
 		else
 			-- Fallback to swing sound
@@ -796,8 +796,8 @@ local function getEquippedTool(player: Player): ToolType?
 end
 
 -- Auto-equip appropriate tool for resource type
-local function autoEquipTool(player: Player, resourceType: Types.ResourceType)
-	local requiredTool = GameConfig.resources[resourceType].requiredTool
+local function autoEquipTool(player: Player, resourceId: Types.resourceId)
+	local requiredTool = GameConfig.resources[resourceId].requiredTool
 	local currentTool = getEquippedTool(player)
 
 	if currentTool ~= requiredTool then
@@ -856,8 +856,8 @@ function ToolManager.EquipTool(player: Player, toolType: ToolType)
 	onToolEquip(player, toolType)
 end
 
-function ToolManager.AutoEquipForResource(player: Player, resourceType: Types.ResourceType)
-	autoEquipTool(player, resourceType)
+function ToolManager.AutoEquipForResource(player: Player, resourceId: Types.resourceId)
+	autoEquipTool(player, resourceId)
 end
 
 function ToolManager.GetToolDamage(toolType: ToolType): number

@@ -20,6 +20,7 @@ ResourceStats.Stats = {
 		requiredToolCategory = "Axe",
 		harvestTime = 2.0,
 		hitsRequired = 6,
+		respawnTime = 30,
 
 		drops = {
 			Wood = {
@@ -40,6 +41,7 @@ ResourceStats.Stats = {
 
 		requiredToolCategory = "Pickaxe",
 		harvestTime = 3.0,
+		respawnTime = 45,
 
 		drops = {
 			Stone = {
@@ -57,6 +59,7 @@ ResourceStats.Stats = {
 		nodesCount = 20, -- Can be harvested 3 times before depletion
 		requiredToolCategory = "Pickaxe",
 		harvestTime = 3.0,
+		respawnTime = 60,
 
 		drops = {
 			Stone = {
@@ -74,6 +77,7 @@ ResourceStats.Stats = {
 
 		requiredToolCategory = "Pickaxe",
 		harvestTime = 4.0,
+		respawnTime = 60,
 
 		drops = {
 			Metal = {
@@ -94,6 +98,7 @@ ResourceStats.Stats = {
 
 		requiredToolCategory = "Pickaxe",
 		harvestTime = 5.0,
+		respawnTime = 90,
 
 		drops = {
 			Gem = {
@@ -115,7 +120,8 @@ ResourceStats.Stats = {
 		requiredToolCategory = "Pickaxe",
 		harvestTime = 5.0,
 		nodesCount = 30, -- Can be harvested 10 times before depletion
-		
+		respawnTime = 120,
+
 		drops = {
 			Gem = {
 				chance = 1.0,

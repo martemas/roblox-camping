@@ -142,6 +142,10 @@ local function onGetPlayerData(player: Player)
 	return inventory
 end
 
+local function onGetInventorySize(player: Player): number
+	return GameConfig.player.inventorySize
+end
+
 -- Public API
 function InventoryManager.GetInventory(player: Player): PlayerInventory?
 	return playerInventories[player]
@@ -195,6 +199,7 @@ function InventoryManager.initialize()
 
 	-- Connect remote functions
 	RemoteEvents.Functions.GetPlayerData.OnServerInvoke = onGetPlayerData
+	RemoteEvents.Functions.GetInventorySize.OnServerInvoke = onGetInventorySize
 
 	print("[InventoryManager] ✓ Initialized")
 end

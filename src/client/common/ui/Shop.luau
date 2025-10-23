@@ -78,11 +78,11 @@ local function createShopItem(itemId: string, itemData: any, teamResources: any,
 
 	-- Cost Display
 	local costText = {}
-	for resourceType, cost in itemData.cost do
+	for resourceId, cost in itemData.cost do
 		if cost > 0 then
-			local hasEnough = (teamResources[resourceType] or 0) >= cost
+			local hasEnough = (teamResources[resourceId] or 0) >= cost
 			local colorHex = if hasEnough then "rgb(0,255,0)" else "rgb(255,0,0)"
-			table.insert(costText, `<font color="{colorHex}">{cost} {resourceType}</font>`)
+			table.insert(costText, `<font color="{colorHex}">{cost} {resourceId}</font>`)
 		end
 	end
 
@@ -116,8 +116,8 @@ local function createShopItem(itemId: string, itemData: any, teamResources: any,
 
 	-- Check if can afford
 	local canAfford = true
-	for resourceType, cost in itemData.cost do
-		if cost > 0 and (teamResources[resourceType] or 0) < cost then
+	for resourceId, cost in itemData.cost do
+		if cost > 0 and (teamResources[resourceId] or 0) < cost then
 			canAfford = false
 			break
 		end
