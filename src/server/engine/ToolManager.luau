@@ -617,6 +617,13 @@ local function onToolSwing(player: Player, toolId: ToolType)
 		return
 	end
 
+	-- Security: Verify player actually has the tool equipped
+	local tool = character:FindFirstChild(toolId)
+	if not tool or not tool:IsA("Tool") then
+		warn(`[ToolManager SECURITY] {player.Name} attempted to use {toolId} without having it equipped`)
+		return
+	end
+
 	local toolConfig = Items.getItem(toolId)
 
 	-- Get weapon config for cooldown
@@ -638,7 +645,7 @@ end
 
 -- Handle tool swing with click target/position
 local function onToolSwingWithTarget(player: Player, itemId: ToolType, clickTarget: Model?, clickPosition: Vector3?)
-	print(`[ToolManager] Swinging {toolType} with click detection...`)
+	print(`[ToolManager] Swinging {itemId} with click detection...`)
 	print(`[ToolManager] clickTarget: {clickTarget and clickTarget.Name or "nil"}`)
 	print(`[ToolManager] clickPosition: {clickPosition or "nil"}`)
 	print(`[ToolManager] autoAim: {GameConfig.combat.autoAim}`)
@@ -654,6 +661,13 @@ local function onToolSwingWithTarget(player: Player, itemId: ToolType, clickTarg
 
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	if not humanoid then
+		return
+	end
+
+	-- Security: Verify player actually has the tool equipped
+	local tool = character:FindFirstChild(itemId)
+	if not tool or not tool:IsA("Tool") then
+		warn(`[ToolManager SECURITY] {player.Name} attempted to use {itemId} without having it equipped`)
 		return
 	end
 
@@ -746,10 +760,9 @@ local function giveStartingTools(player: Player)
 	for _, toolName in pairs(GameConfig.player.startingTools) do
 		local tool = createTool(toolName :: ToolType)
 		if tool then
-			-- Connect tool activation to swing
-			tool.Activated:Connect(function()
-				onToolSwing(player, toolName :: ToolType)
-			end)
+			-- Note: Tool activation is handled by client-side ToolClickHandler
+			-- which sends SwingToolWithTarget remote event to the server
+			-- No need to connect Tool.Activated on server (it would bypass client checks)
 
 			tool.Parent = backpack
 			print(`Gave {toolName} to {player.Name}`)

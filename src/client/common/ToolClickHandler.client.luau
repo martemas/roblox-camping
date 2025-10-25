@@ -18,6 +18,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
+local CollectionService = game:GetService("CollectionService")
 
 local RemoteEvents = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Core"):WaitForChild("RemoteEvents"))
 local TargetingSystem = require(ReplicatedStorage:WaitForChild("Engine"):WaitForChild("Player"):WaitForChild("TargetingSystem"))
@@ -62,6 +63,29 @@ local function raycastFromScreenPosition(screenPosition: Vector2): RaycastResult
 	local direction = mouseRay.Direction * MAX_RAYCAST_DISTANCE
 
 	return workspace:Raycast(origin, direction, raycastParams)
+end
+
+--[[
+	Check if an instance is a dropped/draggable item
+
+	@param instance - Instance to check
+	@return boolean - True if instance or ancestor has "Draggable" tag
+]]
+local function isDroppedItem(instance: Instance?): boolean
+	if not instance then
+		return false
+	end
+
+	-- Traverse up the tree looking for Draggable tag
+	local current = instance
+	while current do
+		if CollectionService:HasTag(current, "Draggable") then
+			return true
+		end
+		current = current.Parent
+	end
+
+	return false
 end
 
 --[[
@@ -148,6 +172,12 @@ local function onToolActivated(toolType: ToolType)
 	local rayResult = raycastFromScreenPosition(screenPosition)
 
 	if rayResult then
+		-- Check if player clicked on a dropped item
+		if isDroppedItem(rayResult.Instance) then
+			print("[ToolClickHandler] Clicked on dropped item - ignoring tool activation")
+			return
+		end
+
 		clickPosition = rayResult.Position
 
 		-- Search for targetable entities near click point (using configured radius)
