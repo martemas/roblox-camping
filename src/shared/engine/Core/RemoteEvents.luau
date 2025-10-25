@@ -100,6 +100,11 @@ local RemoteEvents = {
 
 	-- Pickup System
 	PickupItem = createRemoteEvent("PickupItem"),                    -- Client → Server: Request item pickup
+
+	-- Drag System
+	StartDragItem = createRemoteEvent("StartDragItem"),              -- Client → Server: Start dragging item
+	UpdateDragPosition = createRemoteEvent("UpdateDragPosition"),    -- Client → Server: Update item position during drag
+	ReleaseDragItem = createRemoteEvent("ReleaseDragItem"),          -- Client → Server: Release drag and apply throw
 }
 
 -- Export RemoteFunctions

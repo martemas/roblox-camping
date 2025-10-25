@@ -289,10 +289,18 @@ function DropSystem.spawnScatteredDrops(drops: { ResolvedDrop }, position: Vecto
 			-- Clone the model
 			local itemModel = itemTemplate:Clone()
 
-			-- Set CollisionGroup
+			-- Set CollisionGroup and physics properties
 			for _, descendant in itemModel:GetDescendants() do
 				if descendant:IsA("BasePart") then
 					descendant.CollisionGroup = "Items"
+					-- Set physics properties to prevent wild collisions
+					descendant.CustomPhysicalProperties = PhysicalProperties.new(
+						0.7, -- Density (default is 0.7)
+						0.3, -- Friction (lower = more sliding)
+						0.2, -- Elasticity (lower = less bouncy)
+						1.0, -- FrictionWeight
+						1.0  -- ElasticityWeight
+					)
 				end
 			end
 

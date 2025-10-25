@@ -85,6 +85,11 @@ function GameInit.initialize()
 	PickupSystem.initialize()
 	Framework.register("PickupSystem", PickupSystem)
 
+	-- Item Drag System (depends on PickupSystem)
+	local ItemDragSystem = require(Engine.ItemDragSystem)
+	ItemDragSystem.initialize()
+	Framework.register("ItemDragSystem", ItemDragSystem)
+
 	-- Day/Night cycle
 	local DayNightCycle = require(Engine.DayNightCycle)
 	DayNightCycle.initialize()

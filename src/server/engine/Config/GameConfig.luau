@@ -176,6 +176,16 @@ local GameConfig = {
 		difficultyIncrease = 0.2, -- Reduced from 0.2 to 0.1 (10% increase per night)
 	},
 
+	-- Item Interaction Settings
+	itemInteraction = {
+		maxDragDistance = 20,        -- Max distance to drag from player (studs)
+		maxFinalDistance = 30,       -- Max distance for final throw landing
+		maxThrowVelocity = 50,       -- Max throw speed (studs/sec)
+		dragThreshold = 20,          -- Pixels to move before drag activates
+		highlightColor = Color3.fromRGB(255, 220, 100),
+		allowRelocation = true,      -- Toggle drag feature on/off
+	},
+
 	-- Export CombatMode enum
 	CombatMode = CombatMode,
 
