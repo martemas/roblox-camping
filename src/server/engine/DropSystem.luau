@@ -27,7 +27,8 @@ local Engine = ServerScriptService:WaitForChild("Engine")
 local EngineShared = ReplicatedStorage:WaitForChild("Engine")
 
 local GameConfig = require(Engine.Config.GameConfig)
-local Items = require(ReplicatedStorage:WaitForChild("Games"):WaitForChild("Data"):WaitForChild("Items"))
+-- local Items = require(ReplicatedStorage:WaitForChild("Games"):WaitForChild("Data"):WaitForChild("Items"))
+local Items = require(Engine.Data.Items)
 
 -- Types
 export type DropItemConfig = {
@@ -60,18 +61,7 @@ local DropSystem = {}
 	@param itemId - Item identifier (e.g., "BigMeat", "Sword")
 	@return Model or nil if not found
 ]]
-local function findItemModel(itemId: string): Model?
-	-- Get item data from Items database
-	local itemData = Items.Database[itemId]
-	if not itemData then
-		warn(`[DropSystem] Unknown item: {itemId}`)
-		return nil
-	end
-
-	if not itemData.dropModel then
-		warn(`[DropSystem] No drop model defined for item: {itemId}`)
-		return nil
-	end
+local function findItemModel(modelPath: string): Model?
 
 	local modelsFolder = ServerStorage:FindFirstChild("Assets")
 	if not modelsFolder then
@@ -80,7 +70,6 @@ local function findItemModel(itemId: string): Model?
 	end
 
 	-- Use path from Items database (e.g., "Items/Wood" or "Weapons/Sword")
-	local modelPath = itemData.dropModel
 	local pathParts = string.split(modelPath, "/")
 
 	local current = modelsFolder
@@ -277,11 +266,24 @@ function DropSystem.spawnScatteredDrops(drops: { ResolvedDrop }, position: Vecto
 		droppedItemsFolder.Parent = workspace
 	end
 
+
+
 	for _, drop in drops do
-		-- Find item model template
-		local itemTemplate = findItemModel(drop.itemId)
-		if not itemTemplate then
+
+		local itemData = Items.getItem(drop.itemId)  -- Preload item data (optional)
+		local itemTemplate = nil
+
+		if not itemData then
+			warn(`[DropSystem] Cannot spawn drop for unknown item: {drop.itemId}`)
 			continue
+		else
+			-- Find item model template
+			itemTemplate = findItemModel(itemData.dropModel)
+
+			if not itemTemplate then
+				warn(`[DropSystem] Cannot find model for item: {drop.itemId}`)
+				return
+			end
 		end
 
 		-- Spawn drop.quantity individual models (no stacking)
@@ -315,6 +317,7 @@ function DropSystem.spawnScatteredDrops(drops: { ResolvedDrop }, position: Vecto
 
 			-- Add attributes for pickup system
 			itemModel:SetAttribute("IsDroppedItem", true)
+			itemModel:SetAttribute("DisplayName", itemData.name or "Item")
 			itemModel:SetAttribute("ItemId", drop.itemId)
 			itemModel:SetAttribute("SpawnTime", workspace:GetServerTimeNow())
 			itemModel:SetAttribute("DespawnTime", despawnTime)

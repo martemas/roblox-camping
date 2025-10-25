@@ -144,7 +144,7 @@ local function startDrag(target:Instance, hitPosition:Vector3)
     alignOrientation.MaxTorque = 100000
 
     updateDrag()
-    dragConnection = RunService.RenderStepped:Connect(updateDrag)
+    dragConnection = RunService.Heartbeat:Connect(updateDrag)
 end
 
 local function updateHoverEffect()
@@ -174,26 +174,29 @@ local function updateHoverEffect()
         if target then
             currentHoverTarget = target
 
-            currentHighlight = Instance.new("Highlight", target)
+            currentHighlight = Instance.new("Highlight")
             currentHighlight.FillColor = Color3.fromRGB(255, 255, 255)
             currentHighlight.FillTransparency = 0.7
             currentHighlight.OutlineColor = Color3.fromRGB(255, 255, 255)
             currentHighlight.OutlineTransparency = 0.2
+            currentHighlight.Parent = target
 
-            local nameGui = Instance.new("BillboardGui", physicsPart)
+            local nameGui = Instance.new("BillboardGui")
             nameGui.Name = "ItemNameGui"
             nameGui.Adornee = physicsPart
             nameGui.Size = UDim2.new(4, 0, 1, 0)
             nameGui.StudsOffset = Vector3.new(0, 2.5, 0)
             nameGui.AlwaysOnTop = true
+            nameGui.Parent = physicsPart
 
-            local nameLabel = Instance.new("TextLabel", currentNameGui)
+            local nameLabel = Instance.new("TextLabel")
             nameLabel.Size = UDim2.new(1, 0, 1, 0)
             nameLabel.BackgroundTransparency = 1
             nameLabel.Font = Enum.Font.SourceSansBold
-            nameLabel.Text = target.Name
+            nameLabel.Text = target:GetAttribute("DisplayName") or target.Name
             nameLabel.TextColor3 = Color3.new(255, 255, 255)
             nameLabel.TextScaled = true
+            nameLabel.Parent = nameGui
 
             currentNameGui = nameGui
         end
