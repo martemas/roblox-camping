@@ -234,7 +234,7 @@ function ProjectileManager.spawnProjectile(
 	-- Add to registry
 	table.insert(activeProjectiles, projectile)
 
-	print(`Spawned projectile: {weaponId} from {attacker.Name}`)
+	-- print(`Spawned projectile: {weaponId} from {attacker.Name}`)
 
 	return projectile
 end

@@ -154,7 +154,7 @@ function GameInit.setupSpawning()
 
 	-- Spawn all entities from workspace spawn points
 	for _, spawnPoint in spawnPoints do
-		print(`[Alpha] Spawning {spawnPoint.count}x {spawnPoint.entityType} at {spawnPoint.position}`)
+		-- print(`[Alpha] Spawning {spawnPoint.count}x {spawnPoint.entityType} at {spawnPoint.position}`)
 
 		for i = 1, spawnPoint.count do
 			SpawnManager.spawnEntity(spawnPoint.entityType, spawnPoint.position, 1)

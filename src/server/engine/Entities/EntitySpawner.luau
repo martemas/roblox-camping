@@ -231,7 +231,7 @@ function EntitySpawner.spawnEntity(config: SpawnConfig): Model?
 		return nil
 	end
 
-	print(`Spawned {config.entityType} (Level {level}) at {position}`)
+	-- print(`Spawned {config.entityType} (Level {level}) at {position}`)
 	return model
 end
 
@@ -255,7 +255,7 @@ function EntitySpawner.spawnWave(configs: {SpawnConfig}): {Model}
 		end
 	end
 
-	print(`Spawned wave: {#spawnedModels} entities`)
+	-- print(`Spawned wave: {#spawnedModels} entities`)
 	return spawnedModels
 end
 

@@ -118,8 +118,8 @@ local function loadAnimations(entity: EntityInstance)
 
 	-- Load each animation defined in config
 	for animName, animId in config.Display.animationIds do
-		print("Loading animation", animName)
-		print("Anim ID", animId)
+		-- print("Loading animation", animName)
+		-- print("Anim ID", animId)
 		if animId and animId ~= "" then
 			local animation = Instance.new("Animation")
 			animation.AnimationId = animId

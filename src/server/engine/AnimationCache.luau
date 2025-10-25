@@ -73,7 +73,7 @@ function AnimationCache.Initialize(): ()
 		local newToolsFolder = Instance.new("Folder")
 		newToolsFolder.Name = "Tools"
 		newToolsFolder.Parent = modelsFolder
-		print("[AnimationCache] Created Models.Tools folder - please add tool instances with animations")
+		-- print("[AnimationCache] Created Models.Tools folder - please add tool instances with animations")
 		return
 	end
 
@@ -104,14 +104,14 @@ function AnimationCache.Initialize(): ()
 						end
 					end
 				end
-				print(`[AnimationCache] Loaded {#animations} animations for {toolName}: {table.concat(animNames, ", ")}`)
+				-- print(`[AnimationCache] Loaded {#animations} animations for {toolName}: {table.concat(animNames, ", ")}`)
 			else
-				print(`[AnimationCache] No valid animations found for {toolName} (will use fallback)`)
+				-- print(`[AnimationCache] No valid animations found for {toolName} (will use fallback)`)
 			end
 		end
 	end
 
-	print(`[AnimationCache] Pre-warming complete: {toolCount} tools, {totalAnimations} total animations`)
+	-- print(`[AnimationCache] Pre-warming complete: {toolCount} tools, {totalAnimations} total animations`)
 end
 
 -- Get cached animations for a tool type
@@ -129,10 +129,10 @@ end
 function AnimationCache.ClearCache(toolType: ToolType?): ()
 	if toolType then
 		cache[toolType] = nil
-		print(`[AnimationCache] Cleared cache for {toolType}`)
+		-- print(`[AnimationCache] Cleared cache for {toolType}`)
 	else
 		cache = {}
-		print("[AnimationCache] Cleared entire cache")
+		-- print("[AnimationCache] Cleared entire cache")
 	end
 end
 

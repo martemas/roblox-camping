@@ -182,14 +182,14 @@ function WorkspaceSpawnLoader.loadSpawnConfigs(): { SpawnPoint }
 		end
 	end
 
-	print(
-		string.format(
-			"[WorkspaceSpawnLoader] Loaded %d spawn point(s) from workspace. (%d valid, %d invalid)",
-			validCount,
-			validCount,
-			invalidCount
-		)
-	)
+	-- print(
+	-- 	string.format(
+	-- 		"[WorkspaceSpawnLoader] Loaded %d spawn point(s) from workspace. (%d valid, %d invalid)",
+	-- 		validCount,
+	-- 		validCount,
+	-- 		invalidCount
+	-- 	)
+	-- )
 
 	return spawnPoints
 end
