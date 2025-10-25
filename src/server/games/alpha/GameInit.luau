@@ -105,6 +105,11 @@ function GameInit.initialize()
 	WeaponInfoProvider.initialize()
 	Framework.register("WeaponInfoProvider", WeaponInfoProvider)
 
+	-- Dragging System
+	local DragManager = require(Engine.Dragging.DragManager)
+	DragManager.Initialize()
+	Framework.register("DragManager", DragManager)
+
 	-- ═══════════════════════════════════════════════════════
 	-- STEP 4: Initialize Optional Systems (Alpha-Specific)
 	-- ═══════════════════════════════════════════════════════

@@ -318,6 +318,7 @@ function DropSystem.spawnScatteredDrops(drops: { ResolvedDrop }, position: Vecto
 			itemModel:SetAttribute("ItemId", drop.itemId)
 			itemModel:SetAttribute("SpawnTime", workspace:GetServerTimeNow())
 			itemModel:SetAttribute("DespawnTime", despawnTime)
+			itemModel:AddTag("Draggable")
 
 			-- Add Highlight instance for client-side selection
 			local highlight = Instance.new("Highlight")

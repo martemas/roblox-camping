@@ -99,7 +99,7 @@ local RemoteEvents = {
 	MiningCompleted = createRemoteEvent("MiningCompleted"),          -- Server → Client: Mining completed
 
 	-- Pickup System
-	PickupItem = createRemoteEvent("PickupItem"),                    -- Client → Server: Request item pickup
+	PickupItem = createRemoteEvent("PickupItem"),                    -- Client → Server: Request item pickup                 -- Client → Server: Start dragging an item
 }
 
 -- Export RemoteFunctions
@@ -111,6 +111,7 @@ local RemoteFunctions = {
 	GetDerivedStats = createRemoteFunction("GetDerivedStats"),
 	GetWeaponInfo = createRemoteFunction("GetWeaponInfo"), -- Client → Server: Get weapon display info
 	GetInventorySize = createRemoteFunction("GetInventorySize"), -- Client → Server: Get player inventory size
+	RequestDrag = createRemoteFunction("RequestDrag"), -- Client → Server: Request to start dragging an item
 }
 
 return {
