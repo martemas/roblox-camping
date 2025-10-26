@@ -186,7 +186,7 @@ local function updateHoverEffect()
             nameGui.Adornee = physicsPart
             nameGui.Size = UDim2.new(4, 0, 1, 0)
             nameGui.StudsOffset = Vector3.new(0, 2.5, 0)
-            nameGui.AlwaysOnTop = true
+            -- nameGui.AlwaysOnTop = true
             nameGui.Parent = physicsPart
 
             local nameLabel = Instance.new("TextLabel")
