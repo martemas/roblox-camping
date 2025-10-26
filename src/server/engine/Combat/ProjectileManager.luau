@@ -161,28 +161,33 @@ function ProjectileManager.spawnProjectile(
 	end
 
 	-- Navigate to projectile model
-	-- Path: ReplicatedStorage.Models.Tools.Projectiles.[WeaponName].[ModelPath]
+	local replicatedAssetsFolder = ReplicatedStorage:FindFirstChild("Assets")
+	if not replicatedAssetsFolder then
+		warn("ReplicatedStorage.Assets folder not found")
+		return nil
+	end
+	-- Path: ServerStorage.Assets.Tools.Projectiles.[WeaponName].[ModelPath]
 	local modelsFolder = ServerStorage:FindFirstChild("Assets")
 	if not modelsFolder then
-		warn("ReplicatedStorage.Models folder not found")
+		warn("ServerStorage.Assets folder not found")
 		return nil
 	end
 
 	local toolsFolder = modelsFolder:FindFirstChild("Tools")
 	if not toolsFolder then
-		warn("ReplicatedStorage.Models.Tools folder not found")
+		warn("ServerStorage.Assets.Tools folder not found")
 		return nil
 	end
 
-	local projectilesFolder = toolsFolder:FindFirstChild("Projectiles")
+	local projectilesFolder = replicatedAssetsFolder:FindFirstChild("Projectiles")
 	if not projectilesFolder then
-		warn("ReplicatedStorage.Models.Tools.Projectiles folder not found")
+		warn("ReplicatedStorage.Assets.Projectiles folder not found")
 		return nil
 	end
 
 	local weaponFolder = projectilesFolder:FindFirstChild(weaponId)
 	if not weaponFolder then
-		warn(`No projectile folder found for {weaponId} in Tools.Projectiles`)
+		warn(`No weapon folder for {weaponId} in ReplicatedStorage.Assets.Projectiles`)
 		return nil
 	end
 
