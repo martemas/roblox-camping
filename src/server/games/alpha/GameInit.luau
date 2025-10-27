@@ -110,6 +110,11 @@ function GameInit.initialize()
 	DragManager.Initialize()
 	Framework.register("DragManager", DragManager)
 
+	-- Team System
+	local TeamManager = require(Engine.TeamManager)
+	TeamManager.initialize()
+	Framework.register("TeamManager", TeamManager)
+
 	-- ═══════════════════════════════════════════════════════
 	-- STEP 4: Initialize Optional Systems (Alpha-Specific)
 	-- ═══════════════════════════════════════════════════════
@@ -157,7 +162,7 @@ function GameInit.setupSpawning()
 		-- print(`[Alpha] Spawning {spawnPoint.count}x {spawnPoint.entityType} at {spawnPoint.position}`)
 
 		for i = 1, spawnPoint.count do
-			SpawnManager.spawnEntity(spawnPoint.entityType, spawnPoint.position, 1)
+			SpawnManager.spawnEntity(spawnPoint.entityType, spawnPoint.position, 1, spawnPoint.teamId)
 		end
 	end
 

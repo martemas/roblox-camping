@@ -199,6 +199,13 @@ local function updateHUDWithTarget(targetInfo: TargetInfo)
 	-- Calculate attack status
 	local borderColor, statusText = calculateAttackStatus(targetInfo)
 
+	-- Get team color for name display
+	local teamColor: Color3? = nil
+	local teamId = targetInfo.model:GetAttribute("TeamId")
+	if teamId and GameConfig.teams and GameConfig.teams.enabled and GameConfig.teams.teams[teamId] then
+		teamColor = GameConfig.teams.teams[teamId].color
+	end
+
 	-- Prepare update data
 	local updateData = {
 		name = `{targetInfo.entityType} ({targetInfo.model.Name})`,
@@ -212,6 +219,7 @@ local function updateHUDWithTarget(targetInfo: TargetInfo)
 		borderColor = borderColor,
 		statusText = statusText,
 		animationSpeed = settings.animationSpeed,
+		teamColor = teamColor,
 	}
 
 	-- Update component

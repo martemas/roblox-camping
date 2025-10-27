@@ -183,6 +183,14 @@ local function getClosestPlayer(entity: EntityInstance): Player?
 
 			-- Only target players who are alive
 			if playerHumanoid.Health > 0 then
+				-- Team filtering: Skip allies if team system enabled
+				if GameConfig.combat.teamBased and GameConfig.teams and GameConfig.teams.enabled then
+					local TeamManager = require(script.Parent.Parent.TeamManager)
+					if TeamManager.areAllies(entity.model, player) then
+						continue -- Skip team members
+					end
+				end
+
 				local dist = (playerHRP.Position - position).Magnitude
 				if dist <= shortestDist then
 					closest = player
@@ -528,6 +536,14 @@ local function getClosestEntityOfCategory(entity: EntityInstance, category: stri
 
 		for model, otherEntity in activeEntities do
 			if otherEntity.config.category == category and model ~= entity.model then
+				-- Team filtering: Skip allies if team system enabled
+				if GameConfig.combat.teamBased and GameConfig.teams and GameConfig.teams.enabled then
+					local TeamManager = require(script.Parent.Parent.TeamManager)
+					if TeamManager.areAllies(entity.model, model) then
+						continue -- Skip team members
+					end
+				end
+
 				local dist = (otherEntity.humanoidRootPart.Position - position).Magnitude
 				if dist <= shortestDist then
 					closest = model

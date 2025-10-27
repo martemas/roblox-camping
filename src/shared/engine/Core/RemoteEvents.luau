@@ -99,7 +99,10 @@ local RemoteEvents = {
 	MiningCompleted = createRemoteEvent("MiningCompleted"),          -- Server → Client: Mining completed
 
 	-- Pickup System
-	PickupItem = createRemoteEvent("PickupItem"),                    -- Client → Server: Request item pickup                 -- Client → Server: Start dragging an item
+	PickupItem = createRemoteEvent("PickupItem"),                    -- Client → Server: Request item pickup
+
+	-- Team System
+	TeamAssigned = createRemoteEvent("TeamAssigned"),                -- Server → Client: Team assignment notification
 }
 
 -- Export RemoteFunctions

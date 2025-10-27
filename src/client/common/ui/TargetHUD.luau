@@ -270,6 +270,7 @@ type TargetUpdateData = {
 	borderColor: Color3?,
 	statusText: string?,
 	animationSpeed: number?,
+	teamColor: Color3?, -- Team color for name display
 }
 
 function TargetHUD.update(data: TargetUpdateData)
@@ -278,10 +279,18 @@ function TargetHUD.update(data: TargetUpdateData)
 	local mainFrame = screenGui:FindFirstChild("MainFrame") :: Frame?
 	if not mainFrame then return end
 
-	-- Update name
+	-- Update name and team color
 	local nameLabel = mainFrame:FindFirstChild("NameLabel") :: TextLabel?
 	if nameLabel and data.name then
 		nameLabel.Text = data.name
+
+		-- Apply team color if provided
+		if data.teamColor then
+			nameLabel.TextColor3 = data.teamColor
+		else
+			-- Default white color
+			nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+		end
 	end
 
 	-- Update border color

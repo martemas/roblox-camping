@@ -269,7 +269,22 @@ local function isPvPAllowed(attacker: Model, target: Model): boolean
 		return true
 	end
 
-	-- Check if PvP is enabled
+	-- Check if teams are enabled and team-based combat is active
+	if GameConfig.combat.teamBased and GameConfig.teams and GameConfig.teams.enabled then
+		-- Load TeamManager lazily to avoid circular dependency
+		local TeamManager = require(script.Parent.Parent.TeamManager)
+
+		-- Check if same team
+		if TeamManager.areAllies(attacker, target) then
+			-- Same team - check friendly fire setting
+			return GameConfig.combat.friendlyFire
+		else
+			-- Different teams - PvP allowed
+			return true
+		end
+	end
+
+	-- Default: Check if PvP is enabled globally
 	return GameConfig.combat.pvpEnabled
 end
 
@@ -310,38 +325,58 @@ local function shouldAffectEntity(entity: Model, attacker: Model, targetFilter: 
 	local entityPlayer = Players:GetPlayerFromCharacter(entity)
 	local attackerPlayer = Players:GetPlayerFromCharacter(attacker)
 
-	if targetFilter == "allies" then
-		-- Only affect allies (same player or self)
-		if entity == attacker then
-			return true
-		end
-		if entityPlayer and attackerPlayer and entityPlayer == attackerPlayer then
-			return true
-		end
-		-- TODO: Team support
-		return false
+	-- Team-based filtering (if teams enabled)
+	if GameConfig.combat.teamBased and GameConfig.teams and GameConfig.teams.enabled then
+		local TeamManager = require(script.Parent.Parent.TeamManager)
 
-	elseif targetFilter == "enemies" then
-		-- Only affect enemies (different player or NPCs)
-		if entity == attacker then
-			return false
-		end
-		if entityPlayer and attackerPlayer and entityPlayer == attackerPlayer then
-			return false
-		end
+		if targetFilter == "allies" then
+			-- Only affect allies (same team)
+			if entity == attacker then
+				return true
+			end
+			return TeamManager.areAllies(entity, attacker)
 
-		-- Prevent friendly fire between same entity types
-		if not entityPlayer and not attackerPlayer then
-			local entityType = entity:GetAttribute("EntityType")
-			local attackerType = attacker:GetAttribute("EntityType")
-
-			-- Wildlife don't damage Wildlife, Creatures don't damage Creatures, etc.
-			if entityType and attackerType and entityType == attackerType then
+		elseif targetFilter == "enemies" then
+			-- Only affect enemies (different team)
+			if entity == attacker then
 				return false
 			end
+			return TeamManager.areEnemies(entity, attacker)
 		end
+	else
+		-- Legacy behavior (no teams)
+		if targetFilter == "allies" then
+			-- Only affect allies (same player or self)
+			if entity == attacker then
+				return true
+			end
+			if entityPlayer and attackerPlayer and entityPlayer == attackerPlayer then
+				return true
+			end
+			return false
 
-		return true
+		elseif targetFilter == "enemies" then
+			-- Only affect enemies (different player or NPCs)
+			if entity == attacker then
+				return false
+			end
+			if entityPlayer and attackerPlayer and entityPlayer == attackerPlayer then
+				return false
+			end
+
+			-- Prevent friendly fire between same entity types
+			if not entityPlayer and not attackerPlayer then
+				local entityType = entity:GetAttribute("EntityType")
+				local attackerType = attacker:GetAttribute("EntityType")
+
+				-- Wildlife don't damage Wildlife, Creatures don't damage Creatures, etc.
+				if entityType and attackerType and entityType == attackerType then
+					return false
+				end
+			end
+
+			return true
+		end
 	end
 
 	return true

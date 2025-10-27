@@ -42,6 +42,8 @@ export type SpawnConfig = {
 	spread: number?,  -- Additional random offset per spawn (for spreading groups)
 	spawnPoint: Vector3?,  -- Override spawn memory point (for patrol/wander behavior)
 	patrolPoints: {Vector3}?,  -- Override patrol points from config
+	teamId: string?,  -- Team assignment (for team-based gameplay)
+	ownerId: Player?,  -- Owner player (for pets/owned entities)
 }
 
 local EntitySpawner = {}
@@ -230,6 +232,12 @@ function EntitySpawner.spawnEntity(config: SpawnConfig): Model?
 		model:Destroy()
 		return nil
 	end
+
+	-- Always assign team (defaults to neutral if not specified)
+	-- This ensures all entities are properly registered in the team system
+	local TeamManager = require(script.Parent.Parent.TeamManager)
+	local teamId = config.teamId or "neutral"  -- Default to neutral
+	TeamManager.assignEntityToTeam(model, teamId, config.ownerId)
 
 	-- print(`Spawned {config.entityType} (Level {level}) at {position}`)
 	return model

@@ -56,7 +56,7 @@ local function setupHealthBarUpdates(healthBar: BillboardGui, model: Model, huma
 		end
 	end
 
-	-- Update name display
+	-- Update name display with team color
 	local function updateName()
 		if nameLabel then
 			local name = humanoid.DisplayName
@@ -64,6 +64,20 @@ local function setupHealthBarUpdates(healthBar: BillboardGui, model: Model, huma
 				name = model.Name
 			end
 			nameLabel.Text = name
+
+			-- Apply team color if available
+			local teamId = model:GetAttribute("TeamId")
+			if teamId then
+				-- Get team color from GameConfig
+				local GameConfig = require(ReplicatedStorage.Engine.Config)
+				if GameConfig.teams and GameConfig.teams.enabled and GameConfig.teams.teams[teamId] then
+					local teamColor = GameConfig.teams.teams[teamId].color
+					nameLabel.TextColor3 = teamColor
+				end
+			else
+				-- Default white color if no team
+				nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+			end
 		end
 	end
 
@@ -97,6 +111,7 @@ local function setupHealthBarUpdates(healthBar: BillboardGui, model: Model, huma
 	humanoid:GetPropertyChangedSignal("MaxHealth"):Connect(updateHealth)
 	humanoid:GetPropertyChangedSignal("DisplayName"):Connect(updateName)
 	model:GetAttributeChangedSignal("Level"):Connect(updateLevel)
+	model:GetAttributeChangedSignal("TeamId"):Connect(updateName) -- Update color when team changes
 end
 
 --[[

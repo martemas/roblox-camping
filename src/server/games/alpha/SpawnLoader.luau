@@ -71,7 +71,8 @@ local function parseSpawnPart(part: BasePart): SpawnPoint?
 	local spawnRadius = part:GetAttribute("SpawnRadius")
 	local respawnTime = part:GetAttribute("RespawnTime")
 	local maxActive = part:GetAttribute("MaxActive")
-
+	local teamId = part:GetAttribute("TeamId")  -- Optional team assignment
+	
 	-- Validate count
 	if type(count) ~= "number" or count < 1 then
 		warn(
@@ -121,6 +122,7 @@ local function parseSpawnPart(part: BasePart): SpawnPoint?
 		spawnRadius = spawnRadius,
 		respawnTime = respawnTime,
 		maxActive = maxActive,
+		teamId = teamId,  -- Pass through team ID from part attribute (optional)
 	}
 
 	-- Validate the spawn point

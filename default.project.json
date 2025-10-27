@@ -19,6 +19,9 @@
       },
       "Games": {
         "$path": "src/server/games/alpha"
+      },
+      "Tests": {
+        "$path": "src/server/tests"
       }
     },
     "StarterPlayer": {

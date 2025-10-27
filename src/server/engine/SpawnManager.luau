@@ -195,11 +195,12 @@ function SpawnManager.isNightActive(): boolean
 end
 
 -- Spawn specific entity (utility function)
-function SpawnManager.spawnEntity(entityType: string, position: Vector3?, level: number?): Model?
+function SpawnManager.spawnEntity(entityType: string, position: Vector3?, level: number?, teamId: string?): Model?
 	local config: EntitySpawner.SpawnConfig = {
 		entityType = entityType,
 		location = position and { type = "point", position = position } or { type = "random" },
 		level = level or 1,
+		teamId = teamId,  -- Optional team assignment (defaults to neutral in EntitySpawner)
 	}
 
 	return EntitySpawner.spawnEntity(config)

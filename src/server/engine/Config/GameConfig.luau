@@ -59,7 +59,7 @@ local GameConfig = {
 
 		-- Game Modes
 		pvpEnabled = true,
-		teamBased = false,
+		teamBased = true,
 		friendlyFire = false,
 
 		-- Body Part Damage Multipliers
@@ -174,6 +174,30 @@ local GameConfig = {
 		baseZombieCount = 5,
 		waveInterval = 60, -- Increased from 20 to 60 seconds between waves
 		difficultyIncrease = 0.2, -- Reduced from 0.2 to 0.1 (10% increase per night)
+	},
+
+	-- Team System Settings
+	teams = {
+		enabled = true, -- Toggle for team-based gameplay
+		defaultTeam = "neutral",
+		teams = {
+			red = {
+				name = "Red Team",
+				color = Color3.fromRGB(255, 50, 50),
+			},
+			blue = {
+				name = "Blue Team",
+				color = Color3.fromRGB(50, 100, 255),
+			},
+			green = {
+				name = "Green Team",
+				color = Color3.fromRGB(50, 255, 50),
+			},
+			neutral = {
+				name = "Neutral",
+				color = Color3.fromRGB(200, 200, 200),
+			},
+		},
 	},
 
 	-- Export CombatMode enum
