@@ -118,7 +118,6 @@ TileConfig.AdjacencyRules = {
 		TileConfig.TileType.DeepWater,
 		TileConfig.TileType.Water,
 		TileConfig.TileType.Sand,
-		TileConfig.TileType.Grass,
 	},
 	[TileConfig.TileType.Sand] = {
 		TileConfig.TileType.Water,

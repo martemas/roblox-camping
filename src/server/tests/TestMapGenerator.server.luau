@@ -1,6 +1,6 @@
 --!strict
--- MAP GENERATOR TEST SCRIPT (PHASE 1)
--- Tests basic grid generation and determinism
+-- MAP GENERATOR TEST SCRIPT (PHASE 1 & 2)
+-- Tests basic grid generation, determinism, and WFC algorithm
 
 local ServerScriptService = game:GetService("ServerScriptService")
 local Engine = ServerScriptService:WaitForChild("Engine")
@@ -143,4 +143,149 @@ end
 print("\n" .. string.rep("=", 60))
 print("PHASE 1 TESTS COMPLETE")
 print("All basic functionality verified!")
+print(string.rep("=", 60) .. "\n")
+
+-- ═══════════════════════════════════════════════════
+-- PHASE 2 TESTS - WAVE FUNCTION COLLAPSE
+-- ═══════════════════════════════════════════════════
+
+print("\n" .. string.rep("=", 60))
+print("MAP GENERATOR - PHASE 2 TESTS (WFC)")
+print(string.rep("=", 60) .. "\n")
+
+-- Test 7: WFC Generation
+print("TEST 7: WFC Generation")
+local wfcSeed = 99999
+local wfcMapData = MapGeneratorService.generate(wfcSeed)
+
+if not wfcMapData then
+	warn("✗ WFC generation failed!")
+else
+	print(`✓ WFC generated {wfcMapData.gridWidth}x{wfcMapData.gridHeight} map`)
+	print(`  Seed: {wfcMapData.seed}`)
+
+	-- Test 8: Adjacency Rule Verification
+	print("\nTEST 8: Adjacency Rule Verification")
+	local violationCount = 0
+	local checkedPairs = 0
+
+	for y = 1, wfcMapData.gridHeight do
+		for x = 1, wfcMapData.gridWidth do
+			local tile = wfcMapData.grid.tiles[y][x]
+			local tileType = tile.tileType
+
+			-- Check right neighbor
+			if x < wfcMapData.gridWidth then
+				checkedPairs = checkedPairs + 1
+				local rightTile = wfcMapData.grid.tiles[y][x + 1]
+				local adjacencyRules = TileConfig.AdjacencyRules[tileType]
+
+				if not table.find(adjacencyRules, rightTile.tileType) then
+					violationCount = violationCount + 1
+					if violationCount <= 5 then
+						local tileName = TileConfig.TileProperties[tileType].name
+						local rightName = TileConfig.TileProperties[rightTile.tileType].name
+						warn(`  ✗ Violation at ({x}, {y}): {tileName} → {rightName}`)
+					end
+				end
+			end
+
+			-- Check down neighbor
+			if y < wfcMapData.gridHeight then
+				checkedPairs = checkedPairs + 1
+				local downTile = wfcMapData.grid.tiles[y + 1][x]
+				local adjacencyRules = TileConfig.AdjacencyRules[tileType]
+
+				if not table.find(adjacencyRules, downTile.tileType) then
+					violationCount = violationCount + 1
+					if violationCount <= 5 then
+						local tileName = TileConfig.TileProperties[tileType].name
+						local downName = TileConfig.TileProperties[downTile.tileType].name
+						warn(`  ✗ Violation at ({x}, {y}): {tileName} ↓ {downName}`)
+					end
+				end
+			end
+		end
+	end
+
+	if violationCount == 0 then
+		print(`✓ All {checkedPairs} tile adjacencies respect rules`)
+	else
+		warn(`✗ Found {violationCount} adjacency violations out of {checkedPairs} pairs`)
+	end
+
+	-- Test 9: WFC Tile Distribution
+	print("\nTEST 9: WFC Tile Distribution")
+	local wfcTileCounts = {}
+	local wfcTotalTiles = 0
+
+	for tileType, _ in TileConfig.TileProperties do
+		wfcTileCounts[tileType] = 0
+	end
+
+	for y = 1, wfcMapData.gridHeight do
+		for x = 1, wfcMapData.gridWidth do
+			local tile = wfcMapData.grid.tiles[y][x]
+			wfcTileCounts[tile.tileType] = wfcTileCounts[tile.tileType] + 1
+			wfcTotalTiles = wfcTotalTiles + 1
+		end
+	end
+
+	print(`Total Tiles: {wfcTotalTiles}`)
+	for tileType, count in wfcTileCounts do
+		local props = TileConfig.TileProperties[tileType]
+		local percentage = (count / wfcTotalTiles) * 100
+		print(string.format("  %s: %d (%.1f%%)", props.name, count, percentage))
+	end
+
+	-- Test 10: WFC Determinism
+	print("\nTEST 10: WFC Determinism")
+	local wfcMapData2 = MapGeneratorService.generate(wfcSeed)
+
+	if not wfcMapData2 then
+		warn("✗ Second WFC generation failed!")
+	else
+		local wfcIdentical = true
+		for y = 1, wfcMapData.gridHeight do
+			for x = 1, wfcMapData.gridWidth do
+				local tile1 = wfcMapData.grid.tiles[y][x]
+				local tile2 = wfcMapData2.grid.tiles[y][x]
+				if
+					tile1.tileType ~= tile2.tileType
+					or math.abs(tile1.height - tile2.height) > 0.001
+				then
+					wfcIdentical = false
+					print(`✗ Mismatch at ({x}, {y})`)
+					break
+				end
+			end
+			if not wfcIdentical then
+				break
+			end
+		end
+
+		if wfcIdentical then
+			print("✓ WFC maps are identical - determinism confirmed")
+		else
+			warn("✗ WFC maps differ - determinism failed!")
+		end
+	end
+
+	-- Test 11: WFC Sample Output
+	print("\nTEST 11: WFC Sample Output (showing first 10x10 corner)")
+	for y = 1, math.min(10, wfcMapData.gridHeight) do
+		local row = ""
+		for x = 1, math.min(10, wfcMapData.gridWidth) do
+			local tile = wfcMapData.grid.tiles[y][x]
+			local props = TileConfig.TileProperties[tile.tileType]
+			row = row .. string.sub(props.name, 1, 1) .. " "
+		end
+		print(row)
+	end
+end
+
+-- Final Summary
+print("\n" .. string.rep("=", 60))
+print("PHASE 2 TESTS COMPLETE")
+print("WFC algorithm verified!")
 print(string.rep("=", 60) .. "\n")

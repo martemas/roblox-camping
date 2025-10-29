@@ -7,6 +7,7 @@ local MapConfig = require(script.Parent.Parent.Config.MapConfig)
 local TileConfig = require(script.Parent.TileConfig)
 local SeededRandom = require(script.Parent.SeededRandom)
 local MapData = require(script.Parent.MapData)
+local WaveFunctionCollapse = require(script.Parent.WaveFunctionCollapse)
 
 local MapGeneratorService = {}
 
@@ -97,6 +98,73 @@ function MapGeneratorService.generateSimpleRandom(seed: number?): Types.MapData
 
 	currentMapData = mapData
 	print(`[MapGeneratorService] ✓ Generation complete`)
+
+	return mapData
+end
+
+-- ═══════════════════════════════════════════════════
+-- WFC GENERATION (Phase 2)
+-- ═══════════════════════════════════════════════════
+
+-- Generate map using Wave Function Collapse algorithm
+function MapGeneratorService.generate(seed: number?): Types.MapData?
+	local config = MapConfig.generation
+	local usedSeed = seed or os.time()
+	local rng = SeededRandom.new(usedSeed)
+
+	-- Calculate grid dimensions
+	local gridWidth = math.floor(config.mapSize / config.tileSize)
+	local gridHeight = gridWidth
+
+	print(`[MapGeneratorService] Generating {gridWidth}x{gridHeight} grid with WFC (seed: {usedSeed})`)
+
+	-- WFC can fail due to contradictions, so retry with different internal seeds
+	local grid = nil
+	local maxRetries = 10
+	local attempt = 0
+
+	while not grid and attempt < maxRetries do
+		attempt = attempt + 1
+
+		-- Use the base seed plus attempt number for deterministic but different results
+		local attemptSeed = usedSeed + attempt - 1
+		local attemptRng = SeededRandom.new(attemptSeed)
+
+		if attempt > 1 then
+			print(`[MapGeneratorService] Retry attempt {attempt}/{maxRetries} (seed: {attemptSeed})`)
+		end
+
+		grid = WaveFunctionCollapse.generate(gridWidth, gridHeight, attemptRng)
+	end
+
+	if not grid then
+		warn(`[MapGeneratorService] ✗ WFC generation failed after {maxRetries} attempts`)
+		return nil
+	end
+
+	if attempt > 1 then
+		print(`[MapGeneratorService] ✓ WFC succeeded on attempt {attempt}`)
+	end
+
+	-- Calculate map bounds
+	local mapOrigin = MapData.calculateMapOrigin(config.mapSize)
+	local bounds = MapData.calculateMapBounds(config.mapSize, mapOrigin)
+
+	-- Create map data
+	local mapData: Types.MapData = {
+		seed = usedSeed,
+		mapSize = config.mapSize,
+		tileSize = config.tileSize,
+		gridWidth = gridWidth,
+		gridHeight = gridHeight,
+		grid = grid,
+		zones = {},
+		bounds = bounds,
+		origin = mapOrigin,
+	}
+
+	currentMapData = mapData
+	print(`[MapGeneratorService] ✓ WFC generation complete`)
 
 	return mapData
 end
