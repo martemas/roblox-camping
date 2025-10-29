@@ -1,0 +1,142 @@
+--!strict
+-- MAP GENERATION CONFIGURATION (SERVER-ONLY)
+
+local MapConfig = {}
+
+-- ═══════════════════════════════════════════════════
+-- GENERATION SETTINGS
+-- ═══════════════════════════════════════════════════
+
+MapConfig.generation = {
+	enabled = true, -- Enable procedural generation
+	mapSize = 512, -- Total map size in studs (512×512)
+	tileSize = 16, -- Each tile = 16×16 studs (32×32 grid)
+	seed = nil, -- nil = random, or set specific number for deterministic map
+}
+
+-- ═══════════════════════════════════════════════════
+-- PERSISTENCE SETTINGS
+-- ═══════════════════════════════════════════════════
+
+MapConfig.persistence = {
+	useSavedMaps = true, -- Load from DataStore if available
+	saveGeneratedMaps = true, -- Auto-save after generation
+	mapName = "AlphaWorld", -- DataStore key
+	allowRegeneration = true, -- Can regenerate from seed via admin command
+}
+
+-- ═══════════════════════════════════════════════════
+-- ZONE DEFINITIONS (Size-only, positions determined at runtime)
+-- ═══════════════════════════════════════════════════
+
+MapConfig.zones = {
+	-- Player starting town zone
+	playerTown = {
+		enabled = true,
+		radius = 40, -- Radius in studs (80×80 area)
+		biome = "plains",
+		constraints = {
+			requireFlat = true, -- Must be flat terrain
+			noWater = true, -- No water tiles allowed
+			minDistanceFromEdge = 60, -- Must be at least 60 studs from map edge
+		},
+		-- Assets to place in this zone
+		structures = {
+			{
+				name = "Townhall",
+				assetPath = "ReplicatedStorage.MapAssets.Structures.Townhall",
+				position = "center", -- "center" or offset like {x=10, z=5}
+				rotation = 0, -- Degrees
+			},
+			{
+				name = "StartingCamp",
+				assetPath = "ReplicatedStorage.MapAssets.Structures.Camp",
+				position = { x = 15, z = 0 },
+				rotation = 90,
+			},
+		},
+	},
+
+	-- Enemy castle zone
+	castle = {
+		enabled = true,
+		radius = 64, -- Larger area for castle grounds
+		biome = "plains",
+		constraints = {
+			requireFlat = true,
+			noWater = true,
+			minDistanceFromEdge = 80,
+			minDistanceFromOtherZones = 150, -- Must be far from player town
+		},
+		structures = {
+			{
+				name = "EnemyCastle",
+				assetPath = "ReplicatedStorage.MapAssets.Structures.Castle",
+				position = "center",
+				rotation = 0,
+			},
+		},
+	},
+
+	-- Optional: Desert biome zone (position randomized)
+	desert = {
+		enabled = true,
+		radius = 80,
+		biome = "desert",
+		constraints = {
+			requireFlat = false, -- Can have hills
+			noWater = true,
+			minDistanceFromEdge = 40,
+			minDistanceFromOtherZones = 60,
+		},
+		structures = {}, -- No structures, just biome
+	},
+
+	-- Optional: Mountain range (edge of map)
+	mountains = {
+		enabled = true,
+		radius = 60,
+		biome = "mountains",
+		constraints = {
+			requireFlat = false,
+			noWater = true,
+			preferEdge = true, -- Prefers to be near map edge
+			minDistanceFromEdge = 0,
+		},
+		structures = {},
+	},
+}
+
+-- ═══════════════════════════════════════════════════
+-- DECORATION SETTINGS
+-- ═══════════════════════════════════════════════════
+
+MapConfig.decorations = {
+	enabled = true,
+	density = 0.15, -- 15% of eligible tiles get decorations
+	useVariety = true, -- Use multiple models per decoration type
+	scaleVariation = 0.2, -- ±20% size variation
+}
+
+-- ═══════════════════════════════════════════════════
+-- PERFORMANCE SETTINGS
+-- ═══════════════════════════════════════════════════
+
+MapConfig.performance = {
+	progressiveGeneration = false, -- Generate in chunks with yields (slower but prevents timeout)
+	chunkSize = 64, -- Studs per chunk (if progressive)
+	useWriteVoxels = true, -- Use bulk WriteVoxels (faster) vs FillBlock
+	maxDecorations = 2000, -- Cap total decorations for performance
+}
+
+-- ═══════════════════════════════════════════════════
+-- SPAWN INTEGRATION
+-- ═══════════════════════════════════════════════════
+
+MapConfig.spawn = {
+	-- Link player spawn to generated town
+	spawnAtPlayerTown = true, -- Place player spawn at town center
+	spawnRadius = 10, -- Random spawn within radius of town center
+}
+
+return MapConfig
