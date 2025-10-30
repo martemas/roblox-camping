@@ -8,6 +8,7 @@ local TileConfig = require(script.Parent.TileConfig)
 local SeededRandom = require(script.Parent.SeededRandom)
 local MapData = require(script.Parent.MapData)
 local WaveFunctionCollapse = require(script.Parent.WaveFunctionCollapse)
+local TerrainBuilder = require(script.Parent.TerrainBuilder)
 
 local MapGeneratorService = {}
 
@@ -166,6 +167,32 @@ function MapGeneratorService.generate(seed: number?): Types.MapData?
 	currentMapData = mapData
 	print(`[MapGeneratorService] ✓ WFC generation complete`)
 
+	return mapData
+end
+
+-- ═══════════════════════════════════════════════════
+-- GENERATE AND BUILD WORLD (Phase 3)
+-- ═══════════════════════════════════════════════════
+
+-- Generate map and build 3D terrain in one step
+function MapGeneratorService.generateAndBuildWorld(seed: number?): Types.MapData?
+	-- Generate 2D map
+	local mapData = MapGeneratorService.generate(seed)
+
+	if not mapData then
+		warn("[MapGeneratorService] ✗ Failed to generate map")
+		return nil
+	end
+
+	-- Build 3D terrain
+	local success = TerrainBuilder.buildTerrain(mapData)
+
+	if not success then
+		warn("[MapGeneratorService] ✗ Failed to build terrain")
+		return nil
+	end
+
+	print("[MapGeneratorService] ✓ World generation complete")
 	return mapData
 end
 

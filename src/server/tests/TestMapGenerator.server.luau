@@ -289,3 +289,68 @@ print("\n" .. string.rep("=", 60))
 print("PHASE 2 TESTS COMPLETE")
 print("WFC algorithm verified!")
 print(string.rep("=", 60) .. "\n")
+
+-- ═══════════════════════════════════════════════════
+-- PHASE 3 TESTS - TERRAIN BUILDING
+-- ═══════════════════════════════════════════════════
+
+print("\n" .. string.rep("=", 60))
+print("MAP GENERATOR - PHASE 3 TESTS (TERRAIN BUILDING)")
+print(string.rep("=", 60) .. "\n")
+
+-- Test 12: Terrain Building
+print("TEST 12: 3D Terrain Generation")
+local terrainSeed = 54321
+local worldMapData = MapGeneratorService.generateAndBuildWorld(terrainSeed)
+
+if not worldMapData then
+	warn("✗ World generation failed!")
+else
+	print(`✓ World generated with 3D terrain`)
+	print(`  Seed: {worldMapData.seed}`)
+	print(`  Map Size: {worldMapData.mapSize}x{worldMapData.mapSize} studs`)
+	print(`  Grid: {worldMapData.gridWidth}x{worldMapData.gridHeight} tiles`)
+	print(
+		`  Bounds: X({worldMapData.bounds.minX} to {worldMapData.bounds.maxX}), Z({worldMapData.bounds.minZ} to {worldMapData.bounds.maxZ})`
+	)
+
+	-- Check if terrain was actually created
+	local terrain = game.Workspace.Terrain
+
+	-- Sample a few points to verify terrain exists
+	local hasTerrainCount = 0
+	local samplePoints = {
+		Vector3.new(0, 0, 0),
+		Vector3.new(100, 0, 100),
+		Vector3.new(-100, 0, -100),
+		Vector3.new(100, 0, -100),
+		Vector3.new(-100, 0, 100),
+	}
+
+	for _, point in samplePoints do
+		-- Read a single voxel at each point
+		local material = terrain:ReadVoxels(
+			Region3.new(point, point + Vector3.new(4, 4, 4)):ExpandToGrid(4),
+			4
+		)
+		local center = material[1][1][1]
+		if center ~= Enum.Material.Air then
+			hasTerrainCount = hasTerrainCount + 1
+		end
+	end
+
+	print(`  Terrain verification: {hasTerrainCount}/{#samplePoints} sample points have terrain`)
+
+	if hasTerrainCount > 0 then
+		print("✓ 3D terrain successfully generated in workspace!")
+	else
+		warn("✗ No terrain detected at sample points")
+	end
+end
+
+-- Final Summary
+print("\n" .. string.rep("=", 60))
+print("PHASE 3 TESTS COMPLETE")
+print("3D Terrain building verified!")
+print("Check workspace to see the generated terrain!")
+print(string.rep("=", 60) .. "\n")

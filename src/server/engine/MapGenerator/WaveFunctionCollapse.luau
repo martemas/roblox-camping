@@ -173,8 +173,11 @@ local function propagateConstraints(
 				-- Filter neighbor's possible tiles
 				local newPossibleTiles = {}
 				for _, possibleTile in neighborCell.possibleTiles do
-					-- Check if this tile can be adjacent to current tile
-					if table.find(validAdjacent, possibleTile) then
+					-- Check adjacency rules AND height constraints
+					local validAdjacency = table.find(validAdjacent, possibleTile)
+					local validHeight = TileConfig.isValidHeightTransition(currentTile, possibleTile)
+
+					if validAdjacency and validHeight then
 						table.insert(newPossibleTiles, possibleTile)
 					end
 				end
