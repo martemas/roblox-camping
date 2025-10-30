@@ -9,6 +9,7 @@ local SeededRandom = require(script.Parent.SeededRandom)
 local MapData = require(script.Parent.MapData)
 local WaveFunctionCollapse = require(script.Parent.WaveFunctionCollapse)
 local TerrainBuilder = require(script.Parent.TerrainBuilder)
+local PartsBuilder = require(script.Parent.PartsBuilder)
 
 local MapGeneratorService = {}
 
@@ -110,7 +111,8 @@ end
 -- Generate map using Wave Function Collapse algorithm
 function MapGeneratorService.generate(seed: number?): Types.MapData?
 	local config = MapConfig.generation
-	local usedSeed = seed or os.time()
+	-- Priority: parameter seed > config seed > random seed
+	local usedSeed = seed or config.seed or math.floor(tick() * 1000)
 	local rng = SeededRandom.new(usedSeed)
 
 	-- Calculate grid dimensions
@@ -184,11 +186,21 @@ function MapGeneratorService.generateAndBuildWorld(seed: number?): Types.MapData
 		return nil
 	end
 
-	-- Build 3D terrain
-	local success = TerrainBuilder.buildTerrain(mapData)
+	-- Build 3D world using configured rendering mode
+	local renderConfig = MapConfig.rendering
+	print(`[MapGeneratorService] Rendering config: mode={renderConfig.mode}, style={renderConfig.style}, quantization={renderConfig.heightQuantization}`)
+	local success = false
+
+	if renderConfig.mode == "parts" then
+		print("[MapGeneratorService] Using Parts rendering mode (Minecraft-style)")
+		success = PartsBuilder.buildWorld(mapData)
+	else
+		print("[MapGeneratorService] Using Terrain rendering mode (smooth)")
+		success = TerrainBuilder.buildTerrain(mapData)
+	end
 
 	if not success then
-		warn("[MapGeneratorService] ✗ Failed to build terrain")
+		warn("[MapGeneratorService] ✗ Failed to build world")
 		return nil
 	end
 

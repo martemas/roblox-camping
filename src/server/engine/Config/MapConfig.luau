@@ -10,7 +10,7 @@ local MapConfig = {}
 MapConfig.generation = {
 	enabled = true, -- Enable procedural generation
 	mapSize = 512, -- Total map size in studs (512×512)
-	tileSize = 16, -- Each tile = 16×16 studs (32×32 grid)
+	tileSize = 32, -- Each tile = 32×32 studs (64×64 grid)
 	seed = nil, -- nil = random, or set specific number for deterministic map
 }
 
@@ -114,7 +114,7 @@ MapConfig.zones = {
 MapConfig.decorations = {
 	enabled = true,
 	density = 0.15, -- 15% of eligible tiles get decorations
-	useVariety = true, -- Use multiple models per decoration type
+	useVariety = false, -- Use multiple models per decoration type
 	scaleVariation = 0.2, -- ±20% size variation
 }
 
@@ -127,6 +127,17 @@ MapConfig.performance = {
 	chunkSize = 64, -- Studs per chunk (if progressive)
 	useWriteVoxels = true, -- Use bulk WriteVoxels (faster) vs FillBlock
 	maxDecorations = 2000, -- Cap total decorations for performance
+}
+
+-- ═══════════════════════════════════════════════════
+-- RENDERING SETTINGS
+-- ═══════════════════════════════════════════════════
+
+MapConfig.rendering = {
+	mode = "parts", -- "terrain" (smooth Roblox terrain) or "parts" (Minecraft-style blocks)
+	style = "smooth", -- "smooth" (height variation) or "blocky" (uniform heights)
+	heightQuantization = 1, -- Snap heights to grid (4 = snap to 4-stud increments, 0 = disabled)
+	useRobloxMaterials = true, -- true = use Grass/Sand/Rock materials, false = SmoothPlastic only
 }
 
 -- ═══════════════════════════════════════════════════

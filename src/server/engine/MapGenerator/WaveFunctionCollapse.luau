@@ -5,6 +5,7 @@
 local Types = require(script.Parent.Types)
 local TileConfig = require(script.Parent.TileConfig)
 local MapData = require(script.Parent.MapData)
+local MapConfig = require(script.Parent.Parent.Config.MapConfig)
 
 local WaveFunctionCollapse = {}
 
@@ -243,11 +244,25 @@ function WaveFunctionCollapse.generate(
 
 		-- Update map grid
 		local tileProps = TileConfig.TileProperties[chosenTile]
-		local heightVariation = rng.nextFloat() * tileProps.heightVariation
-			- tileProps.heightVariation / 2
+		local renderConfig = MapConfig.rendering
+
+		-- Calculate height with optional variation and quantization
+		local heightVariation = 0
+		if renderConfig.style ~= "blocky" then
+			heightVariation = rng.nextFloat() * tileProps.heightVariation - tileProps.heightVariation / 2
+		end
+
+		local height = tileProps.baseHeight + heightVariation
+
+		-- Apply height quantization if enabled
+		if renderConfig.heightQuantization > 0 then
+			local step = renderConfig.heightQuantization
+			height = math.floor(height / step) * step
+		end
+
 		mapGrid.tiles[coord.y][coord.x] = {
 			tileType = chosenTile,
-			height = tileProps.baseHeight + heightVariation,
+			height = height,
 			zoneId = nil,
 		}
 
