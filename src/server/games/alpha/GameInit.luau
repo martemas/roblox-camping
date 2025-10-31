@@ -12,7 +12,7 @@
 local ServerScriptService = game:GetService("ServerScriptService")
 local Engine = ServerScriptService:WaitForChild("Engine")
 local SpawnLoader = require(script.Parent.SpawnLoader)
-
+local MapGeneratorService = require(Engine.MapGenerator.MapGeneratorService)
 local Framework = require(Engine.Framework)
 
 local GameInit = {}
@@ -27,6 +27,10 @@ function GameInit.initialize()
 	-- ═══════════════════════════════════════════════════════
 
 	print("\n[Alpha Game] Initializing core systems...")
+
+	-- Map generator service
+	MapGeneratorService.initialize()
+	Framework.register("MapGeneratorService", MapGeneratorService)
 
 	-- Animation system (required for entity animations)
 	local AnimationCache = require(Engine.AnimationCache)
@@ -86,9 +90,9 @@ function GameInit.initialize()
 	Framework.register("PickupSystem", PickupSystem)
 
 	-- Day/Night cycle
-	local DayNightCycle = require(Engine.DayNightCycle)
-	DayNightCycle.initialize()
-	Framework.register("DayNightCycle", DayNightCycle)
+	-- local DayNightCycle = require(Engine.DayNightCycle)
+	-- DayNightCycle.initialize()
+	-- Framework.register("DayNightCycle", DayNightCycle)
 
 	-- Resources
 	local ResourceManager = require(Engine.ResourceManager)
@@ -120,6 +124,21 @@ function GameInit.initialize()
 	-- ═══════════════════════════════════════════════════════
 
 	print("\n[Alpha Game] Initializing optional systems...")
+
+	-- Generate and build terrain (uses WFC + altitude biomes + 3D building)
+	local mapData = MapGeneratorService.generateAndBuildWorld()
+
+	if mapData then
+		print(`✓ World generated successfully (seed: {mapData.seed})`)
+		-- Move baseplate down a couple of studs to avoid z-fighting
+		local baseplate = workspace:FindFirstChild("Baseplate")
+		if baseplate then
+			baseplate.Position = Vector3.new(0, -20, 0)
+			-- baseplate:Destroy()
+		end
+	else
+		warn("✗ Failed to generate world")
+	end
 
 	-- Townhall system (must be initialized before ShopManager)
 	local TownhallManager = require(Engine.TownhallManager)

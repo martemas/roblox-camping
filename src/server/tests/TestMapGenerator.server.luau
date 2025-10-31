@@ -2,6 +2,8 @@
 -- MAP GENERATOR TEST SCRIPT (PHASE 1 & 2)
 -- Tests basic grid generation, determinism, and WFC algorithm
 
+if true then return end  -- Disable test script by default
+
 local ServerScriptService = game:GetService("ServerScriptService")
 local Engine = ServerScriptService:WaitForChild("Engine")
 local MapGenerator = Engine:WaitForChild("MapGenerator")

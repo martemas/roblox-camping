@@ -135,9 +135,25 @@ MapConfig.performance = {
 
 MapConfig.rendering = {
 	mode = "parts", -- "terrain" (smooth Roblox terrain) or "parts" (Minecraft-style blocks)
-	style = "smooth", -- "smooth" (height variation) or "blocky" (uniform heights)
-	heightQuantization = 1, -- Snap heights to grid (4 = snap to 4-stud increments, 0 = disabled)
+	style = "blocky", -- "smooth" (height variation) or "blocky" (uniform heights)
+	heightQuantization = 2, -- Snap heights to grid (4 = snap to 4-stud increments, 0 = disabled)
+	heightOffset = 2, -- Global Y offset for entire map (positive = higher, negative = lower)
 	useRobloxMaterials = true, -- true = use Grass/Sand/Rock materials, false = SmoothPlastic only
+
+	-- Altitude-based biome system (realistic elevation zones)
+	useAltitudeBiomes = true, -- Enable altitude-based tile type conversion
+	altitudeBands = {
+		-- Tiles are converted based on their height (altitude)
+		-- Lower altitudes listed first, checked in order
+		{ maxHeight = -8, tileType = 1 }, -- DeepWater
+		{ maxHeight = -2, tileType = 2 }, -- Water
+		{ maxHeight = 1, tileType = 3 }, -- Sand (beaches)
+		{ maxHeight = 6, tileType = 4 }, -- Grass (lowlands)
+		{ maxHeight = 10, tileType = 5 }, -- Forest (mid elevation)
+		{ maxHeight = 14, tileType = 6 }, -- Hill (barren/rocky)
+		{ maxHeight = 20, tileType = 7 }, -- Mountain (high peaks)
+		{ maxHeight = math.huge, tileType = 8 }, -- Snow (very high)
+	},
 }
 
 -- ═══════════════════════════════════════════════════

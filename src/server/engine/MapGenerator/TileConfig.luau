@@ -38,7 +38,7 @@ TileConfig.TileProperties = {
 		baseHeight = -4,
 		terrain = Enum.Material.Water,
 		color = Color3.fromRGB(50, 100, 200),
-		heightVariation = 1,
+		heightVariation = 0,
 		decorations = { "Lily", "Reed" },
 		weight = 0.10,
 		isWalkable = false,
@@ -88,7 +88,7 @@ TileConfig.TileProperties = {
 		baseHeight = 12,
 		terrain = Enum.Material.Rock,
 		color = Color3.fromRGB(100, 100, 100),
-		heightVariation = 5,
+		heightVariation = 100,
 		decorations = { "RockLarge", "Boulder" },
 		weight = 0.08,
 		isWalkable = false,
@@ -110,14 +110,17 @@ TileConfig.TileProperties = {
 -- ═══════════════════════════════════════════════════
 
 TileConfig.AdjacencyRules = {
-	[TileConfig.TileType.DeepWater] = {
-		TileConfig.TileType.DeepWater,
-		TileConfig.TileType.Water,
-	},
+	-- [TileConfig.TileType.DeepWater] = {
+	-- 	TileConfig.TileType.DeepWater,
+	-- 	TileConfig.TileType.Water,
+	-- },
 	[TileConfig.TileType.Water] = {
-		TileConfig.TileType.DeepWater,
+		-- TileConfig.TileType.DeepWater,
 		TileConfig.TileType.Water,
 		TileConfig.TileType.Sand,
+		TileConfig.TileType.Grass,
+		TileConfig.TileType.Hill,
+		TileConfig.TileType.Mountain,
 	},
 	[TileConfig.TileType.Sand] = {
 		TileConfig.TileType.Water,
@@ -198,7 +201,7 @@ TileConfig.Biomes = {
 		name = "Water",
 		allowedTiles = {
 			TileConfig.TileType.Water,
-			TileConfig.TileType.DeepWater,
+			-- TileConfig.TileType.DeepWater,
 		},
 		heightRange = { -10, -2 },
 		description = "Lakes and deep water",

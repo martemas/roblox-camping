@@ -73,7 +73,7 @@ function PartsBuilder.buildWorld(mapData: Types.MapData): boolean
 			end
 
 			local blockHeight = math.max(4, tile.height - baseLevel + 4) -- At least 4 studs thick
-			local centerY = baseLevel + (blockHeight / 2)
+			local centerY = baseLevel + (blockHeight / 2) + renderConfig.heightOffset
 
 			part.Size = Vector3.new(tileSize, blockHeight, tileSize)
 			part.CFrame = CFrame.new(worldPos.x, centerY, worldPos.z)

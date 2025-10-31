@@ -28,9 +28,23 @@ MapConfig.generation = {
 -- Rendering mode
 MapConfig.rendering = {
     mode = "parts",              -- "terrain" or "parts"
-    style = "blocky",            -- "smooth" or "blocky"
-    heightQuantization = 4,      -- Snap heights to 4-stud grid (0 = disabled)
-    useRobloxMaterials = false,  -- true = use terrain materials, false = SmoothPlastic
+    style = "smooth",            -- "smooth" or "blocky"
+    heightQuantization = 1,      -- Snap heights to grid (0 = disabled)
+    heightOffset = 0,            -- Global Y offset for entire map
+    useRobloxMaterials = true,   -- true = use terrain materials, false = SmoothPlastic
+
+    -- Altitude-based biome system
+    useAltitudeBiomes = true,    -- Enable altitude-based terrain conversion
+    altitudeBands = {
+        { maxHeight = -8, tileType = 1 },  -- DeepWater
+        { maxHeight = -2, tileType = 2 },  -- Water
+        { maxHeight = 1, tileType = 3 },   -- Sand
+        { maxHeight = 6, tileType = 4 },   -- Grass
+        { maxHeight = 10, tileType = 5 },  -- Forest
+        { maxHeight = 14, tileType = 6 },  -- Hill
+        { maxHeight = 20, tileType = 7 },  -- Mountain
+        { maxHeight = math.huge, tileType = 8 },  -- Snow
+    },
 }
 ```
 
@@ -46,12 +60,18 @@ local MapGeneratorService = require(Engine.MapGenerator.MapGeneratorService)
 MapGeneratorService.initialize()
 Framework.register("MapGeneratorService", MapGeneratorService)
 
--- Generate the world
+-- Generate and build the world (creates 3D terrain in workspace)
 print("Generating world...")
 local mapData = MapGeneratorService.generateAndBuildWorld()
 
 if mapData then
     print(`✓ World generated successfully (seed: {mapData.seed})`)
+
+    -- Optional: Remove the default baseplate
+    local baseplate = workspace:FindFirstChild("Baseplate")
+    if baseplate then
+        baseplate:Destroy()
+    end
 else
     warn("✗ Failed to generate world")
 end
@@ -106,9 +126,23 @@ MapConfig.generation = {
 ```lua
 MapConfig.rendering = {
     mode = "parts",              -- Rendering mode
-    style = "blocky",            -- Height variation style
-    heightQuantization = 4,      -- Height snapping
-    useRobloxMaterials = false,  -- Material choice
+    style = "smooth",            -- Height variation style
+    heightQuantization = 1,      -- Height snapping
+    heightOffset = 0,            -- Global Y offset for entire map
+    useRobloxMaterials = true,   -- Material choice
+
+    -- Altitude-based biome system
+    useAltitudeBiomes = true,    -- Enable altitude-based terrain conversion
+    altitudeBands = {
+        { maxHeight = -8, tileType = 1 },  -- DeepWater
+        { maxHeight = -2, tileType = 2 },  -- Water
+        { maxHeight = 1, tileType = 3 },   -- Sand
+        { maxHeight = 6, tileType = 4 },   -- Grass
+        { maxHeight = 10, tileType = 5 },  -- Forest
+        { maxHeight = 14, tileType = 6 },  -- Hill
+        { maxHeight = 20, tileType = 7 },  -- Mountain
+        { maxHeight = math.huge, tileType = 8 },  -- Snow
+    },
 }
 ```
 
@@ -122,8 +156,21 @@ MapConfig.rendering = {
 
 **Height Quantization:**
 - `0`: No snapping (smooth height transitions)
+- `1`: Snap to 1-stud increments (subtle steps)
 - `4`: Snap to 4-stud increments (terraced, Minecraft-like)
 - `8`: Snap to 8-stud increments (more dramatic steps)
+
+**Height Offset:**
+- Positions the entire map vertically
+- Positive values raise the map, negative values lower it
+- Example: `heightOffset = 50` places the map 50 studs higher
+
+**Altitude Biomes System:**
+- `useAltitudeBiomes`: Enable/disable altitude-based terrain conversion
+- `altitudeBands`: Array defining height thresholds and tile types
+- Creates realistic elevation zones (beaches → grass → hills → mountains → snow)
+- Tile types: 1=DeepWater, 2=Water, 3=Sand, 4=Grass, 5=Forest, 6=Hill, 7=Mountain, 8=Snow
+- Height threshold accounts for `heightOffset` automatically
 
 ---
 
@@ -215,6 +262,8 @@ MapConfig.rendering = {
     mode = "terrain",
     style = "smooth",
     heightQuantization = 0,
+    heightOffset = 0,
+    useAltitudeBiomes = true,
 }
 ```
 
@@ -242,8 +291,10 @@ MapConfig.rendering = {
 ```lua
 MapConfig.rendering = {
     mode = "parts",
-    style = "blocky",
+    style = "smooth",
     heightQuantization = 4,
+    heightOffset = 0,
+    useAltitudeBiomes = true,
 }
 ```
 
@@ -307,9 +358,11 @@ generation = {
 
 rendering = {
     mode = "parts",
-    style = "blocky",
+    style = "smooth",
     heightQuantization = 4,
+    heightOffset = 0,
     useRobloxMaterials = false,
+    useAltitudeBiomes = false,  -- Disable for pure WFC generation
 }
 ```
 

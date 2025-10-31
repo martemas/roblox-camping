@@ -10,6 +10,7 @@ local MapData = require(script.Parent.MapData)
 local WaveFunctionCollapse = require(script.Parent.WaveFunctionCollapse)
 local TerrainBuilder = require(script.Parent.TerrainBuilder)
 local PartsBuilder = require(script.Parent.PartsBuilder)
+local AltitudeBiomes = require(script.Parent.AltitudeBiomes)
 
 local MapGeneratorService = {}
 
@@ -165,6 +166,9 @@ function MapGeneratorService.generate(seed: number?): Types.MapData?
 		bounds = bounds,
 		origin = mapOrigin,
 	}
+
+	-- Apply altitude-based biome conversion (if enabled)
+	mapData = AltitudeBiomes.applyAltitudeBiomes(mapData)
 
 	currentMapData = mapData
 	print(`[MapGeneratorService] ✓ WFC generation complete`)

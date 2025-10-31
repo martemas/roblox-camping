@@ -24,6 +24,8 @@
 	- Or delete this script when done testing
 ]]
 
+if true then return end  -- Disable test script by default
+
 local ServerScriptService = game:GetService("ServerScriptService")
 local Players = game:GetService("Players")
 

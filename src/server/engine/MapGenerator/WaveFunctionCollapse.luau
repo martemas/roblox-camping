@@ -246,12 +246,9 @@ function WaveFunctionCollapse.generate(
 		local tileProps = TileConfig.TileProperties[chosenTile]
 		local renderConfig = MapConfig.rendering
 
-		-- Calculate height with optional variation and quantization
-		local heightVariation = 0
-		if renderConfig.style ~= "blocky" then
-			heightVariation = rng.nextFloat() * tileProps.heightVariation - tileProps.heightVariation / 2
-		end
-
+		-- Calculate height with variation (always enabled for natural terrain)
+		-- Note: Quantization will snap to grid if enabled, creating blocky effect
+		local heightVariation = rng.nextFloat() * tileProps.heightVariation - tileProps.heightVariation / 2
 		local height = tileProps.baseHeight + heightVariation
 
 		-- Apply height quantization if enabled

@@ -5,6 +5,7 @@
 local Types = require(script.Parent.Types)
 local TileConfig = require(script.Parent.TileConfig)
 local MapData = require(script.Parent.MapData)
+local MapConfig = require(script.Parent.Parent.Config.MapConfig)
 
 local TerrainBuilder = {}
 
@@ -34,6 +35,7 @@ function TerrainBuilder.buildTerrain(mapData: Types.MapData): boolean
 
 	local tileSize = mapData.tileSize
 	local grid = mapData.grid
+	local renderConfig = MapConfig.rendering
 
 	-- Track progress
 	local totalTiles = grid.width * grid.height
@@ -49,19 +51,22 @@ function TerrainBuilder.buildTerrain(mapData: Types.MapData): boolean
 			-- Convert grid coordinates to world position
 			local worldPos = MapData.gridToWorld(x, y, tileSize, mapData.origin)
 
-			-- Calculate terrain block dimensions
-			local blockSize = Vector3.new(tileSize, 50, tileSize)
-			local baseHeight = tile.height * TERRAIN_HEIGHT_SCALE
+			-- Make terrain extend from base level up to tile height (same as parts builder)
+			-- This creates proper columns with no gaps underneath
+			local baseLevel = 0 -- Ground level
+			if tile.height < 0 then
+				-- Water tiles: extend from their height up to ground level
+				baseLevel = tile.height
+			end
 
-			-- Create terrain region from base height to surface
-			local surfaceHeight = baseHeight + 4 -- Terrain thickness
+			local blockHeight = math.max(4, tile.height - baseLevel + 4) -- At least 4 studs thick
+			local centerY = baseLevel + (blockHeight / 2) + renderConfig.heightOffset
 
 			-- Calculate center point of the terrain block
 			local centerX = worldPos.x
-			local centerY = baseHeight + 2 -- Center of the 4-stud thick terrain
 			local centerZ = worldPos.z
 
-			local size = Vector3.new(tileSize, 4, tileSize)
+			local size = Vector3.new(tileSize, blockHeight, tileSize)
 			local cframe = CFrame.new(centerX, centerY, centerZ)
 
 			-- Fill terrain using FillBlock
