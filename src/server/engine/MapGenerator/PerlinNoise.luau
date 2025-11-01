@@ -22,11 +22,13 @@ end
 -- Dot product of gradient and distance vector
 local function dotGridGradient(rng: Types.SeededRandom, ix: number, iy: number, x: number, y: number): number
 	-- Generate consistent "random" gradient based on grid position
-	-- Use seeded RNG to get same gradient for same grid cell
-	local seed = math.floor(ix * 73856093 + iy * 19349663)
-	local tempRng = require(script.Parent.SeededRandom).new(seed)
+	-- Combine grid coordinates with the base seed for deterministic gradients
+	-- This ensures same seed produces same map, but different seeds produce different maps
+	local baseSeed = rng.getSeed() -- Get the underlying seed value
+	local cellSeed = baseSeed + ix * 73856093 + iy * 19349663
+	local cellRng = require(script.Parent.SeededRandom).new(math.floor(cellSeed))
 
-	local angle = tempRng.nextFloat() * math.pi * 2
+	local angle = cellRng.nextFloat() * math.pi * 2
 	local dx = math.cos(angle)
 	local dy = math.sin(angle)
 

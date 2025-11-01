@@ -14,7 +14,10 @@ MapConfig.generation = {
 	seed = nil, -- nil = random, or set specific number for deterministic map
 
 	-- Height generation mode
-	heightGenerationMode = "perlin", -- "constrained" (smooth) or "perlin" (natural)
+	-- "constrained": WFC tile placement + smooth height constraints between neighbors
+	-- "perlin": WFC tile placement + Perlin noise heightmap
+	-- "perlin_only": Pure Perlin noise (no WFC) - fastest and simplest
+	heightGenerationMode = "perlin", -- Generation mode
 	maxHeightDelta = 2, -- Max height difference between adjacent tiles (for constrained mode)
 	perlinScale = 10, -- Perlin noise scale/frequency (smaller = more detail, larger = smoother)
 	perlinOctaves = 3, -- Number of noise octaves (more = more detail)
@@ -141,12 +144,14 @@ MapConfig.performance = {
 
 MapConfig.rendering = {
 	mode = "parts", -- "terrain" (smooth Roblox terrain) or "parts" (Minecraft-style blocks)
-	style = "blocky", -- "smooth" (height variation) or "blocky" (uniform heights)
+	style = "smooth", -- "smooth" (height variation) or "blocky" (uniform heights)
 	heightQuantization = 1, -- Snap heights to grid (4 = snap to 4-stud increments, 0 = disabled)
 	heightOffset = 0, -- Global Y offset for entire map (positive = higher, negative = lower)
 	useRobloxMaterials = true, -- true = use Grass/Sand/Rock materials, false = SmoothPlastic only
 
 	-- Altitude-based biome system (realistic elevation zones)
+	-- Try setting to false when using "perlin" mode to see WFC tile patterns
+	-- (perlin_only ignores this and always applies altitude conversion)
 	useAltitudeBiomes = true, -- Enable altitude-based tile type conversion
 	altitudeBands = {
 		-- Tiles are converted based on their height (altitude)

@@ -4,7 +4,12 @@ This guide explains how to integrate the Map Generator into your game initializa
 
 ## Overview
 
-The Map Generator creates procedurally generated worlds using the Wave Function Collapse (WFC) algorithm. It supports two rendering modes:
+The Map Generator creates procedurally generated worlds with configurable height generation modes:
+- **Constrained**: Wave Function Collapse (WFC) with smooth height constraints between neighbors
+- **Perlin**: WFC tile placement with Perlin noise heightmaps
+- **Perlin Only**: Pure Perlin noise generation (no WFC) - fastest and simplest
+
+Supports two rendering modes:
 - **Terrain Mode**: Smooth Roblox terrain (natural, organic look)
 - **Parts Mode**: Minecraft-style blocky world using individual Parts
 
@@ -20,37 +25,46 @@ Edit `src/server/engine/Config/MapConfig.luau`:
 -- Map size and generation
 MapConfig.generation = {
     enabled = true,
-    mapSize = 512,      -- Total map size in studs (512×512)
-    tileSize = 16,      -- Each tile = 16×16 studs (32×32 grid)
-    seed = nil,         -- nil = random map, or set number for specific map
+    mapSize = 1024,           -- Total map size in studs (1024×1024)
+    tileSize = 16,            -- Each tile = 16×16 studs (64×64 grid)
+    seed = nil,               -- nil = random map, or set number for specific map
+
+    -- Height generation mode
+    -- "constrained": WFC + smooth height constraints between neighbors
+    -- "perlin": WFC tile placement + Perlin noise heightmap
+    -- "perlin_only": Pure Perlin noise (no WFC) - fastest and simplest
+    heightGenerationMode = "perlin_only",
+    maxHeightDelta = 2,       -- Max height diff between adjacent tiles (constrained mode)
+    perlinScale = 10,         -- Perlin noise scale (smaller = more detail)
+    perlinOctaves = 3,        -- Number of noise octaves (more = more detail)
 }
 
 -- Rendering mode
 MapConfig.rendering = {
-    mode = "parts",              -- "terrain" or "parts"
-    style = "smooth",            -- "smooth" or "blocky"
-    heightQuantization = 1,      -- Snap heights to grid (0 = disabled)
-    heightOffset = 0,            -- Global Y offset for entire map
-    useRobloxMaterials = true,   -- true = use terrain materials, false = SmoothPlastic
+    mode = "terrain",              -- "terrain" or "parts"
+    style = "smooth",              -- "smooth" or "blocky"
+    heightQuantization = 1,        -- Snap heights to grid (0 = disabled)
+    heightOffset = 0,              -- Global Y offset for entire map
+    useRobloxMaterials = true,     -- true = use terrain materials, false = SmoothPlastic
 
     -- Altitude-based biome system
-    useAltitudeBiomes = true,    -- Enable altitude-based terrain conversion
+    useAltitudeBiomes = true,      -- Enable altitude-based terrain conversion
     altitudeBands = {
         { maxHeight = -8, tileType = 1 },  -- DeepWater
         { maxHeight = -2, tileType = 2 },  -- Water
-        { maxHeight = 1, tileType = 3 },   -- Sand
-        { maxHeight = 6, tileType = 4 },   -- Grass
-        { maxHeight = 10, tileType = 5 },  -- Forest
-        { maxHeight = 14, tileType = 6 },  -- Hill
-        { maxHeight = 20, tileType = 7 },  -- Mountain
-        { maxHeight = math.huge, tileType = 8 },  -- Snow
+        { maxHeight = 1, tileType = 3 },   -- Sand (beaches)
+        { maxHeight = 6, tileType = 4 },   -- Grass (lowlands)
+        { maxHeight = 10, tileType = 5 },  -- Forest (mid elevation)
+        { maxHeight = 14, tileType = 6 },  -- Hill (barren/rocky)
+        { maxHeight = 20, tileType = 7 },  -- Mountain (high peaks)
+        { maxHeight = math.huge, tileType = 8 },  -- Snow (very high)
     },
 }
 ```
 
 ### 2. Initialize in Your Game Script
 
-Add to your game initialization (e.g., `src/server/Games/alpha/GameInit.luau`):
+Add to your game initialization (e.g., `src/server/games/alpha/GameInit.luau`):
 
 ```lua
 -- Import the service
@@ -67,10 +81,12 @@ local mapData = MapGeneratorService.generateAndBuildWorld()
 if mapData then
     print(`✓ World generated successfully (seed: {mapData.seed})`)
 
-    -- Optional: Remove the default baseplate
+    -- Optional: Reposition or remove the default baseplate
     local baseplate = workspace:FindFirstChild("Baseplate")
     if baseplate then
-        baseplate:Destroy()
+        baseplate.Position = Vector3.new(0, -12, 0)  -- Move down to avoid z-fighting
+        -- Or destroy it:
+        -- baseplate:Destroy()
     end
 else
     warn("✗ Failed to generate world")
@@ -109,17 +125,44 @@ Framework.register("ResourceManager", ResourceManager)
 
 ```lua
 MapConfig.generation = {
-    enabled = true,      -- Enable/disable procedural generation
-    mapSize = 512,       -- Map size in studs (creates mapSize × mapSize world)
-    tileSize = 16,       -- Size of each tile (smaller = more detail, slower)
-    seed = nil,          -- Seed for generation (nil = random)
+    enabled = true,            -- Enable/disable procedural generation
+    mapSize = 1024,            -- Map size in studs (creates mapSize × mapSize world)
+    tileSize = 16,             -- Size of each tile (smaller = more detail, slower)
+    seed = nil,                -- Seed for generation (nil = random)
+
+    -- Height generation mode
+    heightGenerationMode = "perlin_only",  -- "constrained", "perlin", or "perlin_only"
+    maxHeightDelta = 2,        -- Max height difference between adjacent tiles
+    perlinScale = 10,          -- Perlin noise scale/frequency (smaller = more detail)
+    perlinOctaves = 3,         -- Number of noise octaves
 }
 ```
 
 **Tile Size Impact:**
-- `tileSize = 8`: 64×64 grid (4096 tiles) - Very detailed, slower
-- `tileSize = 16`: 32×32 grid (1024 tiles) - **Recommended**
-- `tileSize = 32`: 16×16 grid (256 tiles) - Fast, less detail
+- `tileSize = 8`: 128×128 grid (16384 tiles) - Very detailed, slower
+- `tileSize = 16`: 64×64 grid (4096 tiles) - **Recommended**
+- `tileSize = 32`: 32×32 grid (1024 tiles) - Fast, less detail
+
+### Height Generation Modes
+
+**Constrained Mode** (`heightGenerationMode = "constrained"`)
+- Uses WFC for tile placement with adjacency rules
+- Heights constrained to be within `maxHeightDelta` of neighbors
+- Creates smooth rolling terrain without abrupt jumps
+- Respects WFC adjacency constraints throughout
+
+**Perlin Mode** (`heightGenerationMode = "perlin"`)
+- Uses WFC for tile placement (respects adjacency rules)
+- Heights generated from Perlin noise (smooth, continuous)
+- Altitude biomes then converts tile types based on final height
+- Combines structured WFC patterns with smooth Perlin heights
+
+**Perlin Only Mode** (`heightGenerationMode = "perlin_only"`) - **Fastest & Recommended**
+- Pure Perlin noise generation (no WFC at all)
+- Directly converts height to tile types using altitude bands
+- Guaranteed to succeed (no WFC contradictions)
+- Naturally realistic terrain without adjacency constraints
+- Simplest and fastest generation method
 
 ### Rendering Settings
 
@@ -164,13 +207,29 @@ MapConfig.rendering = {
 - Positions the entire map vertically
 - Positive values raise the map, negative values lower it
 - Example: `heightOffset = 50` places the map 50 studs higher
+- Works with all height generation modes
 
 **Altitude Biomes System:**
 - `useAltitudeBiomes`: Enable/disable altitude-based terrain conversion
 - `altitudeBands`: Array defining height thresholds and tile types
-- Creates realistic elevation zones (beaches → grass → hills → mountains → snow)
+- Creates realistic elevation zones (water → beaches → grass → hills → mountains → snow)
 - Tile types: 1=DeepWater, 2=Water, 3=Sand, 4=Grass, 5=Forest, 6=Hill, 7=Mountain, 8=Snow
-- Height threshold accounts for `heightOffset` automatically
+- Height thresholds account for `heightOffset` automatically
+- Note: `perlin_only` always applies altitude biomes internally
+
+---
+
+## Height Generation Comparison
+
+| Feature | Constrained | Perlin | Perlin Only |
+|---------|-------------|--------|------------|
+| Algorithm | WFC + constraints | WFC + Perlin | Pure Perlin |
+| Adjacency Rules | Enforced | Enforced | None |
+| Height Smoothness | Between neighbors | Noise-based | Noise-based |
+| Speed | Slow | Slow | **Very Fast** |
+| Failure Rate | Possible | Possible | **None** |
+| Terrain Quality | Good | Excellent | **Excellent** |
+| Recommended | Niche | General | **✓ Default** |
 
 ---
 
@@ -242,7 +301,7 @@ end
 
 **Pros:**
 - Natural, organic appearance
-- Smooth transitions
+- Smooth transitions between tiles
 - Built-in Roblox terrain features
 - Better performance for large maps
 
@@ -277,7 +336,7 @@ MapConfig.rendering = {
 - Easy to add custom properties
 
 **Cons:**
-- More parts = more memory (1024 parts for default config)
+- More parts = more memory (4096 parts for 64×64 grid)
 - Slightly worse performance for huge maps
 - Not as natural-looking
 
@@ -302,84 +361,102 @@ MapConfig.rendering = {
 
 ## Performance Considerations
 
-### Map Size vs Performance
+### Map Size vs Generation Time
 
-| Map Size | Grid (16×16 tiles) | Tiles | Parts (if using parts mode) | Generation Time |
-|----------|-------------------|-------|----------------------------|-----------------|
-| 256×256  | 16×16            | 256   | 256 parts                  | <2s             |
-| 512×512  | 32×32            | 1024  | 1024 parts                 | <15s            |
-| 1024×1024| 64×64            | 4096  | 4096 parts                 | <60s            |
+| Map Size | Grid | Tiles | Generation Time |
+|----------|------|-------|-----------------|
+| 256×256  | 16×16 | 256 | <1s |
+| 512×512  | 32×32 | 1024 | <5s |
+| 1024×1024 | 64×64 | 4096 | <20s |
 
 **Recommendations:**
 - **Small maps (256×256)**: Testing, small arenas
-- **Medium maps (512×512)**: **Default**, best balance
-- **Large maps (1024×1024)**: Open world games, enable progressive generation
+- **Medium maps (512×512)**: Best balance of detail and speed
+- **Large maps (1024×1024)**: Open world games (use `perlin_only` for speed)
 
-### Optimization Settings
-
-```lua
-MapConfig.performance = {
-    progressiveGeneration = false,  -- Set true for large maps (slower but prevents timeout)
-    chunkSize = 64,                -- Chunk size for progressive generation
-    useWriteVoxels = true,         -- Use faster terrain API (terrain mode only)
-}
-```
+**Tips:**
+- Use `perlin_only` mode for fastest generation
+- Larger `perlinScale` values = smoother, faster generation
+- Higher `perlinOctaves` = more detail but slightly slower
 
 ---
 
 ## Common Use Cases
 
-### Case 1: Survival Game (Random Maps)
+### Case 1: Survival Game (Random Maps with Altitude Biomes)
 
 ```lua
--- MapConfig.luau
-generation = {
-    mapSize = 512,
+MapConfig.generation = {
+    mapSize = 1024,
     tileSize = 16,
     seed = nil,  -- Different world each server
+    heightGenerationMode = "perlin_only",
+    perlinScale = 10,
+    perlinOctaves = 3,
 }
 
-rendering = {
+MapConfig.rendering = {
     mode = "terrain",
     style = "smooth",
     heightQuantization = 0,
+    useAltitudeBiomes = true,
 }
 ```
 
-### Case 2: Minecraft Clone (Blocky Terrain)
+### Case 2: Minecraft Clone (Blocky Terrain with WFC)
 
 ```lua
--- MapConfig.luau
-generation = {
+MapConfig.generation = {
     mapSize = 512,
     tileSize = 16,
     seed = nil,
+    heightGenerationMode = "constrained",  -- Show WFC patterns
+    maxHeightDelta = 2,
 }
 
-rendering = {
+MapConfig.rendering = {
     mode = "parts",
     style = "smooth",
     heightQuantization = 4,
     heightOffset = 0,
     useRobloxMaterials = false,
-    useAltitudeBiomes = false,  -- Disable for pure WFC generation
+    useAltitudeBiomes = false,  -- Disable to see WFC tile patterns
 }
 ```
 
-### Case 3: Competitive PvP (Same Map)
+### Case 3: Competitive PvP (Same Map, Fixed Seed)
 
 ```lua
--- MapConfig.luau
-generation = {
+MapConfig.generation = {
     mapSize = 512,
     tileSize = 16,
     seed = 99999,  -- Fixed seed for fairness
+    heightGenerationMode = "perlin_only",
 }
 
-rendering = {
+MapConfig.rendering = {
     mode = "terrain",
     style = "smooth",
     heightQuantization = 0,
+}
+```
+
+### Case 4: Fast Open World (Largest Possible)
+
+```lua
+MapConfig.generation = {
+    mapSize = 2048,
+    tileSize = 32,  -- Larger tiles = fewer, faster
+    seed = nil,
+    heightGenerationMode = "perlin_only",  -- Fastest mode
+    perlinScale = 20,  -- Smoother for performance
+    perlinOctaves = 2,  -- Fewer octaves for speed
+}
+
+MapConfig.rendering = {
+    mode = "terrain",
+    style = "smooth",
+    heightQuantization = 2,  -- Some quantization for faster rendering
 }
 ```
 
@@ -392,10 +469,11 @@ rendering = {
 **Problem:** `generateAndBuildWorld()` returns `nil`
 
 **Solutions:**
-1. Check WFC failed - try different seed
-2. Check console for error messages
-3. Increase `maxRetries` in WaveFunctionCollapse.luau
-4. Try smaller map size
+1. Check console for error messages
+2. Try `perlin_only` mode (cannot fail unlike WFC modes)
+3. Try different seed
+4. Reduce map size
+5. Check if you have altitude biome mismatch
 
 ### Same Map Every Time (When Expecting Random)
 
@@ -411,24 +489,78 @@ rendering = {
 **Problem:** `mode = "parts"` but no parts in workspace
 
 **Solutions:**
-1. Check `workspace.GeneratedWorld` exists
-2. Verify rendering mode: Check console for "Using Parts rendering mode"
+1. Check `workspace.GeneratedWorld` exists in Explorer
+2. Verify rendering mode in console output
 3. Rebuild and reload place file
-4. Check if `PartsBuilder.luau` is properly required
+4. Check for errors in PartsBuilder
 
 ### Terrain Not Appearing
 
 **Problem:** `mode = "terrain"` but no terrain visible
 
 **Solutions:**
-1. Check `workspace.Terrain` in Explorer
-2. Verify terrain region is cleared correctly
-3. Check rendering mode in console output
-4. Zoom out - terrain might be far from camera
+1. Check `workspace.Terrain` has voxels in Explorer
+2. Zoom out - terrain might be far from camera
+3. Check console for rendering errors
+4. Try smaller map size
+
+### Altitude Biomes Not Working
+
+**Problem:** Not seeing water/mountains, only grass
+
+**Solutions:**
+1. Verify `useAltitudeBiomes = true`
+2. Check `altitudeBands` table is defined correctly
+3. Try `perlin_only` mode (always applies altitude biomes)
+4. Verify heightmap is generating varied heights (not all flat)
 
 ---
 
 ## Advanced Usage
+
+### Seeing WFC Patterns vs Pure Perlin
+
+To observe the difference between modes:
+
+```lua
+-- Mode 1: See WFC tile patterns (ignore height)
+MapConfig.generation.heightGenerationMode = "constrained"
+MapConfig.rendering.useAltitudeBiomes = false
+
+-- Mode 2: See Perlin patterns (ignore WFC)
+MapConfig.generation.heightGenerationMode = "perlin_only"
+MapConfig.rendering.useAltitudeBiomes = false
+
+-- Mode 3: See final result (both combined with altitude biomes)
+MapConfig.rendering.useAltitudeBiomes = true
+```
+
+### Custom Altitude Bands
+
+Define custom elevation zones for your game:
+
+```lua
+altitudeBands = {
+    { maxHeight = -10, tileType = 1 },  -- Deep ocean
+    { maxHeight = 0, tileType = 2 },    -- Shallow ocean
+    { maxHeight = 2, tileType = 3 },    -- Beach
+    { maxHeight = 5, tileType = 4 },    -- Plains
+    { maxHeight = 10, tileType = 5 },   -- Forest
+    { maxHeight = 15, tileType = 6 },   -- Hills
+    { maxHeight = 25, tileType = 7 },   -- Mountains
+    { maxHeight = math.huge, tileType = 8 },  -- Snow peaks
+}
+```
+
+### Regenerate World
+
+```lua
+-- Regenerate with new seed
+local newMapData = MapGeneratorService.generateAndBuildWorld(math.random(1, 999999))
+
+-- Regenerate with same seed
+local sameMapData = MapGeneratorService.generateAndBuildWorld(mapData.seed)
+```
 
 ### Custom Tile Placement
 
@@ -444,45 +576,6 @@ if tile then
     local part = workspace.GeneratedWorld:FindFirstChild(`Tile_{gridCoord.x}_{gridCoord.y}_*`)
     if part then
         part.Color = Color3.new(1, 0, 0) -- Make it red
-    end
-end
-```
-
-### Regenerate World
-
-```lua
--- Regenerate with new seed
-local newMapData = MapGeneratorService.generateAndBuildWorld(math.random(1, 999999))
-
--- Regenerate with same seed
-local sameMapData = MapGeneratorService.generateAndBuildWorld(mapData.seed)
-```
-
-### Integration with Spawn System
-
-```lua
--- After generating world
-if MapConfig.spawn.spawnAtPlayerTown then
-    -- Find player town location (if zones are enabled)
-    local playerTown = nil
-    for _, zone in mapData.zones do
-        if zone.id == "playerTown" then
-            playerTown = zone
-            break
-        end
-    end
-
-    if playerTown then
-        -- Convert grid coords to world position
-        local spawnPos = MapData.gridToWorld(
-            playerTown.center.x,
-            playerTown.center.y,
-            mapData.tileSize,
-            mapData.origin
-        )
-
-        -- Set spawn location
-        workspace.SpawnLocation.Position = Vector3.new(spawnPos.x, 10, spawnPos.z)
     end
 end
 ```

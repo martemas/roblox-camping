@@ -8,6 +8,7 @@ local TileConfig = require(script.Parent.TileConfig)
 local SeededRandom = require(script.Parent.SeededRandom)
 local MapData = require(script.Parent.MapData)
 local WaveFunctionCollapse = require(script.Parent.WaveFunctionCollapse)
+local PerlinGenerator = require(script.Parent.PerlinGenerator)
 local TerrainBuilder = require(script.Parent.TerrainBuilder)
 local PartsBuilder = require(script.Parent.PartsBuilder)
 local AltitudeBiomes = require(script.Parent.AltitudeBiomes)
@@ -109,7 +110,7 @@ end
 -- WFC GENERATION (Phase 2)
 -- ═══════════════════════════════════════════════════
 
--- Generate map using Wave Function Collapse algorithm
+-- Generate map using selected algorithm (WFC or Perlin)
 function MapGeneratorService.generate(seed: number?): Types.MapData?
 	local config = MapConfig.generation
 	-- Priority: parameter seed > config seed > random seed
@@ -120,34 +121,49 @@ function MapGeneratorService.generate(seed: number?): Types.MapData?
 	local gridWidth = math.floor(config.mapSize / config.tileSize)
 	local gridHeight = gridWidth
 
-	print(`[MapGeneratorService] Generating {gridWidth}x{gridHeight} grid with WFC (seed: {usedSeed})`)
-
-	-- WFC can fail due to contradictions, so retry with different internal seeds
+	-- Determine which generation method to use
+	local generationMethod = config.heightGenerationMode
 	local grid = nil
-	local maxRetries = 10
-	local attempt = 0
 
-	while not grid and attempt < maxRetries do
-		attempt = attempt + 1
+	if generationMethod == "perlin_only" then
+		-- Use pure Perlin noise generation (no WFC)
+		print(`[MapGeneratorService] Generating {gridWidth}x{gridHeight} grid with Perlin (seed: {usedSeed})`)
+		grid = PerlinGenerator.generate(gridWidth, gridHeight, rng)
 
-		-- Use the base seed plus attempt number for deterministic but different results
-		local attemptSeed = usedSeed + attempt - 1
-		local attemptRng = SeededRandom.new(attemptSeed)
+		if not grid then
+			warn("[MapGeneratorService] ✗ Perlin generation failed")
+			return nil
+		end
+	else
+		-- Use WFC-based generation (with constrained or perlin height modes)
+		print(`[MapGeneratorService] Generating {gridWidth}x{gridHeight} grid with WFC (seed: {usedSeed})`)
 
-		if attempt > 1 then
-			print(`[MapGeneratorService] Retry attempt {attempt}/{maxRetries} (seed: {attemptSeed})`)
+		-- WFC can fail due to contradictions, so retry with different internal seeds
+		local maxRetries = 10
+		local attempt = 0
+
+		while not grid and attempt < maxRetries do
+			attempt = attempt + 1
+
+			-- Use the base seed plus attempt number for deterministic but different results
+			local attemptSeed = usedSeed + attempt - 1
+			local attemptRng = SeededRandom.new(attemptSeed)
+
+			if attempt > 1 then
+				print(`[MapGeneratorService] Retry attempt {attempt}/{maxRetries} (seed: {attemptSeed})`)
+			end
+
+			grid = WaveFunctionCollapse.generate(gridWidth, gridHeight, attemptRng)
 		end
 
-		grid = WaveFunctionCollapse.generate(gridWidth, gridHeight, attemptRng)
-	end
+		if not grid then
+			warn(`[MapGeneratorService] ✗ WFC generation failed after {maxRetries} attempts`)
+			return nil
+		end
 
-	if not grid then
-		warn(`[MapGeneratorService] ✗ WFC generation failed after {maxRetries} attempts`)
-		return nil
-	end
-
-	if attempt > 1 then
-		print(`[MapGeneratorService] ✓ WFC succeeded on attempt {attempt}`)
+		if attempt > 1 then
+			print(`[MapGeneratorService] ✓ WFC succeeded on attempt {attempt}`)
+		end
 	end
 
 	-- Calculate map bounds
@@ -167,11 +183,14 @@ function MapGeneratorService.generate(seed: number?): Types.MapData?
 		origin = mapOrigin,
 	}
 
-	-- Apply altitude-based biome conversion (if enabled)
-	mapData = AltitudeBiomes.applyAltitudeBiomes(mapData)
+	-- Apply altitude-based biome conversion (if enabled and not using perlin_only)
+	-- Perlin_only handles this internally during generation
+	if MapConfig.rendering.useAltitudeBiomes and generationMethod ~= "perlin_only" then
+		mapData = AltitudeBiomes.applyAltitudeBiomes(mapData)
+	end
 
 	currentMapData = mapData
-	print(`[MapGeneratorService] ✓ WFC generation complete`)
+	print(`[MapGeneratorService] ✓ Generation complete`)
 
 	return mapData
 end
