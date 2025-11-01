@@ -9,9 +9,15 @@ local MapConfig = {}
 
 MapConfig.generation = {
 	enabled = true, -- Enable procedural generation
-	mapSize = 512, -- Total map size in studs (512×512)
-	tileSize = 32, -- Each tile = 32×32 studs (64×64 grid)
+	mapSize = 1024, -- Total map size in studs (512×512)
+	tileSize = 16, -- Each tile = 32×32 studs (64×64 grid)
 	seed = nil, -- nil = random, or set specific number for deterministic map
+
+	-- Height generation mode
+	heightGenerationMode = "perlin", -- "constrained" (smooth) or "perlin" (natural)
+	maxHeightDelta = 2, -- Max height difference between adjacent tiles (for constrained mode)
+	perlinScale = 10, -- Perlin noise scale/frequency (smaller = more detail, larger = smoother)
+	perlinOctaves = 3, -- Number of noise octaves (more = more detail)
 }
 
 -- ═══════════════════════════════════════════════════
@@ -136,8 +142,8 @@ MapConfig.performance = {
 MapConfig.rendering = {
 	mode = "parts", -- "terrain" (smooth Roblox terrain) or "parts" (Minecraft-style blocks)
 	style = "blocky", -- "smooth" (height variation) or "blocky" (uniform heights)
-	heightQuantization = 2, -- Snap heights to grid (4 = snap to 4-stud increments, 0 = disabled)
-	heightOffset = 2, -- Global Y offset for entire map (positive = higher, negative = lower)
+	heightQuantization = 1, -- Snap heights to grid (4 = snap to 4-stud increments, 0 = disabled)
+	heightOffset = 0, -- Global Y offset for entire map (positive = higher, negative = lower)
 	useRobloxMaterials = true, -- true = use Grass/Sand/Rock materials, false = SmoothPlastic only
 
 	-- Altitude-based biome system (realistic elevation zones)

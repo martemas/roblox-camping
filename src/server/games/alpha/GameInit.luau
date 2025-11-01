@@ -133,7 +133,7 @@ function GameInit.initialize()
 		-- Move baseplate down a couple of studs to avoid z-fighting
 		local baseplate = workspace:FindFirstChild("Baseplate")
 		if baseplate then
-			baseplate.Position = Vector3.new(0, -20, 0)
+			baseplate.Position = Vector3.new(0, -12, 0)
 			-- baseplate:Destroy()
 		end
 	else

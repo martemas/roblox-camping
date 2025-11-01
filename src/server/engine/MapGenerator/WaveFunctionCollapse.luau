@@ -6,6 +6,7 @@ local Types = require(script.Parent.Types)
 local TileConfig = require(script.Parent.TileConfig)
 local MapData = require(script.Parent.MapData)
 local MapConfig = require(script.Parent.Parent.Config.MapConfig)
+local PerlinNoise = require(script.Parent.PerlinNoise)
 
 local WaveFunctionCollapse = {}
 
@@ -49,13 +50,68 @@ local function createWFCGrid(width: number, height: number): Types.WFCGrid
 end
 
 -- ═══════════════════════════════════════════════════
--- ENTROPY CALCULATION
+-- HEIGHT CALCULATION HELPERS
 -- ═══════════════════════════════════════════════════
 
--- Calculate entropy (number of possible tiles) for a cell
-local function calculateEntropy(cell: Types.CellState): number
-	return #cell.possibleTiles
+-- Calculate height with constraints based on neighbor heights
+local function calculateConstrainedHeight(
+	x: number,
+	y: number,
+	tileProps: any,
+	rng: Types.SeededRandom,
+	mapGrid: Types.MapGrid,
+	genConfig: any
+): number
+	local maxHeightDelta = genConfig.maxHeightDelta
+
+	-- Get neighbor heights
+	local neighbors = MapData.getNeighbors(mapGrid, x, y)
+	local neighborHeights = {}
+
+	for _, neighbor in neighbors do
+		local neighborTile = MapData.getTile(mapGrid, neighbor.x, neighbor.y)
+		if neighborTile and neighborTile.height then
+			table.insert(neighborHeights, neighborTile.height)
+		end
+	end
+
+	-- Calculate height range
+	local baseHeight = tileProps.baseHeight
+	local heightVar = tileProps.heightVariation / 2
+
+	-- If we have collapsed neighbors, constrain height to be within maxHeightDelta of them
+	if #neighborHeights > 0 then
+		local avgNeighborHeight = 0
+		for _, h in neighborHeights do
+			avgNeighborHeight = avgNeighborHeight + h
+		end
+		avgNeighborHeight = avgNeighborHeight / #neighborHeights
+
+		-- Constrain around neighbor average
+		local minHeight = avgNeighborHeight - maxHeightDelta
+		local maxHeight = avgNeighborHeight + maxHeightDelta
+
+		-- Also respect tile type height bounds
+		minHeight = math.max(minHeight, baseHeight - heightVar)
+		maxHeight = math.min(maxHeight, baseHeight + heightVar)
+
+		-- Random height within constrained range
+		local range = maxHeight - minHeight
+		if range > 0 then
+			return minHeight + rng.nextFloat() * range
+		else
+			return minHeight
+		end
+	else
+		-- No neighbors collapsed yet, use normal variation
+		local heightVariation = rng.nextFloat() * tileProps.heightVariation - tileProps.heightVariation / 2
+		return baseHeight + heightVariation
+	end
 end
+
+-- ═══════════════════════════════════════════════════
+-- ENTROPY CALCULATION
+-- ═══════════════════════════════════════════════════
 
 -- Find cell with lowest entropy (but not collapsed)
 local function findLowestEntropyCell(wfcGrid: Types.WFCGrid, rng: Types.SeededRandom): Types.GridCoord?
@@ -219,6 +275,16 @@ function WaveFunctionCollapse.generate(
 
 	-- Create map grid for result
 	local mapGrid = MapData.createGrid(width, height)
+	local genConfig = MapConfig.generation
+
+	-- Pre-generate Perlin noise heightmap if using perlin mode
+	local perlinHeightmap = nil
+	if genConfig.heightGenerationMode == "perlin" then
+		print(`[WFC] Pre-generating Perlin noise heightmap (scale={genConfig.perlinScale}, octaves={genConfig.perlinOctaves})`)
+		-- Scale heightmap from -10 to 20 studs to match altitude bands
+		perlinHeightmap = PerlinNoise.generateHeightmap(width, height, rng, genConfig.perlinScale, genConfig.perlinOctaves, 5, 15)
+		print("[WFC] ✓ Perlin heightmap generated")
+	end
 
 	local iterations = 0
 
@@ -246,20 +312,32 @@ function WaveFunctionCollapse.generate(
 		local tileProps = TileConfig.TileProperties[chosenTile]
 		local renderConfig = MapConfig.rendering
 
-		-- Calculate height with variation (always enabled for natural terrain)
-		-- Note: Quantization will snap to grid if enabled, creating blocky effect
-		local heightVariation = rng.nextFloat() * tileProps.heightVariation - tileProps.heightVariation / 2
-		local height = tileProps.baseHeight + heightVariation
+		-- Calculate height based on selected mode
+		local tileHeight: number
+
+		if genConfig.heightGenerationMode == "constrained" then
+			-- Option 1: Height-aware constraint propagation
+			tileHeight = calculateConstrainedHeight(coord.x, coord.y, tileProps, rng, mapGrid, genConfig)
+		elseif genConfig.heightGenerationMode == "perlin" then
+			-- Option 2: Perlin noise heightmap
+			-- Use the Perlin noise value directly as height (don't clamp to tile type)
+			-- This allows smooth transitions and lets altitude biomes handle tile type conversion
+			tileHeight = perlinHeightmap[coord.y][coord.x]
+		else
+			-- Default: Random height with variation
+			local heightVariation = rng.nextFloat() * tileProps.heightVariation - tileProps.heightVariation / 2
+			tileHeight = tileProps.baseHeight + heightVariation
+		end
 
 		-- Apply height quantization if enabled
 		if renderConfig.heightQuantization > 0 then
 			local step = renderConfig.heightQuantization
-			height = math.floor(height / step) * step
+			tileHeight = math.floor(tileHeight / step) * step
 		end
 
 		mapGrid.tiles[coord.y][coord.x] = {
 			tileType = chosenTile,
-			height = height,
+			height = tileHeight,
 			zoneId = nil,
 		}
 
