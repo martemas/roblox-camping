@@ -46,12 +46,24 @@ function PartsBuilder.buildWorld(mapData: Types.MapData): boolean
 	local grid = mapData.grid
 	local renderConfig = MapConfig.rendering
 
+	-- Step 1: Find minimum height across all tiles
+	local minHeight = math.huge
+	for y = 1, grid.height do
+		for x = 1, grid.width do
+			local tile = grid.tiles[y][x]
+			if tile.height < minHeight then
+				minHeight = tile.height
+			end
+		end
+	end
+	print(`[PartsBuilder] Found minimum tile height: {minHeight}`)
+
 	-- Track progress
 	local totalTiles = grid.width * grid.height
 	local processedTiles = 0
 	local lastProgressPercent = 0
 
-	-- Generate parts for each tile
+	-- Step 2: Generate parts for each tile with height calculated from minHeight
 	for y = 1, grid.height do
 		for x = 1, grid.width do
 			local tile = grid.tiles[y][x]
@@ -64,16 +76,10 @@ function PartsBuilder.buildWorld(mapData: Types.MapData): boolean
 			local part = Instance.new("Part")
 			part.Name = `Tile_{x}_{y}_{tileProps.name}`
 
-			-- Make blocks extend from base (y=0 or lower for water) up to tile height
-			-- This creates proper Minecraft-style columns with no gaps
-			local baseLevel = 0 -- Ground level
-			if tile.height < 0 then
-				-- Water tiles: extend from their height up to ground level
-				baseLevel = tile.height
-			end
-
-			local blockHeight = math.max(4, tile.height - baseLevel + 4) -- At least 4 studs thick
-			local centerY = baseLevel + (blockHeight / 2) + renderConfig.heightOffset
+			-- Calculate block height as difference from minHeight
+			local blockHeight = tile.height - minHeight
+			-- Center Y position: minimum point + half of block height
+			local centerY = minHeight + (blockHeight / 2) + renderConfig.heightOffset
 
 			part.Size = Vector3.new(tileSize, blockHeight, tileSize)
 			part.CFrame = CFrame.new(worldPos.x, centerY, worldPos.z)
@@ -90,10 +96,7 @@ function PartsBuilder.buildWorld(mapData: Types.MapData): boolean
 
 			-- Set physics properties
 			part.Anchored = true
-			-- All blocks should have collision EXCEPT water (water should be passable)
-			local isWaterTile = tile.tileType == TileConfig.TileType.Water
-				or tile.tileType == TileConfig.TileType.DeepWater
-			part.CanCollide = not isWaterTile
+			part.CanCollide = true
 
 			-- Optimize rendering
 			part.TopSurface = Enum.SurfaceType.Smooth
@@ -115,8 +118,58 @@ function PartsBuilder.buildWorld(mapData: Types.MapData): boolean
 	-- Parent world to workspace
 	worldModel.Parent = game.Workspace
 
+	-- Create water plate if enabled
+	if renderConfig.water and renderConfig.water.enabled then
+		PartsBuilder.createWaterPlate(mapData, worldModel)
+	end
+
 	print(`[PartsBuilder] ✓ World building complete ({totalTiles} blocks created)`)
 	return true
+end
+
+-- ═══════════════════════════════════════════════════
+-- WATER PLATE CREATION
+-- ═══════════════════════════════════════════════════
+
+-- Create a flat water surface overlay
+function PartsBuilder.createWaterPlate(mapData: Types.MapData, parentModel: Model)
+	local renderConfig = MapConfig.rendering
+	local waterConfig = renderConfig.water
+
+	-- Water plate positioned at the configured height
+	-- waterConfig.height is the absolute Y position (0 = ground level, negative = below, positive = above)
+	local waterLevel = waterConfig.height
+	print(`[PartsBuilder] Creating water plate at height {waterLevel}...`)
+
+	-- Create water plate part
+	local waterPlate = Instance.new("Part")
+	waterPlate.Name = "WaterPlate"
+	waterPlate.Shape = Enum.PartType.Block
+	waterPlate.Size = Vector3.new(mapData.mapSize + 64, 1, mapData.mapSize + 64) -- Slightly larger than map
+
+	-- Position at water level height
+	local mapCenterX = mapData.bounds.minX + (mapData.mapSize / 2)
+	local mapCenterZ = mapData.bounds.minZ + (mapData.mapSize / 2)
+	waterPlate.CFrame = CFrame.new(mapCenterX, waterLevel, mapCenterZ)
+
+	-- Set water appearance
+	waterPlate.Material = waterConfig.material or Enum.Material.Water
+	waterPlate.Transparency = waterConfig.transparency or 0.3
+	waterPlate.Color = Color3.fromRGB(50, 100, 200) -- Water blue
+
+	-- Set physics
+	waterPlate.Anchored = true
+	waterPlate.CanCollide = false -- Water is passable
+	waterPlate.CastShadow = false
+
+	-- Surface properties
+	waterPlate.TopSurface = Enum.SurfaceType.Smooth
+	waterPlate.BottomSurface = Enum.SurfaceType.Smooth
+
+	-- Parent to world model
+	waterPlate.Parent = parentModel
+
+	print("[PartsBuilder] ✓ Water plate created")
 end
 
 return PartsBuilder

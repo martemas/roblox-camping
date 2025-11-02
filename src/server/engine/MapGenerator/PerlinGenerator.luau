@@ -1,7 +1,7 @@
 --!strict
 -- PERLIN GENERATOR
--- Direct Perlin noise to tile type conversion (no WFC)
--- Simpler and faster than WFC + Perlin hybrid
+-- Direct Perlin noise to tile type conversion (no WFC, no water tiles)
+-- Water is handled as a separate plate overlay
 
 local Types = require(script.Parent.Types)
 local TileConfig = require(script.Parent.TileConfig)
@@ -15,7 +15,7 @@ local PerlinGenerator = {}
 -- MAIN GENERATION
 -- ═══════════════════════════════════════════════════
 
--- Generate map using pure Perlin noise (no WFC)
+-- Generate map using pure Perlin noise (no WFC, no water)
 function PerlinGenerator.generate(
 	width: number,
 	height: number,
@@ -30,8 +30,8 @@ function PerlinGenerator.generate(
 	local mapGrid = MapData.createGrid(width, height)
 
 	-- Generate Perlin noise heightmap
-	print(`[PerlinGen] Generating Perlin noise heightmap (scale={genConfig.perlinScale}, octaves={genConfig.perlinOctaves})`)
-	local heightmap = PerlinNoise.generateHeightmap(width, height, rng, genConfig.perlinScale, genConfig.perlinOctaves, 5, 15)
+	print(`[PerlinGen] Generating Perlin noise heightmap (scale={genConfig.perlinScale}, octaves={genConfig.perlinOctaves}, base={genConfig.baseHeight}, scale={genConfig.heightScale}, exponential={genConfig.useExponentialPerlin}, mode={genConfig.exponentialMode}, amplitude={genConfig.exponentialAmplitude})`)
+	local heightmap = PerlinNoise.generateHeightmap(width, height, rng, genConfig.perlinScale, genConfig.perlinOctaves, genConfig.baseHeight, genConfig.heightScale, genConfig.useExponentialPerlin, genConfig.exponentialMode, genConfig.exponentialAmplitude)
 	print("[PerlinGen] ✓ Heightmap generated")
 
 	-- Track progress
@@ -39,19 +39,14 @@ function PerlinGenerator.generate(
 	local processedTiles = 0
 	local lastProgressPercent = 0
 
-	-- Populate grid with tiles based on height
+	-- Populate grid with tiles based on height (no water tiles, no quantization)
 	for y = 1, height do
 		for x = 1, width do
-			-- Get height from Perlin noise
+			-- Get height from Perlin noise (use as-is, no quantization)
 			local tileHeight = heightmap[y][x]
 
-			-- Apply height quantization if enabled
-			if renderConfig.heightQuantization > 0 then
-				local step = renderConfig.heightQuantization
-				tileHeight = math.floor(tileHeight / step) * step
-			end
-
-			-- Determine tile type based on height and altitude bands
+			-- Determine tile type based on altitude bands
+			-- Water is NOT considered here - it's a separate overlay plate
 			local tileType = TileConfig.TileType.Grass -- Default
 
 			if renderConfig.useAltitudeBiomes then

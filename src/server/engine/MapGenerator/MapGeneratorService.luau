@@ -7,11 +7,9 @@ local MapConfig = require(script.Parent.Parent.Config.MapConfig)
 local TileConfig = require(script.Parent.TileConfig)
 local SeededRandom = require(script.Parent.SeededRandom)
 local MapData = require(script.Parent.MapData)
-local WaveFunctionCollapse = require(script.Parent.WaveFunctionCollapse)
 local PerlinGenerator = require(script.Parent.PerlinGenerator)
 local TerrainBuilder = require(script.Parent.TerrainBuilder)
 local PartsBuilder = require(script.Parent.PartsBuilder)
-local AltitudeBiomes = require(script.Parent.AltitudeBiomes)
 
 local MapGeneratorService = {}
 
@@ -107,10 +105,10 @@ function MapGeneratorService.generateSimpleRandom(seed: number?): Types.MapData
 end
 
 -- ═══════════════════════════════════════════════════
--- WFC GENERATION (Phase 2)
+-- PERLIN GENERATION
 -- ═══════════════════════════════════════════════════
 
--- Generate map using selected algorithm (WFC or Perlin)
+-- Generate map using Perlin noise with altitude-based biomes
 function MapGeneratorService.generate(seed: number?): Types.MapData?
 	local config = MapConfig.generation
 	-- Priority: parameter seed > config seed > random seed
@@ -121,49 +119,12 @@ function MapGeneratorService.generate(seed: number?): Types.MapData?
 	local gridWidth = math.floor(config.mapSize / config.tileSize)
 	local gridHeight = gridWidth
 
-	-- Determine which generation method to use
-	local generationMethod = config.heightGenerationMode
-	local grid = nil
+	print(`[MapGeneratorService] Generating {gridWidth}x{gridHeight} grid with Perlin (seed: {usedSeed})`)
+	local grid = PerlinGenerator.generate(gridWidth, gridHeight, rng)
 
-	if generationMethod == "perlin_only" then
-		-- Use pure Perlin noise generation (no WFC)
-		print(`[MapGeneratorService] Generating {gridWidth}x{gridHeight} grid with Perlin (seed: {usedSeed})`)
-		grid = PerlinGenerator.generate(gridWidth, gridHeight, rng)
-
-		if not grid then
-			warn("[MapGeneratorService] ✗ Perlin generation failed")
-			return nil
-		end
-	else
-		-- Use WFC-based generation (with constrained or perlin height modes)
-		print(`[MapGeneratorService] Generating {gridWidth}x{gridHeight} grid with WFC (seed: {usedSeed})`)
-
-		-- WFC can fail due to contradictions, so retry with different internal seeds
-		local maxRetries = 10
-		local attempt = 0
-
-		while not grid and attempt < maxRetries do
-			attempt = attempt + 1
-
-			-- Use the base seed plus attempt number for deterministic but different results
-			local attemptSeed = usedSeed + attempt - 1
-			local attemptRng = SeededRandom.new(attemptSeed)
-
-			if attempt > 1 then
-				print(`[MapGeneratorService] Retry attempt {attempt}/{maxRetries} (seed: {attemptSeed})`)
-			end
-
-			grid = WaveFunctionCollapse.generate(gridWidth, gridHeight, attemptRng)
-		end
-
-		if not grid then
-			warn(`[MapGeneratorService] ✗ WFC generation failed after {maxRetries} attempts`)
-			return nil
-		end
-
-		if attempt > 1 then
-			print(`[MapGeneratorService] ✓ WFC succeeded on attempt {attempt}`)
-		end
+	if not grid then
+		warn("[MapGeneratorService] ✗ Perlin generation failed")
+		return nil
 	end
 
 	-- Calculate map bounds
@@ -182,12 +143,6 @@ function MapGeneratorService.generate(seed: number?): Types.MapData?
 		bounds = bounds,
 		origin = mapOrigin,
 	}
-
-	-- Apply altitude-based biome conversion (if enabled and not using perlin_only)
-	-- Perlin_only handles this internally during generation
-	if MapConfig.rendering.useAltitudeBiomes and generationMethod ~= "perlin_only" then
-		mapData = AltitudeBiomes.applyAltitudeBiomes(mapData)
-	end
 
 	currentMapData = mapData
 	print(`[MapGeneratorService] ✓ Generation complete`)

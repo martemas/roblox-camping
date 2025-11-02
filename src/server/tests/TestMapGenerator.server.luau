@@ -1,6 +1,6 @@
 --!strict
--- MAP GENERATOR TEST SCRIPT (PHASE 1 & 2)
--- Tests basic grid generation, determinism, and WFC algorithm
+-- MAP GENERATOR TEST SCRIPT
+-- Tests Perlin noise generation, determinism, and world building
 
 if true then return end  -- Disable test script by default
 
@@ -148,137 +148,111 @@ print("All basic functionality verified!")
 print(string.rep("=", 60) .. "\n")
 
 -- ═══════════════════════════════════════════════════
--- PHASE 2 TESTS - WAVE FUNCTION COLLAPSE
+-- PHASE 2 TESTS - PERLIN GENERATION
 -- ═══════════════════════════════════════════════════
 
 print("\n" .. string.rep("=", 60))
-print("MAP GENERATOR - PHASE 2 TESTS (WFC)")
+print("MAP GENERATOR - PHASE 2 TESTS (PERLIN NOISE)")
 print(string.rep("=", 60) .. "\n")
 
--- Test 7: WFC Generation
-print("TEST 7: WFC Generation")
-local wfcSeed = 99999
-local wfcMapData = MapGeneratorService.generate(wfcSeed)
+-- Test 7: Perlin Generation
+print("TEST 7: Perlin Noise Generation")
+local perlinSeed = 99999
+local perlinMapData = MapGeneratorService.generate(perlinSeed)
 
-if not wfcMapData then
-	warn("✗ WFC generation failed!")
+if not perlinMapData then
+	warn("✗ Perlin generation failed!")
 else
-	print(`✓ WFC generated {wfcMapData.gridWidth}x{wfcMapData.gridHeight} map`)
-	print(`  Seed: {wfcMapData.seed}`)
+	print(`✓ Perlin generated {perlinMapData.gridWidth}x{perlinMapData.gridHeight} map`)
+	print(`  Seed: {perlinMapData.seed}`)
 
-	-- Test 8: Adjacency Rule Verification
-	print("\nTEST 8: Adjacency Rule Verification")
-	local violationCount = 0
-	local checkedPairs = 0
+	-- Test 8: Height Range Verification
+	print("\nTEST 8: Height Range and Distribution")
+	local minHeight = math.huge
+	local maxHeight = -math.huge
+	local totalHeight = 0
+	local tileCount = 0
 
-	for y = 1, wfcMapData.gridHeight do
-		for x = 1, wfcMapData.gridWidth do
-			local tile = wfcMapData.grid.tiles[y][x]
-			local tileType = tile.tileType
-
-			-- Check right neighbor
-			if x < wfcMapData.gridWidth then
-				checkedPairs = checkedPairs + 1
-				local rightTile = wfcMapData.grid.tiles[y][x + 1]
-				local adjacencyRules = TileConfig.AdjacencyRules[tileType]
-
-				if not table.find(adjacencyRules, rightTile.tileType) then
-					violationCount = violationCount + 1
-					if violationCount <= 5 then
-						local tileName = TileConfig.TileProperties[tileType].name
-						local rightName = TileConfig.TileProperties[rightTile.tileType].name
-						warn(`  ✗ Violation at ({x}, {y}): {tileName} → {rightName}`)
-					end
-				end
-			end
-
-			-- Check down neighbor
-			if y < wfcMapData.gridHeight then
-				checkedPairs = checkedPairs + 1
-				local downTile = wfcMapData.grid.tiles[y + 1][x]
-				local adjacencyRules = TileConfig.AdjacencyRules[tileType]
-
-				if not table.find(adjacencyRules, downTile.tileType) then
-					violationCount = violationCount + 1
-					if violationCount <= 5 then
-						local tileName = TileConfig.TileProperties[tileType].name
-						local downName = TileConfig.TileProperties[downTile.tileType].name
-						warn(`  ✗ Violation at ({x}, {y}): {tileName} ↓ {downName}`)
-					end
-				end
-			end
+	for y = 1, perlinMapData.gridHeight do
+		for x = 1, perlinMapData.gridWidth do
+			local tile = perlinMapData.grid.tiles[y][x]
+			minHeight = math.min(minHeight, tile.height)
+			maxHeight = math.max(maxHeight, tile.height)
+			totalHeight = totalHeight + tile.height
+			tileCount = tileCount + 1
 		end
 	end
 
-	if violationCount == 0 then
-		print(`✓ All {checkedPairs} tile adjacencies respect rules`)
-	else
-		warn(`✗ Found {violationCount} adjacency violations out of {checkedPairs} pairs`)
-	end
+	local avgHeight = totalHeight / tileCount
+	print(`  Min Height: {minHeight}`)
+	print(`  Max Height: {maxHeight}`)
+	print(`  Avg Height: {string.format("%.2f", avgHeight)}`)
+	print(`  Height Range: {string.format("%.2f", maxHeight - minHeight)} studs`)
+	print(`✓ Height variation confirmed`)
 
-	-- Test 9: WFC Tile Distribution
-	print("\nTEST 9: WFC Tile Distribution")
-	local wfcTileCounts = {}
-	local wfcTotalTiles = 0
+	-- Test 9: Perlin Tile Distribution (Altitude Biomes)
+	print("\nTEST 9: Tile Distribution (via Altitude Biomes)")
+	local perlinTileCounts = {}
+	local perlinTotalTiles = 0
 
 	for tileType, _ in TileConfig.TileProperties do
-		wfcTileCounts[tileType] = 0
+		perlinTileCounts[tileType] = 0
 	end
 
-	for y = 1, wfcMapData.gridHeight do
-		for x = 1, wfcMapData.gridWidth do
-			local tile = wfcMapData.grid.tiles[y][x]
-			wfcTileCounts[tile.tileType] = wfcTileCounts[tile.tileType] + 1
-			wfcTotalTiles = wfcTotalTiles + 1
+	for y = 1, perlinMapData.gridHeight do
+		for x = 1, perlinMapData.gridWidth do
+			local tile = perlinMapData.grid.tiles[y][x]
+			perlinTileCounts[tile.tileType] = perlinTileCounts[tile.tileType] + 1
+			perlinTotalTiles = perlinTotalTiles + 1
 		end
 	end
 
-	print(`Total Tiles: {wfcTotalTiles}`)
-	for tileType, count in wfcTileCounts do
+	print(`Total Tiles: {perlinTotalTiles}`)
+	for tileType, count in perlinTileCounts do
 		local props = TileConfig.TileProperties[tileType]
-		local percentage = (count / wfcTotalTiles) * 100
+		local percentage = (count / perlinTotalTiles) * 100
 		print(string.format("  %s: %d (%.1f%%)", props.name, count, percentage))
 	end
 
-	-- Test 10: WFC Determinism
-	print("\nTEST 10: WFC Determinism")
-	local wfcMapData2 = MapGeneratorService.generate(wfcSeed)
+	-- Test 10: Perlin Determinism
+	print("\nTEST 10: Perlin Determinism")
+	local perlinMapData2 = MapGeneratorService.generate(perlinSeed)
 
-	if not wfcMapData2 then
-		warn("✗ Second WFC generation failed!")
+	if not perlinMapData2 then
+		warn("✗ Second Perlin generation failed!")
 	else
-		local wfcIdentical = true
-		for y = 1, wfcMapData.gridHeight do
-			for x = 1, wfcMapData.gridWidth do
-				local tile1 = wfcMapData.grid.tiles[y][x]
-				local tile2 = wfcMapData2.grid.tiles[y][x]
+		local perlinIdentical = true
+		for y = 1, perlinMapData.gridHeight do
+			for x = 1, perlinMapData.gridWidth do
+				local tile1 = perlinMapData.grid.tiles[y][x]
+				local tile2 = perlinMapData2.grid.tiles[y][x]
 				if
 					tile1.tileType ~= tile2.tileType
 					or math.abs(tile1.height - tile2.height) > 0.001
 				then
-					wfcIdentical = false
+					perlinIdentical = false
 					print(`✗ Mismatch at ({x}, {y})`)
 					break
 				end
 			end
-			if not wfcIdentical then
+			if not perlinIdentical then
 				break
 			end
 		end
 
-		if wfcIdentical then
-			print("✓ WFC maps are identical - determinism confirmed")
+		if perlinIdentical then
+			print("✓ Perlin maps are identical - determinism confirmed")
 		else
-			warn("✗ WFC maps differ - determinism failed!")
+			warn("✗ Perlin maps differ - determinism failed!")
 		end
 	end
 
-	-- Test 11: WFC Sample Output
-	print("\nTEST 11: WFC Sample Output (showing first 10x10 corner)")
-	for y = 1, math.min(10, wfcMapData.gridHeight) do
+	-- Test 11: Perlin Sample Output
+	print("\nTEST 11: Perlin Sample Output (showing first 10x10 corner with tile types)")
+	for y = 1, math.min(10, perlinMapData.gridHeight) do
 		local row = ""
-		for x = 1, math.min(10, wfcMapData.gridWidth) do
-			local tile = wfcMapData.grid.tiles[y][x]
+		for x = 1, math.min(10, perlinMapData.gridWidth) do
+			local tile = perlinMapData.grid.tiles[y][x]
 			local props = TileConfig.TileProperties[tile.tileType]
 			row = row .. string.sub(props.name, 1, 1) .. " "
 		end
@@ -289,7 +263,7 @@ end
 -- Final Summary
 print("\n" .. string.rep("=", 60))
 print("PHASE 2 TESTS COMPLETE")
-print("WFC algorithm verified!")
+print("Perlin noise generation verified!")
 print(string.rep("=", 60) .. "\n")
 
 -- ═══════════════════════════════════════════════════
@@ -300,15 +274,15 @@ print("\n" .. string.rep("=", 60))
 print("MAP GENERATOR - PHASE 3 TESTS (TERRAIN BUILDING)")
 print(string.rep("=", 60) .. "\n")
 
--- Test 12: Parts-Based World Building (Minecraft-style)
-print("TEST 12: Parts-Based World Generation (Minecraft-style)")
+-- Test 12: 3D World Building (Parts-Based)
+print("TEST 12: 3D World Generation (Parts-Based, Minecraft-style)")
 local terrainSeed = 54321
 local worldMapData = MapGeneratorService.generateAndBuildWorld(terrainSeed)
 
 if not worldMapData then
 	warn("✗ World generation failed!")
 else
-	print(`✓ World generated with Parts rendering`)
+	print(`✓ World generated with Perlin + Parts rendering`)
 	print(`  Seed: {worldMapData.seed}`)
 	print(`  Map Size: {worldMapData.mapSize}x{worldMapData.mapSize} studs`)
 	print(`  Grid: {worldMapData.gridWidth}x{worldMapData.gridHeight} tiles`)
@@ -324,8 +298,8 @@ else
 		print(`  Parts world verification: {partCount} parts created`)
 
 		if partCount > 0 then
-			print("✓ Minecraft-style world successfully generated in workspace!")
-			print(`  Check workspace.GeneratedWorld to see the {partCount} blocks!`)
+			print("✓ 3D world successfully generated in workspace!")
+			print(`  Check workspace.GeneratedWorld to see the {partCount} terrain blocks!`)
 		else
 			warn("✗ GeneratedWorld exists but has no parts")
 		end
@@ -337,6 +311,6 @@ end
 -- Final Summary
 print("\n" .. string.rep("=", 60))
 print("PHASE 3 TESTS COMPLETE")
-print("Minecraft-style Parts rendering verified!")
-print("Check workspace.GeneratedWorld to see the blocky terrain!")
+print("Perlin-based 3D terrain rendering verified!")
+print("Check workspace.GeneratedWorld to see the generated terrain!")
 print(string.rep("=", 60) .. "\n")

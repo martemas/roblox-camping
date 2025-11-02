@@ -4,10 +4,7 @@ This guide explains how to integrate the Map Generator into your game initializa
 
 ## Overview
 
-The Map Generator creates procedurally generated worlds with configurable height generation modes:
-- **Constrained**: Wave Function Collapse (WFC) with smooth height constraints between neighbors
-- **Perlin**: WFC tile placement with Perlin noise heightmaps
-- **Perlin Only**: Pure Perlin noise generation (no WFC) - fastest and simplest
+The Map Generator creates procedurally generated worlds using **Perlin noise** for natural terrain height generation combined with **altitude-based biomes** for realistic biome distribution.
 
 Supports two rendering modes:
 - **Terrain Mode**: Smooth Roblox terrain (natural, organic look)
@@ -29,13 +26,8 @@ MapConfig.generation = {
     tileSize = 16,            -- Each tile = 16×16 studs (64×64 grid)
     seed = nil,               -- nil = random map, or set number for specific map
 
-    -- Height generation mode
-    -- "constrained": WFC + smooth height constraints between neighbors
-    -- "perlin": WFC tile placement + Perlin noise heightmap
-    -- "perlin_only": Pure Perlin noise (no WFC) - fastest and simplest
-    heightGenerationMode = "perlin_only",
-    maxHeightDelta = 2,       -- Max height diff between adjacent tiles (constrained mode)
-    perlinScale = 10,         -- Perlin noise scale (smaller = more detail)
+    -- Perlin noise settings
+    perlinScale = 10,         -- Perlin noise scale (smaller = more detail, larger = smoother)
     perlinOctaves = 3,        -- Number of noise octaves (more = more detail)
 }
 
@@ -130,11 +122,9 @@ MapConfig.generation = {
     tileSize = 16,             -- Size of each tile (smaller = more detail, slower)
     seed = nil,                -- Seed for generation (nil = random)
 
-    -- Height generation mode
-    heightGenerationMode = "perlin_only",  -- "constrained", "perlin", or "perlin_only"
-    maxHeightDelta = 2,        -- Max height difference between adjacent tiles
-    perlinScale = 10,          -- Perlin noise scale/frequency (smaller = more detail)
-    perlinOctaves = 3,         -- Number of noise octaves
+    -- Perlin noise settings
+    perlinScale = 10,          -- Perlin noise scale/frequency (smaller = more detail, larger = smoother)
+    perlinOctaves = 3,         -- Number of noise octaves (more detail = more detail)
 }
 ```
 
@@ -143,26 +133,19 @@ MapConfig.generation = {
 - `tileSize = 16`: 64×64 grid (4096 tiles) - **Recommended**
 - `tileSize = 32`: 32×32 grid (1024 tiles) - Fast, less detail
 
-### Height Generation Modes
+### Height Generation
 
-**Constrained Mode** (`heightGenerationMode = "constrained"`)
-- Uses WFC for tile placement with adjacency rules
-- Heights constrained to be within `maxHeightDelta` of neighbors
-- Creates smooth rolling terrain without abrupt jumps
-- Respects WFC adjacency constraints throughout
+The map generator uses **Perlin noise** to create smooth, natural terrain heights:
 
-**Perlin Mode** (`heightGenerationMode = "perlin"`)
-- Uses WFC for tile placement (respects adjacency rules)
-- Heights generated from Perlin noise (smooth, continuous)
-- Altitude biomes then converts tile types based on final height
-- Combines structured WFC patterns with smooth Perlin heights
+- Pure Perlin noise generation (no constraints)
+- Heights are converted to tile types using altitude bands
+- Guaranteed to succeed (no generation failures)
+- Naturally realistic terrain with varied elevation zones
+- Fast and simple generation method
 
-**Perlin Only Mode** (`heightGenerationMode = "perlin_only"`) - **Fastest & Recommended**
-- Pure Perlin noise generation (no WFC at all)
-- Directly converts height to tile types using altitude bands
-- Guaranteed to succeed (no WFC contradictions)
-- Naturally realistic terrain without adjacency constraints
-- Simplest and fastest generation method
+**Perlin Settings:**
+- `perlinScale`: Controls the "zoom level" of the noise (smaller = more detailed/chaotic, larger = smoother/rolling)
+- `perlinOctaves`: Adds layered noise for more varied terrain (more = more detail)
 
 ### Rendering Settings
 
@@ -216,20 +199,6 @@ MapConfig.rendering = {
 - Tile types: 1=DeepWater, 2=Water, 3=Sand, 4=Grass, 5=Forest, 6=Hill, 7=Mountain, 8=Snow
 - Height thresholds account for `heightOffset` automatically
 - Note: `perlin_only` always applies altitude biomes internally
-
----
-
-## Height Generation Comparison
-
-| Feature | Constrained | Perlin | Perlin Only |
-|---------|-------------|--------|------------|
-| Algorithm | WFC + constraints | WFC + Perlin | Pure Perlin |
-| Adjacency Rules | Enforced | Enforced | None |
-| Height Smoothness | Between neighbors | Noise-based | Noise-based |
-| Speed | Slow | Slow | **Very Fast** |
-| Failure Rate | Possible | Possible | **None** |
-| Terrain Quality | Good | Excellent | **Excellent** |
-| Recommended | Niche | General | **✓ Default** |
 
 ---
 
@@ -390,7 +359,6 @@ MapConfig.generation = {
     mapSize = 1024,
     tileSize = 16,
     seed = nil,  -- Different world each server
-    heightGenerationMode = "perlin_only",
     perlinScale = 10,
     perlinOctaves = 3,
 }
@@ -403,15 +371,15 @@ MapConfig.rendering = {
 }
 ```
 
-### Case 2: Minecraft Clone (Blocky Terrain with WFC)
+### Case 2: Minecraft Clone (Blocky Terrain)
 
 ```lua
 MapConfig.generation = {
     mapSize = 512,
     tileSize = 16,
     seed = nil,
-    heightGenerationMode = "constrained",  -- Show WFC patterns
-    maxHeightDelta = 2,
+    perlinScale = 12,
+    perlinOctaves = 4,
 }
 
 MapConfig.rendering = {
@@ -420,7 +388,7 @@ MapConfig.rendering = {
     heightQuantization = 4,
     heightOffset = 0,
     useRobloxMaterials = false,
-    useAltitudeBiomes = false,  -- Disable to see WFC tile patterns
+    useAltitudeBiomes = true,
 }
 ```
 
@@ -431,7 +399,8 @@ MapConfig.generation = {
     mapSize = 512,
     tileSize = 16,
     seed = 99999,  -- Fixed seed for fairness
-    heightGenerationMode = "perlin_only",
+    perlinScale = 10,
+    perlinOctaves = 3,
 }
 
 MapConfig.rendering = {
@@ -448,7 +417,6 @@ MapConfig.generation = {
     mapSize = 2048,
     tileSize = 32,  -- Larger tiles = fewer, faster
     seed = nil,
-    heightGenerationMode = "perlin_only",  -- Fastest mode
     perlinScale = 20,  -- Smoother for performance
     perlinOctaves = 2,  -- Fewer octaves for speed
 }
@@ -470,10 +438,9 @@ MapConfig.rendering = {
 
 **Solutions:**
 1. Check console for error messages
-2. Try `perlin_only` mode (cannot fail unlike WFC modes)
-3. Try different seed
-4. Reduce map size
-5. Check if you have altitude biome mismatch
+2. Try different seed
+3. Reduce map size
+4. Check if you have altitude biome mismatch
 
 ### Same Map Every Time (When Expecting Random)
 
@@ -518,21 +485,18 @@ MapConfig.rendering = {
 
 ## Advanced Usage
 
-### Seeing WFC Patterns vs Pure Perlin
+### Adjusting Terrain Detail
 
-To observe the difference between modes:
+Control terrain complexity with Perlin settings:
 
 ```lua
--- Mode 1: See WFC tile patterns (ignore height)
-MapConfig.generation.heightGenerationMode = "constrained"
-MapConfig.rendering.useAltitudeBiomes = false
+-- Smooth, rolling hills (fewer details)
+MapConfig.generation.perlinScale = 20   -- Larger scale
+MapConfig.generation.perlinOctaves = 2  -- Fewer layers
 
--- Mode 2: See Perlin patterns (ignore WFC)
-MapConfig.generation.heightGenerationMode = "perlin_only"
-MapConfig.rendering.useAltitudeBiomes = false
-
--- Mode 3: See final result (both combined with altitude biomes)
-MapConfig.rendering.useAltitudeBiomes = true
+-- Chaotic, detailed terrain (more features)
+MapConfig.generation.perlinScale = 5    -- Smaller scale
+MapConfig.generation.perlinOctaves = 5  -- More layers
 ```
 
 ### Custom Altitude Bands
