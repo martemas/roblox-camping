@@ -10,7 +10,7 @@ local MapConfig = {}
 MapConfig.generation = {
 	enabled = true, -- Enable procedural generation
 	mapSize = 1024, -- Total map size in studs (512×512)
-	tileSize = 16, -- Each tile = 16×16 studs (64×64 grid)
+	tileSize = 32, -- Each tile = 16×16 studs (64×64 grid)
 	seed = nil, -- nil = random, or set specific number for deterministic map
 
 	-- Perlin noise settings (used for terrain height generation)
@@ -35,11 +35,11 @@ perlinScale = 5,
 perlinOctaves = 5,
 --]]
 	perlinScale = 10, -- Perlin noise scale/frequency (smaller = more detail, larger = smoother)
-	perlinOctaves = 4, -- Number of noise octaves (more = more detail)
+	perlinOctaves = 5, -- Number of noise octaves (more = more detail)
 
 	-- Height generation settings
-	baseHeight = 0, -- Base elevation (offset for all heights)
-	heightScale = 40, -- Height multiplier (controls elevation range, bigger = taller mountains)
+	baseHeight = 4, -- Base elevation (offset for all heights)
+	heightScale = 30, -- Height multiplier (controls elevation range, bigger = taller mountains)
 
 	-- Perlin noise distribution
 	useExponentialPerlin = true, -- Use exponential distribution for more terrain variation (true = dramatic terrain with extreme peaks/valleys, false = natural smooth terrain)
@@ -82,7 +82,7 @@ perlinOctaves = 5,
 	   - Smoother than "exp" mode, good middle ground
 	--]]
 	exponentialMode = "exp", -- "exp" (e^x, most dramatic), "quadratic" (x^2), "linear" (1+x, subtle)
-	exponentialAmplitude = 1.2, -- Multiplier for exponential effect (higher = more extreme variation)
+	exponentialAmplitude = 1.0, -- Multiplier for exponential effect (higher = more extreme variation)
 }
 
 -- ═══════════════════════════════════════════════════
@@ -217,8 +217,8 @@ MapConfig.rendering = {
 		-- Tiles are converted based on their height (altitude)
 		-- Lower altitudes listed first, checked in order
 		-- Note: Water is handled by water plate, not altitude bands
-		{ maxHeight = 1, tileType = 3 }, -- Sand (lowest elevation, beaches)
-		{ maxHeight = 4, tileType = 4 }, -- Grass (lowlands)
+		{ maxHeight = -5, tileType = 3 }, -- Sand (lowest elevation, beaches)
+		{ maxHeight = 0, tileType = 4 }, -- Grass (lowlands)
 		{ maxHeight = 20, tileType = 5 }, -- Forest (mid elevation)
 		{ maxHeight = 32, tileType = 6 }, -- Hill (barren/rocky)
 		{ maxHeight = 64, tileType = 7 }, -- Mountain (high peaks)
@@ -228,7 +228,7 @@ MapConfig.rendering = {
 	-- Water plate settings (flat water surface overlay)
 	-- Water plate is positioned at the specified height (independent of terrain blocks)
 	water = {
-		enabled = true,
+		enabled = false,
 		height = -0.2, -- Absolute Y position of water surface (0 = ground level, negative = below ground, positive = above ground)
 		material = Enum.Material.Water,
 		transparency = 0.3,

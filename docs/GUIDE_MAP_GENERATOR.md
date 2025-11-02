@@ -137,68 +137,110 @@ MapConfig.generation = {
 
 The map generator uses **Perlin noise** to create smooth, natural terrain heights:
 
-- Pure Perlin noise generation (no constraints)
+- Pure Perlin noise generation (no constraints or failures)
 - Heights are converted to tile types using altitude bands
-- Guaranteed to succeed (no generation failures)
+- Fully deterministic with seeded random generation
 - Naturally realistic terrain with varied elevation zones
 - Fast and simple generation method
 
 **Perlin Settings:**
 - `perlinScale`: Controls the "zoom level" of the noise (smaller = more detailed/chaotic, larger = smoother/rolling)
+  - Small (5-8): Chaotic, jagged terrain with lots of peaks
+  - Large (15-20): Smooth, rolling hills
 - `perlinOctaves`: Adds layered noise for more varied terrain (more = more detail)
+  - Low (2-3): Smooth, simple terrain
+  - High (4-6): Detailed, complex terrain with more variation
+
+### Exponential Perlin Distribution (Optional)
+
+For more dramatic terrain with extreme peaks and valleys, enable exponential Perlin mode:
+
+```lua
+MapConfig.generation = {
+    -- ... other settings ...
+    useExponentialPerlin = true,      -- Enable exponential amplitude modulation
+    exponentialMode = "exp",          -- "exp", "quadratic", or "linear"
+    exponentialAmplitude = 1.2,       -- Controls how dramatic the effect is
+}
+```
+
+**Exponential Modes:**
+
+| Mode | Formula | Effect | Range |
+|------|---------|--------|-------|
+| `"exp"` | e^(value * amplitude) | Most dramatic, exponential growth | [1.0, e^amplitude] |
+| `"quadratic"` | 1 + (value² * amplitude) | Moderate, smoother curve | [1.0, 1 + amplitude] |
+| `"linear"` | 1 + (value * amplitude) | Subtle, predictable | [1.0, 1 + amplitude] |
+
+**Amplitude Examples:**
+- `exponentialAmplitude = 0.5` with mode "linear": 1.5x max amplification (subtle)
+- `exponentialAmplitude = 1.0` with mode "exp": 2.7x max amplification (moderate)
+- `exponentialAmplitude = 2.0` with mode "exp": 7.4x max amplification (dramatic)
+- `exponentialAmplitude = 3.0` with mode "exp": 20x max amplification (very dramatic)
+
+**Recommended Presets:**
+- Natural: `useExponentialPerlin = false`
+- Balanced: `mode = "linear", amplitude = 0.5`
+- Dramatic: `mode = "exp", amplitude = 2.0`
 
 ### Rendering Settings
 
 ```lua
 MapConfig.rendering = {
-    mode = "parts",              -- Rendering mode
-    style = "smooth",            -- Height variation style
-    heightQuantization = 1,      -- Height snapping
-    heightOffset = 0,            -- Global Y offset for entire map
-    useRobloxMaterials = true,   -- Material choice
+    mode = "parts",              -- "terrain" (smooth) or "parts" (blocky)
+    heightOffset = 0,            -- Global Y offset for entire map (positive = higher)
+    useRobloxMaterials = true,   -- true = terrain materials, false = SmoothPlastic
 
-    -- Altitude-based biome system
+    -- Altitude-based biome system (converts heights to terrain types)
     useAltitudeBiomes = true,    -- Enable altitude-based terrain conversion
     altitudeBands = {
-        { maxHeight = -8, tileType = 1 },  -- DeepWater
-        { maxHeight = -2, tileType = 2 },  -- Water
-        { maxHeight = 1, tileType = 3 },   -- Sand
-        { maxHeight = 6, tileType = 4 },   -- Grass
-        { maxHeight = 10, tileType = 5 },  -- Forest
-        { maxHeight = 14, tileType = 6 },  -- Hill
-        { maxHeight = 20, tileType = 7 },  -- Mountain
-        { maxHeight = math.huge, tileType = 8 },  -- Snow
+        { maxHeight = 1, tileType = 3 },   -- Sand (lowest elevation, beaches)
+        { maxHeight = 4, tileType = 4 },   -- Grass (lowlands)
+        { maxHeight = 20, tileType = 5 },  -- Forest (mid elevation)
+        { maxHeight = 32, tileType = 6 },  -- Hill (barren/rocky)
+        { maxHeight = 64, tileType = 7 },  -- Mountain (high peaks)
+        { maxHeight = math.huge, tileType = 8 },  -- Snow (very high)
+    },
+
+    -- Water plate settings (visual overlay, non-collidable)
+    water = {
+        enabled = true,
+        height = -0.2,             -- Absolute Y position (0 = ground level, negative = below)
+        material = Enum.Material.Water,
+        transparency = 0.3,
     },
 }
 ```
 
 **Mode Options:**
-- `"terrain"`: Uses Roblox Terrain API (smooth, natural)
-- `"parts"`: Uses individual Parts (Minecraft-style, blocky)
-
-**Style Options:**
-- `"smooth"`: Height varies within tile types (natural rolling hills)
-- `"blocky"`: Uniform heights per tile type (flat layers)
-
-**Height Quantization:**
-- `0`: No snapping (smooth height transitions)
-- `1`: Snap to 1-stud increments (subtle steps)
-- `4`: Snap to 4-stud increments (terraced, Minecraft-like)
-- `8`: Snap to 8-stud increments (more dramatic steps)
+- `"terrain"`: Uses Roblox Terrain API (smooth, natural look)
+- `"parts"`: Uses individual Parts (Minecraft-style, blocky look)
 
 **Height Offset:**
 - Positions the entire map vertically
 - Positive values raise the map, negative values lower it
-- Example: `heightOffset = 50` places the map 50 studs higher
-- Works with all height generation modes
+- Example: `heightOffset = 50` places all terrain 50 studs higher
+- 0 = ground level positioning
+
+**Materials:**
+- `useRobloxMaterials = true`: Uses Grass, Sand, Snow, Rock materials (realistic)
+- `useRobloxMaterials = false`: Uses SmoothPlastic for all blocks (debug/uniform)
 
 **Altitude Biomes System:**
 - `useAltitudeBiomes`: Enable/disable altitude-based terrain conversion
 - `altitudeBands`: Array defining height thresholds and tile types
-- Creates realistic elevation zones (water → beaches → grass → hills → mountains → snow)
-- Tile types: 1=DeepWater, 2=Water, 3=Sand, 4=Grass, 5=Forest, 6=Hill, 7=Mountain, 8=Snow
-- Height thresholds account for `heightOffset` automatically
-- Note: `perlin_only` always applies altitude biomes internally
+- Creates realistic elevation zones automatically based on height
+- Checked in order - first matching threshold wins
+- Tile types: 3=Sand, 4=Grass, 5=Forest, 6=Hill, 7=Mountain, 8=Snow
+
+**Water Plate:**
+- Visual overlay of water at a specific height
+- `height = 0`: Water at ground level
+- `height = -0.2`: Water 0.2 studs below ground (subtle underwater effect)
+- `height = -5`: Water 5 studs below ground
+- Non-collidable (players can walk through it)
+- Semi-transparent with configurable opacity
+- **Note**: Water plate uses altitude bands OR separate overlay - not both
 
 ---
 
@@ -473,13 +515,35 @@ MapConfig.rendering = {
 
 ### Altitude Biomes Not Working
 
-**Problem:** Not seeing water/mountains, only grass
+**Problem:** Not seeing varied terrain types (water/mountains), mostly grass
 
 **Solutions:**
-1. Verify `useAltitudeBiomes = true`
-2. Check `altitudeBands` table is defined correctly
-3. Try `perlin_only` mode (always applies altitude biomes)
-4. Verify heightmap is generating varied heights (not all flat)
+1. Verify `useAltitudeBiomes = true` in rendering config
+2. Check `altitudeBands` thresholds match your heightmap range
+3. Verify Perlin is generating varied heights: check console output for height range
+4. Try different `perlinScale` (smaller = more variation)
+5. Increase `perlinOctaves` for more terrain detail
+
+### Water Plate Not Appearing
+
+**Problem:** Water plate not visible or at wrong position
+
+**Solutions:**
+1. Verify `water.enabled = true`
+2. Check `water.height` value - use 0 for ground level, negative for below ground
+3. Verify `water.transparency` is not 1.0 (fully transparent)
+4. Check console output - PartsBuilder should log "Creating water plate at height X"
+5. Try `water.transparency = 0.5` for more visibility
+
+### Terrain Looks Flat
+
+**Problem:** All terrain is at same height, no peaks or valleys
+
+**Solutions:**
+1. Increase `perlinOctaves` (default 4, try 6-8)
+2. Decrease `perlinScale` (default 10, try 5-8 for more chaotic terrain)
+3. Increase `heightScale` (default 40, try 60-80 for taller mountains)
+4. Try enabling exponential Perlin for more dramatic variation
 
 ---
 
