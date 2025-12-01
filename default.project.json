@@ -1,5 +1,6 @@
 {
   "name": "roblox-camping",
+  "servePlaceIds": [138589282836159],
   "tree": {
     "$className": "DataModel",
     "ReplicatedStorage": {

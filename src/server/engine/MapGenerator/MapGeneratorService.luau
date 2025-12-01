@@ -1,6 +1,7 @@
 --!strict
 -- MAP GENERATOR SERVICE
 -- Main orchestrator for procedural map generation
+local GamesMapConfig = require(game:GetService("ServerScriptService"):WaitForChild("Games"):WaitForChild("Config"):WaitForChild("GamesMapConfig"))
 
 local Types = require(script.Parent.Types)
 local MapConfig = require(script.Parent.Parent.Config.MapConfig)
@@ -10,6 +11,7 @@ local MapData = require(script.Parent.MapData)
 local PerlinGenerator = require(script.Parent.PerlinGenerator)
 local TerrainBuilder = require(script.Parent.TerrainBuilder)
 local PartsBuilder = require(script.Parent.PartsBuilder)
+local ZonePlacer = require(script.Parent.ZonePlacer)
 
 local MapGeneratorService = {}
 
@@ -162,6 +164,24 @@ function MapGeneratorService.generateAndBuildWorld(seed: number?): Types.MapData
 	if not mapData then
 		warn("[MapGeneratorService] ✗ Failed to generate map")
 		return nil
+	end
+
+	-- Phase 4: Place zones with constraints and biome enforcement
+	print("[MapGeneratorService] Phase 4: Placing zones...")
+
+	-- Get game-specific zone config
+
+	if GamesMapConfig.zones then
+		-- Create RNG for zone placement (use same seed as map for reproducibility)
+		local rng = SeededRandom.new(mapData.seed)
+
+		-- Place zones and apply them to the grid
+		ZonePlacer.applyZones(mapData, GamesMapConfig.zones, rng)
+
+		print(`[MapGeneratorService] ✓ Zone placement complete ({#mapData.zones} zones placed)`)
+	else
+		warn("[MapGeneratorService] No game-specific zone configuration found")
+		mapData.zones = {}
 	end
 
 	-- Build 3D world using configured rendering mode

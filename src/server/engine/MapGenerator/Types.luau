@@ -40,6 +40,10 @@ export type ZoneConstraints = {
 	minDistanceFromEdge: number?,
 	minDistanceFromOtherZones: number?,
 	preferEdge: boolean?,
+	allowedSections: { string }?,         -- "NW", "N", "NE", "W", "Center", "E", "SW", "S", "SE"
+	relativeToZone: string?,              -- Parent zone ID
+	relativeDistance: number?,            -- Studs away from parent
+	relativeSections: { string }?,        -- Directions from parent
 }
 
 export type ZoneStructure = {
@@ -55,6 +59,25 @@ export type ZoneConfig = {
 	biome: string,
 	constraints: ZoneConstraints,
 	structures: { ZoneStructure },
+}
+
+export type SectionBounds = {
+	minX: number,
+	maxX: number,
+	minY: number,
+	maxY: number,
+}
+
+export type Section = {
+	name: string,
+	bounds: SectionBounds,
+	center: GridCoord,
+}
+
+export type SectionGrid = {
+	sections: { [string]: Section },
+	gridWidth: number,
+	gridHeight: number,
 }
 
 export type PlacedZone = {
