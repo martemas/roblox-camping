@@ -11,6 +11,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Engine = ServerScriptService:WaitForChild("Engine")
 local EngineShared = ReplicatedStorage:WaitForChild("Engine")
 
+local Framework = require(Engine.Framework)
 local GameConfig = require(Engine.Config.GameConfig)
 local CombatFeedback = require(EngineShared.VisualFX.CombatFeedback)
 local ProjectileLOS = require(Engine.Combat.ProjectileLOS)
@@ -524,7 +525,8 @@ local function getClosestEntityOfCategory(entity: EntityInstance, category: stri
 	elseif category == "Structure" then
 		-- Find closest structure (building)
 		-- TODO: Implement when building system is ready
-		local townhall = _G.TownhallManager and _G.TownhallManager.GetTownhall()
+		local TownhallManager = Framework.get("TownhallManager")
+		local townhall = TownhallManager and TownhallManager.GetTownhall()
 		return townhall
 
 	elseif category == "Wildlife" or category == "Creature" then

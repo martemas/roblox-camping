@@ -31,19 +31,13 @@ GamesMapConfig.zones = {
 			noWater = true, -- No water allowed
 			allowedSections = { "NW", "W", "SW" }, -- Left side of map
 		},
-		-- Assets to place in this zone (Phase 4b - structure placement)
+		-- Assets to place in this zone
 		structures = {
 			{
-				name = "Townhall",
-				assetPath = "ReplicatedStorage.MapAssets.Structures.Townhall",
+				name = "PlayerBase",
+				assetPath = "ServerStorage.Assets.Base.Team1",
 				position = "center",
 				rotation = 0,
-			},
-			{
-				name = "StartingCamp",
-				assetPath = "ReplicatedStorage.MapAssets.Structures.Camp",
-				position = { x = 15, z = 0 },
-				rotation = 90,
 			},
 		},
 	},
@@ -60,10 +54,10 @@ GamesMapConfig.zones = {
 		},
 		structures = {
 			{
-				name = "EnemyCastle",
-				assetPath = "ReplicatedStorage.MapAssets.Structures.Castle",
+				name = "EnemyBase",
+				assetPath = "ServerStorage.Assets.Base.Team2",
 				position = "center",
-				rotation = 0,
+				rotation = 180, -- Face opposite direction
 			},
 		},
 	},

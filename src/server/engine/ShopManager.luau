@@ -190,6 +190,7 @@ end
 -- Send shop data to client
 local function onOpenShop(player: Player)
 	-- Get current team resources
+	local TownhallManager = Framework.get("TownhallManager")
 	local teamResources = TownhallManager and TownhallManager.GetTeamResources() or {Wood = 0, Stone = 0, Metal = 0}
 
 	-- Send shop data and current resources to client

@@ -12,6 +12,7 @@ local PerlinGenerator = require(script.Parent.PerlinGenerator)
 local TerrainBuilder = require(script.Parent.TerrainBuilder)
 local PartsBuilder = require(script.Parent.PartsBuilder)
 local ZonePlacer = require(script.Parent.ZonePlacer)
+local StructurePlacement = require(script.Parent.StructurePlacement)
 
 local MapGeneratorService = {}
 
@@ -200,6 +201,15 @@ function MapGeneratorService.generateAndBuildWorld(seed: number?): Types.MapData
 	if not success then
 		warn("[MapGeneratorService] ✗ Failed to build world")
 		return nil
+	end
+
+	-- Phase 4c: Place structures in zones
+	print("[MapGeneratorService] Phase 4c: Placing structures...")
+	local structuresPlaced = StructurePlacement.placeStructures(mapData)
+	if structuresPlaced then
+		print("[MapGeneratorService] ✓ Structure placement complete")
+	else
+		warn("[MapGeneratorService] ⚠ No structures were placed (zones may not have structures configured)")
 	end
 
 	print("[MapGeneratorService] ✓ World generation complete")
