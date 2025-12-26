@@ -13,6 +13,7 @@ local TerrainBuilder = require(script.Parent.TerrainBuilder)
 local PartsBuilder = require(script.Parent.PartsBuilder)
 local ZonePlacer = require(script.Parent.ZonePlacer)
 local StructurePlacement = require(script.Parent.StructurePlacement)
+local MinimapDataProvider = require(script.Parent.MinimapDataProvider)
 
 local MapGeneratorService = {}
 
@@ -185,6 +186,12 @@ function MapGeneratorService.generateAndBuildWorld(seed: number?): Types.MapData
 		mapData.zones = {}
 	end
 
+	-- Phase 4b: Generate and broadcast minimap data (before 3D rendering)
+	print("[MapGeneratorService] Phase 4b: Generating minimap data...")
+	local minimapData = MinimapDataProvider.generateMinimapData(mapData)
+	MinimapDataProvider.broadcastToPlayers(minimapData)
+	print("[MapGeneratorService] ✓ Minimap data broadcasted to clients")
+
 	-- Build 3D world using configured rendering mode
 	local renderConfig = MapConfig.rendering
 	print(`[MapGeneratorService] Rendering config: mode={renderConfig.mode}, style={renderConfig.style}, quantization={renderConfig.heightQuantization}`)
@@ -208,6 +215,9 @@ function MapGeneratorService.generateAndBuildWorld(seed: number?): Types.MapData
 	local structuresPlaced = StructurePlacement.placeStructures(mapData)
 	if structuresPlaced then
 		print("[MapGeneratorService] ✓ Structure placement complete")
+
+		-- Update minimap with structure markers
+		MinimapDataProvider.updateStructureMarkers(mapData)
 	else
 		warn("[MapGeneratorService] ⚠ No structures were placed (zones may not have structures configured)")
 	end

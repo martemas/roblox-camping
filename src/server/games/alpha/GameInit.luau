@@ -13,6 +13,7 @@ local ServerScriptService = game:GetService("ServerScriptService")
 local Engine = ServerScriptService:WaitForChild("Engine")
 local SpawnLoader = require(script.Parent.SpawnLoader)
 local MapGeneratorService = require(Engine.MapGenerator.MapGeneratorService)
+local MinimapDataProvider = require(Engine.MapGenerator.MinimapDataProvider)
 local Framework = require(Engine.Framework)
 
 local GameInit = {}
@@ -31,6 +32,10 @@ function GameInit.initialize()
 	-- Map generator service
 	MapGeneratorService.initialize()
 	Framework.register("MapGeneratorService", MapGeneratorService)
+
+	-- Minimap data provider (sends minimap to late-joining players)
+	MinimapDataProvider.initialize()
+	print("✓ MinimapDataProvider")
 
 	-- Animation system (required for entity animations)
 	local AnimationCache = require(Engine.AnimationCache)

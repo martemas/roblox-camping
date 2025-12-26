@@ -423,6 +423,95 @@ local UIConfig = {
 		itemSpacing = 10,
 		scrollBarThickness = 8,
 	},
+
+	--[[
+		Minimap Configuration
+	]]
+	minimap = {
+		enabled = true,
+
+		-- Position (UDim2) - Top right corner
+		position = {
+			scaleX = 1,
+			offsetX = -220,
+			scaleY = 0,
+			offsetY = 20,
+		},
+
+		-- Size (UDim2) - Square minimap
+		size = {
+			scaleX = 0,
+			offsetX = 200,
+			scaleY = 0,
+			offsetY = 200,
+		},
+
+		-- Anchor point
+		anchorPoint = {
+			x = 0,
+			y = 0,
+		},
+
+		-- Visual settings
+		borderColor = Color3.fromRGB(100, 100, 100),
+		backgroundColor = Color3.fromRGB(20, 20, 20),
+		backgroundTransparency = 0.2,
+		borderThickness = 2,
+
+		-- Player markers
+		playerMarkers = {
+			enabled = true,
+			localPlayerSize = 10,
+			otherPlayerSize = 6,
+			showDirection = true,
+			showTeammates = true,
+			showEnemies = true,
+			updateRate = 0.016, -- 60 FPS
+		},
+
+		-- Team colors
+		teamColors = {
+			team1 = Color3.fromRGB(0, 255, 0),      -- Green
+			team2 = Color3.fromRGB(255, 0, 0),      -- Red
+			neutral = Color3.fromRGB(200, 200, 200), -- Gray
+		},
+
+		-- Structure icons
+		structureIcons = {
+			PlayerBase = {
+				text = "🏰",
+				color = Color3.fromRGB(0, 255, 0),
+				size = 14,
+			},
+			EnemyBase = {
+				text = "🏰",
+				color = Color3.fromRGB(255, 0, 0),
+				size = 14,
+			},
+		},
+
+		-- Terrain colors (by tile type from altitude bands)
+		terrainColors = {
+			[3] = Color3.fromRGB(194, 178, 128), -- Sand (beach)
+			[4] = Color3.fromRGB(106, 168, 79),  -- Grass (plains)
+			[5] = Color3.fromRGB(56, 118, 29),   -- Forest (dark green)
+			[6] = Color3.fromRGB(153, 153, 153), -- Hills (gray)
+			[7] = Color3.fromRGB(120, 120, 120), -- Mountains (dark gray)
+			[8] = Color3.fromRGB(255, 255, 255), -- Snow (white)
+		},
+
+		-- Zone visualization
+		showZones = true,
+		zoneOutlineColor = Color3.fromRGB(255, 255, 0),
+		zoneOutlineTransparency = 0.7,
+
+		-- Toggle key
+		toggleKey = Enum.KeyCode.M,
+
+		-- Styling
+		cornerRadius = 8,
+		font = Enum.Font.Gotham,
+	},
 }
 
 -- Helper function to create UDim2 from config

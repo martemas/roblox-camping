@@ -103,6 +103,10 @@ local RemoteEvents = {
 
 	-- Team System
 	TeamAssigned = createRemoteEvent("TeamAssigned"),                -- Server → Client: Team assignment notification
+
+	-- Minimap System
+	MinimapDataUpdated = createRemoteEvent("MinimapDataUpdated"),    -- Server → Client: Send minimap data (terrain, zones, structures)
+	MinimapStructuresUpdated = createRemoteEvent("MinimapStructuresUpdated"), -- Server → Client: Update structure markers only
 }
 
 -- Export RemoteFunctions

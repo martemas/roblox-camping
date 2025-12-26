@@ -45,6 +45,7 @@ local COMPONENT_MODULES = {
 	StaminaBar = "ui/StaminaBar",
 	Notification = "ui/Notification",
 	Shop = "ui/Shop",
+	Minimap = "ui/Minimap",
 
 	-- Combat UI (to be modularized)
 	-- TargetHUD = "ui/TargetHUD",
