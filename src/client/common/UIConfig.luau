@@ -511,6 +511,40 @@ local UIConfig = {
 		-- Styling
 		cornerRadius = 8,
 		font = Enum.Font.Gotham,
+
+		-- Expanded map settings
+		expanded = {
+			enabled = true,
+
+			-- Size when expanded (80% of screen)
+			size = {
+				scaleX = 0.8,
+				offsetX = 0,
+				scaleY = 0.8,
+				offsetY = 0,
+			},
+
+			-- Overlay settings
+			overlayColor = Color3.fromRGB(0, 0, 0),
+			overlayTransparency = 0.5,
+
+			-- Close button
+			closeButton = {
+				text = "✕",
+				size = 40,
+				textSize = 24,
+				color = Color3.fromRGB(255, 255, 255),
+				backgroundColor = Color3.fromRGB(200, 50, 50),
+				hoverColor = Color3.fromRGB(255, 100, 100),
+			},
+
+			-- Animation
+			animationDuration = 0.3, -- seconds
+
+			-- Interactions
+			closeOnClickOutside = true,
+			closeOnEscape = true,
+		},
 	},
 }
 

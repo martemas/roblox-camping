@@ -13,6 +13,7 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local UIConfig = require(script.Parent.Parent:WaitForChild("UIConfig"))
@@ -28,17 +29,31 @@ local Minimap = UIComponent.new("Minimap", UIConfig.minimap.enabled)
 local localPlayer = Players.LocalPlayer
 local config = UIConfig.minimap
 
--- UI Elements
+-- UI Elements - Minimap
 local minimapFrame: Frame? = nil
 local terrainCanvas: Frame? = nil
 local zonesCanvas: Frame? = nil
 local structuresCanvas: Frame? = nil
 local playersCanvas: Frame? = nil
 
+-- UI Elements - Expanded Map
+local overlayFrame: Frame? = nil
+local expandedMapFrame: Frame? = nil
+local expandedTerrainCanvas: Frame? = nil
+local expandedZonesCanvas: Frame? = nil
+local expandedStructuresCanvas: Frame? = nil
+local expandedPlayersCanvas: Frame? = nil
+local closeButton: TextButton? = nil
+
 -- Map data
 local mapData: any = nil
 local playerMarkerPool: { Frame } = {}
 local activePlayerMarkers: { Frame } = {}
+local expandedPlayerMarkerPool: { Frame } = {}
+local activeExpandedPlayerMarkers: { Frame } = {}
+
+-- State
+local isExpanded: boolean = false
 
 -- Tracking
 local trackingConnection: RBXScriptConnection? = nil
@@ -108,129 +123,20 @@ end
 
 --- Render terrain grid (color-coded by tile type)
 local function renderTerrain()
-	if not terrainCanvas then
-		warn("[Minimap] terrainCanvas is nil, cannot render")
-		return
-	end
-
-	if not mapData then
-		warn("[Minimap] mapData is nil, cannot render terrain")
-		return
-	end
-
 	print(`[Minimap] Starting terrain render: {mapData.gridWidth}x{mapData.gridHeight} grid, {#mapData.terrainPixels} pixels`)
-
-	-- Clear existing terrain
-	terrainCanvas:ClearAllChildren()
-
-	local gridWidth = mapData.gridWidth
-	local gridHeight = mapData.gridHeight
-	local pixelIndex = 1
-
-	-- Create a grid of colored frames
-	for y = 1, gridHeight do
-		for x = 1, gridWidth do
-			local tileType = mapData.terrainPixels[pixelIndex]
-			local color = config.terrainColors[tileType] or Color3.fromRGB(128, 128, 128)
-
-			-- Create terrain pixel
-			local pixel = Instance.new("Frame")
-			pixel.Name = `Tile_{x}_{y}`
-			pixel.BorderSizePixel = 0
-			pixel.BackgroundColor3 = color
-
-			-- Position in grid (normalized 0-1)
-			local normalizedX = (x - 1) / gridWidth
-			local normalizedY = (y - 1) / gridHeight
-			local cellWidth = 1 / gridWidth
-			local cellHeight = 1 / gridHeight
-
-			pixel.Position = UDim2.fromScale(normalizedX, normalizedY)
-			pixel.Size = UDim2.fromScale(cellWidth, cellHeight)
-			pixel.Parent = terrainCanvas
-
-			pixelIndex = pixelIndex + 1
-		end
-	end
-
-	print(`[Minimap] ✓ Rendered {pixelIndex - 1} terrain tiles`)
+	renderTerrainToCanvas(terrainCanvas)
+	print(`[Minimap] ✓ Rendered terrain tiles`)
 end
 
 --- Render zone overlays (semi-transparent circles)
 local function renderZones()
-	if not zonesCanvas or not mapData or not config.showZones then
-		return
-	end
-
-	-- Clear existing zones
-	zonesCanvas:ClearAllChildren()
-
-	for _, zone in mapData.zones do
-		-- Convert zone center to normalized coordinates
-		local normalizedX = (zone.centerX - 1) / mapData.gridWidth
-		local normalizedY = (zone.centerY - 1) / mapData.gridHeight
-
-		-- Convert radius from studs to grid cells, then to normalized size
-		local radiusInCells = zone.radius / mapData.tileSize
-		local normalizedRadius = radiusInCells / mapData.gridWidth
-
-		-- Create zone circle
-		local zoneCircle = Instance.new("Frame")
-		zoneCircle.Name = `Zone_{zone.id}`
-		zoneCircle.BackgroundTransparency = config.zoneOutlineTransparency
-		zoneCircle.BackgroundColor3 = config.zoneOutlineColor
-		zoneCircle.BorderSizePixel = 0
-		zoneCircle.AnchorPoint = Vector2.new(0.5, 0.5)
-		zoneCircle.Position = UDim2.fromScale(normalizedX, normalizedY)
-		zoneCircle.Size = UDim2.fromScale(normalizedRadius * 2, normalizedRadius * 2)
-		zoneCircle.ZIndex = 2
-
-		-- Make it circular
-		local corner = Instance.new("UICorner")
-		corner.CornerRadius = UDim.new(1, 0)
-		corner.Parent = zoneCircle
-
-		zoneCircle.Parent = zonesCanvas
-	end
-
+	renderZonesToCanvas(zonesCanvas)
 	print(`[Minimap] ✓ Rendered {#mapData.zones} zone overlays`)
 end
 
 --- Render structure markers (icons)
 local function renderStructures()
-	if not structuresCanvas or not mapData then
-		return
-	end
-
-	-- Clear existing structures
-	structuresCanvas:ClearAllChildren()
-
-	for _, structure in mapData.structures do
-		local iconConfig = config.structureIcons[structure.structureType]
-		if not iconConfig then
-			continue
-		end
-
-		-- Convert grid position to normalized coordinates
-		local normalizedX = (structure.gridX - 1) / mapData.gridWidth
-		local normalizedY = (structure.gridY - 1) / mapData.gridHeight
-
-		-- Create structure marker (text label with emoji)
-		local marker = Instance.new("TextLabel")
-		marker.Name = `Structure_{structure.name}`
-		marker.Text = iconConfig.text
-		marker.TextColor3 = iconConfig.color
-		marker.TextSize = iconConfig.size
-		marker.Font = config.font
-		marker.BackgroundTransparency = 1
-		marker.BorderSizePixel = 0
-		marker.AnchorPoint = Vector2.new(0.5, 0.5)
-		marker.Position = UDim2.fromScale(normalizedX, normalizedY)
-		marker.Size = UDim2.fromOffset(iconConfig.size, iconConfig.size)
-		marker.ZIndex = 3
-		marker.Parent = structuresCanvas
-	end
-
+	renderStructuresToCanvas(structuresCanvas)
 	print(`[Minimap] ✓ Rendered {#mapData.structures} structure markers`)
 end
 
@@ -314,6 +220,211 @@ local function updatePlayerPositions()
 end
 
 -- ═══════════════════════════════════════════════════
+-- EXPANDED MAP FUNCTIONS
+-- ═══════════════════════════════════════════════════
+
+--- Render terrain to a specific canvas
+local function renderTerrainToCanvas(canvas: Frame)
+	if not canvas or not mapData then
+		return
+	end
+
+	canvas:ClearAllChildren()
+
+	local gridWidth = mapData.gridWidth
+	local gridHeight = mapData.gridHeight
+	local pixelIndex = 1
+
+	for y = 1, gridHeight do
+		for x = 1, gridWidth do
+			local tileType = mapData.terrainPixels[pixelIndex]
+			local color = config.terrainColors[tileType] or Color3.fromRGB(128, 128, 128)
+
+			local pixel = Instance.new("Frame")
+			pixel.Name = `Tile_{x}_{y}`
+			pixel.BorderSizePixel = 0
+			pixel.BackgroundColor3 = color
+
+			local normalizedX = (x - 1) / gridWidth
+			local normalizedY = (y - 1) / gridHeight
+			local cellWidth = 1 / gridWidth
+			local cellHeight = 1 / gridHeight
+
+			pixel.Position = UDim2.fromScale(normalizedX, normalizedY)
+			pixel.Size = UDim2.fromScale(cellWidth, cellHeight)
+			pixel.Parent = canvas
+
+			pixelIndex = pixelIndex + 1
+		end
+	end
+end
+
+--- Render zones to a specific canvas
+local function renderZonesToCanvas(canvas: Frame)
+	if not canvas or not mapData or not config.showZones then
+		return
+	end
+
+	canvas:ClearAllChildren()
+
+	for _, zone in mapData.zones do
+		local normalizedX = (zone.centerX - 1) / mapData.gridWidth
+		local normalizedY = (zone.centerY - 1) / mapData.gridHeight
+		local radiusInCells = zone.radius / mapData.tileSize
+		local normalizedRadius = radiusInCells / mapData.gridWidth
+
+		local zoneCircle = Instance.new("Frame")
+		zoneCircle.Name = `Zone_{zone.id}`
+		zoneCircle.BackgroundTransparency = config.zoneOutlineTransparency
+		zoneCircle.BackgroundColor3 = config.zoneOutlineColor
+		zoneCircle.BorderSizePixel = 0
+		zoneCircle.AnchorPoint = Vector2.new(0.5, 0.5)
+		zoneCircle.Position = UDim2.fromScale(normalizedX, normalizedY)
+		zoneCircle.Size = UDim2.fromScale(normalizedRadius * 2, normalizedRadius * 2)
+		zoneCircle.ZIndex = 2
+
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(1, 0)
+		corner.Parent = zoneCircle
+
+		zoneCircle.Parent = canvas
+	end
+end
+
+--- Render structures to a specific canvas
+local function renderStructuresToCanvas(canvas: Frame)
+	if not canvas or not mapData then
+		return
+	end
+
+	canvas:ClearAllChildren()
+
+	for _, structure in mapData.structures do
+		local iconConfig = config.structureIcons[structure.structureType]
+		if not iconConfig then
+			continue
+		end
+
+		local normalizedX = (structure.gridX - 1) / mapData.gridWidth
+		local normalizedY = (structure.gridY - 1) / mapData.gridHeight
+
+		local marker = Instance.new("TextLabel")
+		marker.Name = `Structure_{structure.name}`
+		marker.Text = iconConfig.text
+		marker.TextColor3 = iconConfig.color
+		marker.TextSize = iconConfig.size
+		marker.Font = config.font
+		marker.BackgroundTransparency = 1
+		marker.BorderSizePixel = 0
+		marker.AnchorPoint = Vector2.new(0.5, 0.5)
+		marker.Position = UDim2.fromScale(normalizedX, normalizedY)
+		marker.Size = UDim2.fromOffset(iconConfig.size, iconConfig.size)
+		marker.ZIndex = 3
+		marker.Parent = canvas
+	end
+end
+
+--- Expand the minimap to full screen
+local function expandMap()
+	if isExpanded or not config.expanded.enabled then
+		return
+	end
+
+	print("[Minimap] Expanding to full screen...")
+	isExpanded = true
+
+	-- Show and animate overlay
+	if overlayFrame then
+		overlayFrame.Visible = true
+		overlayFrame.BackgroundTransparency = 1
+
+		local overlayTween = TweenService:Create(
+			overlayFrame,
+			TweenInfo.new(config.expanded.animationDuration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{ BackgroundTransparency = config.expanded.overlayTransparency }
+		)
+		overlayTween:Play()
+	end
+
+	-- Show and animate expanded map
+	if expandedMapFrame then
+		expandedMapFrame.Visible = true
+		expandedMapFrame.Size = UDim2.fromScale(0.1, 0.1)
+
+		local mapTween = TweenService:Create(
+			expandedMapFrame,
+			TweenInfo.new(config.expanded.animationDuration, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+			{ Size = UIConfig.createUDim2(config.expanded.size) }
+		)
+		mapTween:Play()
+
+		-- Render to expanded canvases
+		renderTerrainToCanvas(expandedTerrainCanvas)
+		renderZonesToCanvas(expandedZonesCanvas)
+		renderStructuresToCanvas(expandedStructuresCanvas)
+	end
+
+	-- Show close button
+	if closeButton then
+		closeButton.Visible = true
+	end
+
+	print("[Minimap] ✓ Expanded")
+end
+
+--- Collapse the expanded map back to minimap
+local function collapseMap()
+	if not isExpanded then
+		return
+	end
+
+	print("[Minimap] Collapsing to minimap...")
+	isExpanded = false
+
+	-- Animate expanded map
+	if expandedMapFrame then
+		local mapTween = TweenService:Create(
+			expandedMapFrame,
+			TweenInfo.new(config.expanded.animationDuration, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+			{ Size = UDim2.fromScale(0.1, 0.1) }
+		)
+		mapTween:Play()
+		mapTween.Completed:Connect(function()
+			expandedMapFrame.Visible = false
+		end)
+	end
+
+	-- Animate overlay
+	if overlayFrame then
+		local overlayTween = TweenService:Create(
+			overlayFrame,
+			TweenInfo.new(config.expanded.animationDuration, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+			{ BackgroundTransparency = 1 }
+		)
+		overlayTween:Play()
+		overlayTween.Completed:Connect(function()
+			overlayFrame.Visible = false
+		end)
+	end
+
+	-- Hide close button
+	if closeButton then
+		closeButton.Visible = false
+	end
+
+	print("[Minimap] ✓ Collapsed")
+end
+
+--- Toggle between expanded and collapsed states
+local function toggleExpanded()
+	if isExpanded then
+		collapseMap()
+	else
+		expandMap()
+	end
+end
+
+-- ═══════════════════════════════════════════════════
 -- PUBLIC API
 -- ═══════════════════════════════════════════════════
 
@@ -381,9 +492,131 @@ function Minimap.create(parent: ScreenGui): Frame
 	playersCanvas.ZIndex = 4
 	playersCanvas.Parent = minimapFrame
 
+	-- Click detection for expansion
+	local minimapButton = Instance.new("TextButton")
+	minimapButton.Size = UDim2.fromScale(1, 1)
+	minimapButton.BackgroundTransparency = 1
+	minimapButton.Text = ""
+	minimapButton.ZIndex = 5
+	minimapButton.Parent = minimapFrame
+	minimapButton.MouseButton1Click:Connect(toggleExpanded)
+
 	minimapFrame.Parent = parent
 	Minimap.container = minimapFrame
 	Minimap.visible = true -- Set component state to visible
+
+	-- ═══════════════════════════════════════════════════
+	-- CREATE EXPANDED MAP
+	-- ═══════════════════════════════════════════════════
+
+	if config.expanded.enabled then
+		-- Overlay background
+		overlayFrame = Instance.new("Frame")
+		overlayFrame.Name = "MinimapOverlay"
+		overlayFrame.Size = UDim2.fromScale(1, 1)
+		overlayFrame.Position = UDim2.fromScale(0, 0)
+		overlayFrame.BackgroundColor3 = config.expanded.overlayColor
+		overlayFrame.BackgroundTransparency = config.expanded.overlayTransparency
+		overlayFrame.BorderSizePixel = 0
+		overlayFrame.ZIndex = 100
+		overlayFrame.Visible = false
+		overlayFrame.Parent = parent
+
+		-- Click overlay to close
+		if config.expanded.closeOnClickOutside then
+			local overlayButton = Instance.new("TextButton")
+			overlayButton.Size = UDim2.fromScale(1, 1)
+			overlayButton.BackgroundTransparency = 1
+			overlayButton.Text = ""
+			overlayButton.ZIndex = 100
+			overlayButton.Parent = overlayFrame
+			overlayButton.MouseButton1Click:Connect(collapseMap)
+		end
+
+		-- Expanded map frame
+		expandedMapFrame = Instance.new("Frame")
+		expandedMapFrame.Name = "ExpandedMap"
+		expandedMapFrame.Size = UIConfig.createUDim2(config.expanded.size)
+		expandedMapFrame.Position = UDim2.fromScale(0.5, 0.5)
+		expandedMapFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+		expandedMapFrame.BackgroundColor3 = config.backgroundColor
+		expandedMapFrame.BackgroundTransparency = config.backgroundTransparency
+		expandedMapFrame.BorderSizePixel = 0
+		expandedMapFrame.ZIndex = 101
+		expandedMapFrame.Visible = false
+		expandedMapFrame.Parent = parent
+
+		-- Border for expanded map
+		local expandedBorder = Instance.new("UIStroke")
+		expandedBorder.Color = config.borderColor
+		expandedBorder.Thickness = config.borderThickness
+		expandedBorder.Parent = expandedMapFrame
+
+		-- Corner radius for expanded map
+		local expandedCorner = Instance.new("UICorner")
+		expandedCorner.CornerRadius = UDim.new(0, config.cornerRadius)
+		expandedCorner.Parent = expandedMapFrame
+
+		-- Expanded terrain canvas
+		expandedTerrainCanvas = Instance.new("Frame")
+		expandedTerrainCanvas.Name = "ExpandedTerrainCanvas"
+		expandedTerrainCanvas.Size = UDim2.fromScale(1, 1)
+		expandedTerrainCanvas.BackgroundTransparency = 1
+		expandedTerrainCanvas.BorderSizePixel = 0
+		expandedTerrainCanvas.ZIndex = 101
+		expandedTerrainCanvas.ClipsDescendants = true
+		expandedTerrainCanvas.Parent = expandedMapFrame
+
+		-- Expanded zones canvas
+		expandedZonesCanvas = Instance.new("Frame")
+		expandedZonesCanvas.Name = "ExpandedZonesCanvas"
+		expandedZonesCanvas.Size = UDim2.fromScale(1, 1)
+		expandedZonesCanvas.BackgroundTransparency = 1
+		expandedZonesCanvas.BorderSizePixel = 0
+		expandedZonesCanvas.ZIndex = 102
+		expandedZonesCanvas.Parent = expandedMapFrame
+
+		-- Expanded structures canvas
+		expandedStructuresCanvas = Instance.new("Frame")
+		expandedStructuresCanvas.Name = "ExpandedStructuresCanvas"
+		expandedStructuresCanvas.Size = UDim2.fromScale(1, 1)
+		expandedStructuresCanvas.BackgroundTransparency = 1
+		expandedStructuresCanvas.BorderSizePixel = 0
+		expandedStructuresCanvas.ZIndex = 103
+		expandedStructuresCanvas.Parent = expandedMapFrame
+
+		-- Expanded players canvas
+		expandedPlayersCanvas = Instance.new("Frame")
+		expandedPlayersCanvas.Name = "ExpandedPlayersCanvas"
+		expandedPlayersCanvas.Size = UDim2.fromScale(1, 1)
+		expandedPlayersCanvas.BackgroundTransparency = 1
+		expandedPlayersCanvas.BorderSizePixel = 0
+		expandedPlayersCanvas.ZIndex = 104
+		expandedPlayersCanvas.Parent = expandedMapFrame
+
+		-- Close button
+		closeButton = Instance.new("TextButton")
+		closeButton.Name = "CloseButton"
+		closeButton.Size = UDim2.fromOffset(config.expanded.closeButton.size, config.expanded.closeButton.size)
+		closeButton.Position = UDim2.new(1, -10, 0, 10)
+		closeButton.AnchorPoint = Vector2.new(1, 0)
+		closeButton.BackgroundColor3 = config.expanded.closeButton.backgroundColor
+		closeButton.Text = config.expanded.closeButton.text
+		closeButton.TextColor3 = config.expanded.closeButton.color
+		closeButton.TextSize = config.expanded.closeButton.textSize
+		closeButton.Font = Enum.Font.GothamBold
+		closeButton.ZIndex = 105
+		closeButton.Visible = false
+		closeButton.Parent = expandedMapFrame
+		closeButton.MouseButton1Click:Connect(collapseMap)
+
+		-- Close button styling
+		local closeCorner = Instance.new("UICorner")
+		closeCorner.CornerRadius = UDim.new(0.5, 0)
+		closeCorner.Parent = closeButton
+
+		print("[Minimap] ✓ Expanded map frames created")
+	end
 
 	-- Set up RemoteEvent listeners
 	local RemoteEvents = RemoteEventsModule.Events
@@ -420,6 +653,16 @@ function Minimap.create(parent: ScreenGui): Frame
 		if gameProcessed then
 			return
 		end
+
+		-- ESC to close expanded map
+		if config.expanded.enabled and config.expanded.closeOnEscape and input.KeyCode == Enum.KeyCode.Escape then
+			if isExpanded then
+				collapseMap()
+				return
+			end
+		end
+
+		-- M to toggle minimap visibility
 		if input.KeyCode == config.toggleKey then
 			Minimap.toggle()
 		end
